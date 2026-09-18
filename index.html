@@ -119,9 +119,10 @@ async function googleCredentialLogin(credential){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({credential})
     });
-    if(d.token)localStorage.setItem('cime5Token',d.token);
+    if(!d.token)throw Error('O Google não devolveu a sessão do Cime.');
+    localStorage.setItem('cime5Token',d.token);
     setGoogleState('✅ Login realizado. Abrindo sua biblioteca…','ok');
-    location.assign('/app');
+    location.assign('/app?token='+encodeURIComponent(d.token));
   }catch(e){
     setGoogleState('❌ '+e.message,'bad');
   }
@@ -209,9 +210,10 @@ async function goLogin(){
   try{
     if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
     const d=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-    if(d.token)localStorage.setItem('cime5Token',d.token);
+    if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
+    localStorage.setItem('cime5Token',d.token);
     setMsg($('lm'),'✅ Login realizado. Abrindo sua biblioteca…','ok');
-    location.assign('/app');
+    location.assign('/app?token='+encodeURIComponent(d.token));
   }catch(e){
     setMsg($('lm'),'❌ '+e.message,'bad');
     $('loginBtn').disabled=false;
@@ -226,9 +228,10 @@ async function goReg(){
   try{
     if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
     const d=await api('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,display_name:name})});
-    if(d.token)localStorage.setItem('cime5Token',d.token);
+    if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
+    localStorage.setItem('cime5Token',d.token);
     setMsg($('rm'),'✅ Conta criada. Abrindo sua biblioteca…','ok');
-    setTimeout(()=>location.assign('/app'),250);
+    setTimeout(()=>location.assign('/app?token='+encodeURIComponent(d.token)),250);
   }catch(e){
     setMsg($('rm'),'❌ '+e.message,'bad');
     $('regBtn').disabled=false;
