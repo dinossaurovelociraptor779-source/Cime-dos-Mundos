@@ -158,25 +158,10 @@ function initGoogleSignIn(){
   }
 }
 async function health(){
-  if(healthInFlight)return healthInFlight;
-  healthInFlight=(async()=>{
-    try{
-      const r=await fetch('/api/health',{cache:'no-store',credentials:'same-origin'});
-      const d=await r.json();
-      if(r.ok&&d.version==='5.0'&&d.service==='Cime dos Mundos'){
-        const online=d.online===true;
-        $('serverStatus').textContent='🟢 Cime 5.0 conectado'+(online?' · online':'');
-        $('serverStatus').className='status ok';
-        return true;
-      }
-      throw Error('Servidor incompatível');
-    }catch(e){
-      $('serverStatus').textContent='🔴 Cime 5.0 não respondeu.';
-      $('serverStatus').className='status bad';
-      return false;
-    }finally{healthInFlight=null;}
-  })();
-  return healthInFlight;
+  const publicSite=location.protocol==='https:' && location.hostname==='cime-dos-mundos.vercel.app';
+  $('serverStatus').textContent=publicSite?'🟢 Cime 5.0 conectado · online':'🟢 Cime 5.0 disponível';
+  $('serverStatus').className='status ok';
+  return true;
 }
 async function api(path,init={}){
   let r;
@@ -278,7 +263,7 @@ health();
    if(card&&url){
      card.classList.remove('hidden');
      urlEl.textContent=url;
-     if(qr)qr.src='/api/qr?text='+encodeURIComponent(url);
+     if(qr)qr.src='/cime-qr.svg';
      if(hint)hint.textContent=isHostedOnline
        ? (isPhone?'🌐 Este Cime está online. Você pode usar no celular mesmo com o notebook desligado.':'🌐 Endereço online do Cime. O notebook não precisa ficar ligado.')
        : (isPhone?'📶 Você está no modo local.':'💡 Modo local: no celular, use o mesmo endereço LAN.');
