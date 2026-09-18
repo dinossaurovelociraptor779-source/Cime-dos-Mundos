@@ -95,74 +95,126 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <script>const _g=new URLSearchParams(location.search).get("group_share");if(_g)localStorage.setItem("cime5GroupShare",_g);</script><script>
 const $=id=>document.getElementById(id);
 let healthInFlight=null;
+
+function setMsg(el,text,cls=''){
+  if(!el)return;
+  el.textContent=text||'';
+  el.className='msg '+cls;
+}
+function setGoogleState(text,cls=''){
+  const el=$('googleState');
+  if(el){el.textContent=text;el.className='google-state '+cls;}
+}
 function setGoogleOriginHint(){
   const el=$('googleOriginHint');
   if(el)el.textContent='🔐 Login Google pelo servidor · '+location.origin+'/oauth/google/callback';
 }
-function setGoogleOriginHint(){const el=$('googleOriginHint');if(el)el.textContent=(location.protocol==='https:'?'🔐 Origem deste site: '+location.origin:'🔐 Modo local: registre a origem HTTPS do deploy no Google Cloud.');}
-function setMsg(el, text, cls=''){ if(!el)return; el.textContent=text||''; el.className='msg '+cls; }
-function setGoogleState(text, cls=''){const el=$('googleState'); if(el){el.textContent=text; el.className='google-state '+cls;}}
+async function health(){
+  if(healthInFlight)return healthInFlight;
+  healthInFlight=(async()=>{
+    try{
+      const r=await fetch('/api/health',{cache:'no-store',credentials:'same-origin'});
+      const d=await r.json();
+      if(r.ok&&d.version==='5.0'&&d.service==='Cime dos Mundos'){
+        const online=d.online===true;
+        $('serverStatus').textContent='🟢 Cime 5.0 conectado'+(online?' · online':'');
+        $('serverStatus').className='status ok';
+        return true;
+      }
+      throw Error('Servidor incompatível');
+    }catch(e){
+      $('serverStatus').textContent='🔴 Cime 5.0 não respondeu.';
+      $('serverStatus').className='status bad';
+      return false;
+    }finally{healthInFlight=null;}
+  })();
+  return healthInFlight;
+}
+async function api(path,init={}){
+  let r;
+  try{
+    r=await fetch(path,{credentials:'same-origin',cache:'no-store',...init});
+  }catch(e){
+    throw Error('Não foi possível conectar ao Cime 5.0.');
+  }
+  const ct=r.headers.get('content-type')||'';
+  const t=await r.text();
+  let d={};
+  try{d=ct.includes('application/json')&&t?JSON.parse(t):{};}catch(_){}
+  if(!r.ok)throw Error(d.error||d.message||('Servidor respondeu HTTP '+r.status));
+  return d;
+}
 function bindPasswordToggle(inputId,buttonId){
-  const input=$(inputId),btn=$(buttonId); if(!input||!btn)return;
-  btn.addEventListener('click',()=>{const visible=input.type==='text';input.type=visible?'password':'text';btn.textContent=visible?'◉':'◌';btn.setAttribute('aria-label',visible?'Mostrar senha':'Ocultar senha');});
+  const input=$(inputId),btn=$(buttonId);
+  if(!input||!btn)return;
+  btn.addEventListener('click',()=>{
+    const visible=input.type==='text';
+    input.type=visible?'password':'text';
+    btn.textContent=visible?'◉':'◌';
+    btn.setAttribute('aria-label',visible?'Mostrar senha':'Ocultar senha');
+  });
 }
 async function goLogin(){
   const email=$('le').value.trim(),password=$('lp').value;
   if(!email||!password){setMsg($('lm'),'❌ Preencha e-mail e senha.','bad');return;}
-  $('loginBtn').disabled=true; setMsg($('lm'),'Entrando…');
+  $('loginBtn').disabled=true;
+  setMsg($('lm'),'Entrando…');
   try{
     if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
     const d=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     if(d.token)localStorage.setItem('cime5Token',d.token);
     setMsg($('lm'),'✅ Login realizado. Abrindo sua biblioteca…','ok');
     location.assign('/app');
-  }catch(e){setMsg($('lm'),'❌ '+e.message,'bad');$('loginBtn').disabled=false;}
+  }catch(e){
+    setMsg($('lm'),'❌ '+e.message,'bad');
+    $('loginBtn').disabled=false;
+  }
 }
 async function goReg(){
   const name=$('rn').value.trim(),email=$('re').value.trim(),password=$('rp').value;
   if(!name||!email||!password){setMsg($('rm'),'❌ Preencha nome, e-mail e senha.','bad');return;}
   if(password.length<8){setMsg($('rm'),'❌ A senha precisa ter pelo menos 8 caracteres.','bad');return;}
-  $('regBtn').disabled=true; setMsg($('rm'),'Criando sua conta…');
+  $('regBtn').disabled=true;
+  setMsg($('rm'),'Criando sua conta…');
   try{
     if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
     const d=await api('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,display_name:name})});
     if(d.token)localStorage.setItem('cime5Token',d.token);
     setMsg($('rm'),'✅ Conta criada. Abrindo sua biblioteca…','ok');
     setTimeout(()=>location.assign('/app'),250);
-  }catch(e){setMsg($('rm'),'❌ '+e.message,'bad');$('regBtn').disabled=false;}
-}
-function googleCallback(resp){
-  const credential=resp&&resp.credential;
-  if(!credential){setMsg($('lm'),'❌ O Google não retornou uma credencial. Tente novamente.','bad');return;}
-  $('googleBtn').disabled=true;setGoogleState('Validando sua conta Google…');setMsg($('lm'),'🔐 Validando sua conta Google…');
-  api('/api/auth/google/credential',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential})})
-   .then(d=>{if(d.token)localStorage.setItem('cime5Token',d.token);setGoogleState('Google conectado.','ok');setMsg($('lm'),'✅ Google conectado. Abrindo sua biblioteca…','ok');setTimeout(()=>location.assign('/app'),150);})
-   .catch(e=>{setGoogleState('Não foi possível concluir o login.','bad');setMsg($('lm'),'❌ '+e.message+' No Google Cloud, autorize a origem '+location.origin+' em Origens JavaScript autorizadas.','bad');$('googleBtn').disabled=false;});
-}
-function renderGoogle(){
-  if(googleInit)return;
-  if(!(window.google&&google.accounts&&google.accounts.id)){setTimeout(renderGoogle,400);return;}
-  googleInit=true;
-  google.accounts.id.initialize({client_id:googleClientId,callback:googleCallback,auto_select:false,cancel_on_tap_outside:true});
-  const host=$('googleOfficial'),fallback=$('googleBtn');
-  host.classList.remove('hidden'); host.innerHTML=''; if(fallback)fallback.classList.add('hidden');
-  try{
-    const width=Math.min(420,Math.max(240,host.clientWidth||320));
-    google.accounts.id.renderButton(host,{type:'standard',theme:'outline',size:'large',text:'continue_with',shape:'rectangular',width,logo_alignment:'left'});
-    setGoogleState('Google disponível para entrar.','ok');
   }catch(e){
-    googleInit=false;host.classList.add('hidden');
-    if(fallback){fallback.classList.remove('hidden');fallback.onclick=()=>{try{google.accounts.id.prompt()}catch(_){}};}
-    setGoogleState('Botão oficial indisponível.','bad');
+    setMsg($('rm'),'❌ '+e.message,'bad');
+    $('regBtn').disabled=false;
   }
 }
-$('tl').onclick=()=>{$('login').classList.remove('hidden');$('reg').classList.add('hidden');$('tl').classList.add('active');$('tr').classList.remove('active');setMsg($('lm'),'');};
-$('tr').onclick=()=>{$('reg').classList.remove('hidden');$('login').classList.add('hidden');$('tr').classList.add('active');$('tl').classList.remove('active');setMsg($('rm'),'');};
-$('loginBtn').onclick=goLogin;$('regBtn').onclick=goReg;
-['le','lp'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')goLogin()}));
-['rn','re','rp'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')goReg()}));
-bindPasswordToggle('lp','toggleLp');bindPasswordToggle('rp','toggleRp');
-setGoogleOriginHint();health().then(setupGoogle);
+$('tl').onclick=()=>{
+  $('login').classList.remove('hidden');
+  $('reg').classList.add('hidden');
+  $('tl').classList.add('active');
+  $('tr').classList.remove('active');
+  setMsg($('lm'),'');
+};
+$('tr').onclick=()=>{
+  $('reg').classList.remove('hidden');
+  $('login').classList.add('hidden');
+  $('tr').classList.add('active');
+  $('tl').classList.remove('active');
+  setMsg($('rm'),'');
+};
+$('loginBtn').onclick=goLogin;
+$('regBtn').onclick=goReg;
+['le','lp'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')goLogin();}));
+['rn','re','rp'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')goReg();}));
+bindPasswordToggle('lp','toggleLp');
+bindPasswordToggle('rp','toggleRp');
+
+$('googleServerBtn')?.addEventListener('click',()=>{
+  setGoogleState('Abrindo o login seguro do Google…','ok');
+  location.assign('/oauth/google/start');
+});
+
+setGoogleOriginHint();
+health();
 </script>
 <script id="c5-mobile-access-js">
 (async function(){
