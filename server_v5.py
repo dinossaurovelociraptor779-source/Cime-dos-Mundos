@@ -275,19 +275,21 @@ def clear_session_cookie(handler):
     handler.send_header('Set-Cookie', 'cime5_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax')
 
 def get_user(handler):
-    h=handler.headers.get('Authorization',''); raw=h[7:].strip() if h.startswith('Bearer ') else ''
-    if not raw:
-        raw=_cookie_token(handler)
-    # Vercel can normalize/strip Authorization on rewritten function requests.
-    # For the protected app bootstrap, also accept the signed handoff token
-    # explicitly supplied as ?token=... by the login flow.
-    if not raw:
-        try:
-            qtok=str(parse_qs(urlparse(handler.path).query).get('token',[''])[0] or '').strip()
-            if qtok and handler.path.split('?',1)[0].rstrip('/') in ('/api/bootstrap','/api/auth/status'):
-                raw=qtok
-        except Exception:
-            pass
+    route=handler.path.split('?',1)[0].rstrip('/') or '/'
+    # For the OAuth handoff, a fresh ?token=... must take priority over any
+    # stale Authorization header left in localStorage from an earlier session.
+    qtok=''
+    try:
+        qtok=str(parse_qs(urlparse(handler.path).query).get('token',[''])[0] or '').strip()
+    except Exception:
+        qtok=''
+    h=handler.headers.get('Authorization',''); auth_raw=h[7:].strip() if h.startswith('Bearer ') else ''
+    if route in ('/api/bootstrap','/api/auth/status') and qtok:
+        raw=qtok
+    else:
+        raw=auth_raw or _cookie_token(handler)
+        if not raw and route in ('/api/bootstrap','/api/auth/status'):
+            raw=qtok
     if not raw: return None
     token_hash=hashlib.sha256(raw.encode()).hexdigest()
     c=auth_db()
