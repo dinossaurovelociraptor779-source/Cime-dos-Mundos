@@ -11,6 +11,8 @@ os.environ.setdefault("CIME_PORT", "80")
 os.environ.setdefault("CIME_BIND", "0.0.0.0")
 os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
 
+import threading
+
 import server_v5 as cime
 from server_v5 import Gateway, bootstrap
 
@@ -31,9 +33,42 @@ if _public:
     cime.public_lan_base = lambda: _public
     os.environ['GOOGLE_REDIRECT_URI'] = _public + '/oauth/google/callback'
 
-bootstrap()
+_BOOT_LOCK = threading.Lock()
+_BOOT_DONE = False
+
+def _ensure_bootstrap():
+    global _BOOT_DONE
+    if _BOOT_DONE:
+        return
+    with _BOOT_LOCK:
+        if not _BOOT_DONE:
+            bootstrap()
+            _BOOT_DONE = True
 
 # Keep an explicit subclass named "handler": this is the Python entry-point
 # format documented by Vercel for BaseHTTPRequestHandler functions.
 class handler(Gateway):
-    pass
+    def _needs_bootstrap(self):
+        path = self.path.split('?',1)[0].rstrip('/') or '/'
+        return path not in ('/api/health', '/health')
+
+    def do_GET(self):
+        if self._needs_bootstrap():
+            _ensure_bootstrap()
+        return super().do_GET()
+
+    def do_POST(self):
+        _ensure_bootstrap()
+        return super().do_POST()
+
+    def do_PUT(self):
+        _ensure_bootstrap()
+        return super().do_PUT()
+
+    def do_PATCH(self):
+        _ensure_bootstrap()
+        return super().do_PATCH()
+
+    def do_DELETE(self):
+        _ensure_bootstrap()
+        return super().do_DELETE()
