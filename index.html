@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0d15"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<title>🌌 Cime dos Mundos 5.0 BETA</title><meta name="version" content="5.0"><meta http-equiv="Cache-Control" content="no-store">
+<style>
+:root{color-scheme:dark;--bg:#05070d;--bg2:#0a0e18;--surface:rgba(14,19,31,.82);--surface2:rgba(19,26,42,.9);--line:rgba(148,163,184,.16);--line2:rgba(148,163,184,.24);--text:#f7f9ff;--muted:#98a5bb;--accent:#8b5cf6;--accent2:#22d3ee;--ok:#34d399;--warn:#fbbf24;--danger:#fb7185;--shadow:0 32px 90px rgba(0,0,0,.42)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(900px 500px at 10% -10%,rgba(124,58,237,.26),transparent 60%),radial-gradient(800px 500px at 95% 5%,rgba(34,211,238,.12),transparent 58%),linear-gradient(180deg,#060810 0%,#05070d 56%,#03050a 100%);overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.45;background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(to bottom,black,transparent 75%)}
+button,input{font:inherit}button{border:0;cursor:pointer;color:inherit}a{color:inherit;text-decoration:none}
+header{max-width:1240px;margin:auto;padding:28px 24px 22px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid var(--line);border-radius:20px;background:rgba(9,13,23,.68);backdrop-filter:blur(18px);box-shadow:0 16px 50px rgba(0,0,0,.18)}.brand{display:flex;align-items:center;gap:12px}.brand-mark{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#9b7bff,#5b21b6);box-shadow:0 10px 28px rgba(124,58,237,.3);font-size:22px}.brand h1{margin:0;font-size:16px;letter-spacing:-.02em}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;border:1px solid var(--line2);border-radius:999px;padding:7px 10px;color:#dbe7ff;background:rgba(255,255,255,.03)}.top-actions{display:flex;gap:8px;align-items:center}.top-chip{font-size:11px;color:#bcc8db;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.025)}
+main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(390px,.85fr);gap:22px;align-items:stretch}.card{position:relative;background:linear-gradient(180deg,rgba(14,19,31,.9),rgba(7,11,20,.94));border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow);backdrop-filter:blur(20px)}.hero{padding:38px;overflow:hidden}.hero:after{content:"";position:absolute;width:320px;height:320px;right:-120px;top:-120px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.22),transparent 70%);pointer-events:none}.hero-kicker{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid rgba(167,139,250,.25);background:rgba(139,92,246,.08);color:#ddd6fe;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.hero h2{font-size:clamp(32px,4vw,54px);line-height:1.03;letter-spacing:-.045em;margin:18px 0 14px;max-width:680px}.hero h2 span{background:linear-gradient(90deg,#fff,#c4b5fd,#67e8f9);-webkit-background-clip:text;background-clip:text;color:transparent}.hero p{color:#aab6cb;line-height:1.7;max-width:680px;margin:0}.hero-pills{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}.hero-pill{padding:8px 11px;border-radius:999px;background:rgba(255,255,255,.035);border:1px solid var(--line);color:#cbd5e1;font-size:11px}.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:28px}.feature{padding:16px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(16,23,38,.74),rgba(10,15,25,.76));transition:.2s transform,.2s border-color,.2s background}.feature:hover{transform:translateY(-2px);border-color:var(--line2);background:linear-gradient(180deg,rgba(20,29,49,.86),rgba(10,15,25,.84))}.feature-icon{font-size:19px}.feature b{display:block;margin:8px 0 4px;font-size:13px}.feature span{font-size:12px;line-height:1.55;color:var(--muted)}.hero-foot{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:26px;padding-top:18px;border-top:1px solid var(--line);color:#8491a8;font-size:11px}.secure-note{display:flex;align-items:center;gap:7px}
+.auth-card{padding:24px}.auth-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:18px}.auth-title{font-size:25px;font-weight:850;letter-spacing:-.025em}.auth-sub{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.55}.online-dot{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#a7f3d0;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.15);padding:7px 9px;border-radius:999px;white-space:nowrap}.online-dot:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.08)}
+.status{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.025);border:1px solid var(--line);font-size:11px;margin-bottom:14px;color:#b9c5d9}.status.ok{color:#a7f3d0;border-color:rgba(52,211,153,.2);background:rgba(52,211,153,.06)}.status.bad{color:#fecdd3;border-color:rgba(251,113,133,.2);background:rgba(251,113,133,.06)}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:14px;margin-bottom:18px}.tab{padding:10px 12px;border-radius:10px;background:transparent;color:#9eabc2;font-weight:800;font-size:12px}.tab.active{color:#fff;background:linear-gradient(135deg,rgba(139,92,246,.92),rgba(109,40,217,.92));box-shadow:0 8px 18px rgba(109,40,217,.22)}.field{display:flex;flex-direction:column;gap:7px;margin:12px 0}.field label{font-size:11px;color:#c4cedd;font-weight:750}.field input{width:100%;padding:13px 14px;border-radius:13px;border:1px solid var(--line2);background:rgba(6,10,18,.8);color:#fff;outline:none;transition:.18s border-color,.18s box-shadow,.18s background}.field input::placeholder{color:#58657a}.field input:focus{border-color:rgba(139,92,246,.8);background:rgba(8,12,22,.96);box-shadow:0 0 0 4px rgba(139,92,246,.1)}.btn{width:100%;min-height:45px;padding:12px 14px;border-radius:13px;background:#182235;border:1px solid var(--line2);font-weight:800;font-size:12px;transition:.18s transform,.18s filter,.18s background}.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}.btn:active{transform:translateY(0)}.btn.primary{background:linear-gradient(135deg,#8b5cf6,#6d28d9 65%,#5b21b6);border-color:#a78bfa;box-shadow:0 12px 26px rgba(109,40,217,.25)}.btn.google{background:#fff;color:#111827;border-color:#e5e7eb}.btn.google:hover{background:#f8fafc}.divider{display:flex;align-items:center;gap:10px;color:#6f7b90;font-size:10px;margin:17px 0}.divider:before,.divider:after{content:"";height:1px;background:var(--line);flex:1}
+.google-box{margin-top:4px;padding:16px;border-radius:19px;border:1px solid rgba(255,255,255,.11);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}.google-head{display:flex;align-items:center;gap:11px;margin-bottom:13px}.google-logo{width:40px;height:40px;border-radius:13px;background:#fff;display:grid;place-items:center;font-size:21px;font-weight:900;box-shadow:0 10px 20px rgba(0,0,0,.18);position:relative}.google-logo:after{content:"";position:absolute;inset:-1px;border-radius:14px;border:1px solid rgba(255,255,255,.7)}.google-title{font-weight:850;font-size:13px}.google-sub{font-size:11px;color:#7f8ba0;margin-top:2px}.google-wrap{display:flex;justify-content:center;min-height:46px}.google-wrap>div{width:100%;display:flex;justify-content:center}.google-official-frame{padding:7px;border-radius:15px;background:linear-gradient(180deg,#fff,#f7f8fb);border:1px solid #d8dde7;display:flex;justify-content:center;align-items:center;min-height:44px;box-shadow:0 8px 18px rgba(0,0,0,.12)}.google-note{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;font-size:10px;color:#7f8ba0;text-align:center;line-height:1.45}.google-note:before{content:"🔒";font-size:10px}.msg{min-height:22px;margin-top:11px;font-size:11px;line-height:1.5}.ok{color:#a7f3d0}.bad{color:#fecdd3}.fine{font-size:10px;color:#748198;margin-top:15px;line-height:1.55}.hint-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px;font-size:10px;color:#748198}.hidden{display:none!important}.auth-footer{display:flex;justify-content:center;gap:10px;align-items:center;margin-top:16px;color:#6e7b90;font-size:10px}.auth-footer .dot{width:3px;height:3px;border-radius:50%;background:#415066}
+@media(max-width:900px){.portal{grid-template-columns:1fr}.hero{padding:28px}.auth-card{padding:22px}.top-actions{display:none}}@media(max-width:580px){header{padding:16px 14px 14px}.topbar{border-radius:16px;padding:10px}.brand-mark{width:40px;height:40px}.brand h1{font-size:14px}.brand p{font-size:10px}main{padding:0 14px 34px}.hero h2{font-size:36px}.hero{padding:22px}.feature-grid{grid-template-columns:1fr}.hero-foot{align-items:flex-start;flex-direction:column}.auth-card{padding:18px}.badge.top-chip{display:none}}
+
+.divider span{white-space:nowrap}.input-wrap{position:relative}.input-wrap input{padding-right:46px}.eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:10px;background:transparent;color:#7e8ca4;border:1px solid transparent}.eye:hover{color:#dbe7ff;background:rgba(255,255,255,.04)}.eye:focus-visible,.tab:focus-visible,.btn:focus-visible{outline:2px solid #a78bfa;outline-offset:2px}.google-state{font-size:10px;color:#718096;text-align:center;margin:-4px 0 8px;min-height:16px}.google-state.ok{color:#86efac}.google-state.bad{color:#fda4af}.google-box{transition:.2s border-color,.2s box-shadow,.2s transform}.google-box:hover{border-color:rgba(167,139,250,.22);box-shadow:0 14px 34px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.05)}.google-logo{font-family:Arial,sans-serif;background:linear-gradient(145deg,#fff,#f2f4f8);color:#4285f4}.google-logo:before{content:"";position:absolute;inset:8px;border-radius:7px;background:linear-gradient(135deg,#4285f4 0 25%,#34a853 25% 50%,#fbbc05 50% 75%,#ea4335 75%);opacity:.08}.google-official-frame{width:100%;overflow:hidden}.msg:empty{display:none}.btn:disabled{cursor:not-allowed;opacity:.66;transform:none!important;filter:none!important}.status{transition:.2s}.auth-card{overflow:hidden}.auth-card:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(500px 200px at 100% 0,rgba(139,92,246,.07),transparent 70%)}
+
+
+.google-box{position:relative;overflow:hidden;margin-top:6px;padding:18px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02));box-shadow:0 16px 34px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.05)}
+.google-wrap{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px}
+.google-official-frame{width:100%;max-width:420px;min-height:48px;padding:0;border-radius:14px;background:transparent;border:0;box-shadow:none;overflow:hidden;display:flex;justify-content:center;align-items:center}
+.google-official-frame>div{max-width:100%!important}.google-official-frame iframe{max-width:100%!important}
+.google-fallback{margin:0;max-width:420px;background:#fff;color:#1f2937;border:1px solid #dbe1ea;box-shadow:0 8px 20px rgba(0,0,0,.1)}
+.google-title{font-size:14px}.google-sub{max-width:330px;line-height:1.45}
+.btn,.tab,.eye,.google-official-frame{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@media(max-width:580px){.google-box{padding:15px}.google-wrap{min-height:52px}.google-official-frame{max-width:100%}}
+</style>
+<style id="c5-index-mobile-pro">
+@media(max-width:580px){body{background:#04070d}body:before{opacity:.18;background-size:40px 40px}.topbar{position:sticky;top:8px;z-index:30}.portal{gap:12px}.hero h2{font-size:32px}.hero-pills{gap:6px}.hero-pill{font-size:10px;padding:7px 9px}.auth-card{border-radius:22px}.field input{min-height:50px;font-size:16px}.btn{min-height:50px}.tabs .tab{min-height:46px}.google-box{border-radius:16px}.feature{padding:14px}.hero{padding:20px}}
+</style>
+
+<style id="c5-mobile-access">
+.mobile-access-card{margin:0 0 14px;padding:14px;border-radius:18px;border:1px solid rgba(34,211,238,.17);background:linear-gradient(180deg,rgba(15,29,45,.9),rgba(9,16,27,.94));box-shadow:0 12px 30px rgba(0,0,0,.14)}.mobile-access-title{font-weight:850;font-size:13px}.mobile-access-sub,.mobile-access-hint{color:#8ea0ba;font-size:10px;line-height:1.5;margin-top:3px}.mobile-access-row{display:grid;grid-template-columns:1fr 104px;gap:12px;align-items:center;margin-top:12px}.mobile-access-url{padding:10px 11px;border-radius:11px;border:1px solid rgba(148,163,184,.16);background:#070d16;color:#dbe7ff;font-size:11px;word-break:break-all;margin-bottom:8px}.mobile-copy{min-height:42px!important}.mobile-access-qr{width:104px;height:104px;padding:7px;background:#fff;border-radius:14px;object-fit:contain}.mobile-access-card.hidden{display:none!important}@media(max-width:580px){.mobile-access-card{padding:12px}.mobile-access-row{grid-template-columns:1fr 88px;gap:9px}.mobile-access-qr{width:88px;height:88px}.mobile-copy{min-height:48px!important}.mobile-access-url{font-size:10px}}
+</style>
+<style id="cime-mobile-login-v2">@media(max-width:720px){html,body{min-height:100%;overflow-x:hidden;overflow-y:auto}body{background:radial-gradient(760px 420px at 50% -160px,rgba(124,58,237,.26),transparent 70%),linear-gradient(180deg,#060810 0%,#05070d 100%)}body:before{opacity:.16;background-size:44px 44px}header{padding:14px 12px 8px}.topbar{border:0;border-radius:16px;padding:8px 6px;background:rgba(10,14,23,.72);backdrop-filter:none;box-shadow:none}.brand{gap:9px}.brand-mark{width:38px;height:38px;border-radius:12px;font-size:19px}.brand h1{font-size:13px}.brand p{font-size:9px}.top-actions{display:none!important}main{padding:0 12px 34px;max-width:none}.portal{display:flex!important;flex-direction:column!important;gap:12px!important;align-items:stretch!important}.auth-card{order:1;padding:16px;border-radius:22px;box-shadow:0 16px 42px rgba(0,0,0,.28);backdrop-filter:none}.hero{order:2;padding:18px;border-radius:22px;overflow:visible;box-shadow:none;backdrop-filter:none}.auth-head{margin-bottom:12px}.auth-title{font-size:22px}.auth-sub{font-size:11px}.status{font-size:11px;margin:5px 0 10px}.mobile-access-card{padding:12px!important;margin-bottom:12px!important;border-radius:16px!important}.tabs{margin:10px 0 12px}.tab{min-height:43px!important;font-size:12px!important}.field{margin-bottom:10px}.field label{font-size:10px}.field input{min-height:48px!important;font-size:16px!important;border-radius:14px!important}.btn{min-height:49px!important;font-size:13px!important;border-radius:14px!important}.google-box{padding:13px;border-radius:16px}.google-title{font-size:12px}.google-sub{font-size:10px}.google-note{font-size:9px}.hint-row{font-size:9px}.auth-footer{margin-top:13px;font-size:9px}.hero h2{font-size:31px;margin:8px 0 10px;max-width:100%}.hero p{font-size:12px;line-height:1.6}.hero-pills{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px;margin:15px -2px 16px;scrollbar-width:none}.hero-pills::-webkit-scrollbar{display:none}.hero-pill{white-space:nowrap;flex:0 0 auto;font-size:10px}.feature-grid{display:flex!important;overflow-x:auto;gap:9px;margin:0 -2px;padding:2px 2px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}.feature-grid::-webkit-scrollbar{display:none}.feature{flex:0 0 78%;min-width:78%;scroll-snap-align:start;padding:14px;border-radius:17px}.feature span{font-size:11px}.hero-foot{margin-top:16px;padding-top:13px;font-size:9px}}</style>
+<style id="cime-mobile-login-final-polish">
+@media (max-width:720px){
+  html,body{height:auto!important;min-height:100%!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:auto!important}
+  body{display:block!important;padding:0!important}
+  body:before{position:absolute!important;inset:0 0 auto 0!important;min-height:100%!important;height:100%!important;pointer-events:none!important}
+  header{position:static!important;top:auto!important;height:auto!important;min-height:0!important;overflow:visible!important}
+  .topbar{position:static!important;top:auto!important;z-index:auto!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  main{position:static!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;padding-bottom:48px!important}
+  .portal{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:14px!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
+  .auth-card,.hero{position:relative!important;order:initial!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;flex:none!important}
+  .auth-card{order:1!important}
+  .hero{order:2!important}
+  .auth-footer{padding-bottom:3px}
+  .hero-foot{padding-bottom:2px}
+}
+</style>
+
+</head>
+<body>
+<header><div class="topbar"><div class="brand"><div class="brand-mark">🌌</div><div><h1>Cime dos Mundos <span class="badge">5.0 BETA</span></h1><p>Anime · séries · filmes · memórias</p></div></div><div class="top-actions"><span class="top-chip">🔐 Dados separados por conta</span><span class="top-chip">⚡ Smart Vision</span></div></div></header>
+<main><div class="portal">
+<section class="card hero"><div class="hero-kicker">✦ Seu universo de entretenimento</div><h2>Uma biblioteca feita para <span>você.</span></h2><p>Organize animes, séries e filmes, acompanhe o que está assistindo, guarde memórias e use ferramentas inteligentes para completar sua coleção sem misturar seus dados com os de outras pessoas.</p>
+<div class="hero-pills"><span class="hero-pill">📚 Biblioteca pessoal</span><span class="hero-pill">👥 Grupos</span><span class="hero-pill">📸 Memórias</span><span class="hero-pill">✨ Análise inteligente</span><span class="hero-pill">📥 Histórico Netflix</span></div>
+<div class="feature-grid"><div class="feature"><div class="feature-icon">🔐</div><b>Conta individual</b><span>Sua sessão e sua biblioteca ficam separadas dos outros usuários.</span></div><div class="feature"><div class="feature-icon">✨</div><b>Completar biblioteca</b><span>Preencha informações faltantes usando fontes de dados e busca inteligente.</span></div><div class="feature"><div class="feature-icon">👥</div><b>Grupos e recomendações</b><span>Compartilhe recomendações e momentos com pessoas do seu grupo.</span></div><div class="feature"><div class="feature-icon">📸</div><b>Memórias</b><span>Guarde fotos, datas, locais e lembranças importantes.</span></div><div class="feature"><div class="feature-icon">📥</div><b>Importação Netflix</b><span>Traga seu histórico e organize temporadas e títulos no Cime.</span></div><div class="feature"><div class="feature-icon">⚡</div><b>Smart Vision</b><span>OCR e reconhecimento visual da linha 4.x preservados no 5.0.</span></div></div>
+<div class="hero-foot"><span class="secure-note">🛡️ Sessão protegida · 💾 armazenamento persistente</span><span>Construído para crescer com você</span></div></section>
+<section class="card auth-card"><div class="auth-head"><div><div class="auth-title">Acesse sua conta</div><div class="auth-sub">Entre para abrir sua biblioteca e continuar de onde parou.</div></div><span class="online-dot">Cime 5.0</span></div>
+<div class="status" id="serverStatus">🔎 Verificando o servidor Cime 5.0…</div>
+<div id="mobileAccessCard" class="mobile-access-card hidden">
+  <div><div class="mobile-access-title">📱 Abrir no celular</div><div class="mobile-access-sub">Deixe o computador com o Cime aberto e escaneie este QR no celular conectado à mesma Wi‑Fi.</div></div>
+  <div class="mobile-access-row"><div><div id="mobileAccessUrl" class="mobile-access-url">Detectando endereço…</div><button type="button" id="copyMobileUrl" class="btn mobile-copy">📋 Copiar endereço</button></div><img id="mobileAccessQr" class="mobile-access-qr" alt="QR Code para abrir o Cime no celular"></div>
+  <div id="mobileAccessHint" class="mobile-access-hint"></div>
+</div>
+<div class="tabs"><button id="tl" class="tab active">Entrar</button><button id="tr" class="tab">Criar conta</button></div>
+<div id="login"><div class="field"><label for="le">E-mail</label><input id="le" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="lp">Senha</label><div class="input-wrap"><input id="lp" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" class="eye" id="toggleLp" aria-label="Mostrar senha">◉</button></div></div><button id="loginBtn" class="btn primary">Entrar na minha biblioteca</button><div class="divider"><span>OU CONTINUE COM</span></div><div class="google-box">
+<div class="google-head"><div class="google-logo" aria-hidden="true">G</div><div><div class="google-title">Entrar com Google</div><div class="google-sub">Use sua conta Google para entrar sem criar outra senha.</div></div></div>
+<div id="googleState" class="google-state">Preparando o login seguro…</div>
+<div id="googleWrap" class="google-wrap"><div id="googleOfficial" class="google-official-frame"></div><button id="googleBtn" class="btn google-fallback hidden" type="button">Continuar com Google</button></div>
+<div class="google-note"><span>🔒</span><span>O Cime recebe apenas a credencial necessária para autenticar sua conta.</span></div>
+</div><div id="lm" class="msg" role="status" aria-live="polite"></div></div><div class="hint-row"><span>Você pode usar e-mail ou Google.</span><span>🔒 Seguro</span></div></div>
+<div id="reg" class="hidden"><div class="field"><label for="rn">Nome</label><input id="rn" autocomplete="name" placeholder="Como quer aparecer no Cime"></div><div class="field"><label for="re">E-mail</label><input id="re" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="rp">Senha</label><div class="input-wrap"><input id="rp" type="password" autocomplete="new-password" placeholder="Mínimo de 8 caracteres"><button type="button" class="eye" id="toggleRp" aria-label="Mostrar senha">◉</button></div></div><button id="regBtn" class="btn primary">Criar minha conta</button><div id="rm" class="msg"></div><p class="fine">A primeira conta criada recebe o perfil de criador. As demais entram como beta testers.</p></div>
+<div class="auth-footer"><span>🌌 Cime dos Mundos 5.0</span><span class="dot"></span><span>Beta</span></div></section></div></main>
+<script>const _g=new URLSearchParams(location.search).get("group_share");if(_g)localStorage.setItem("cime5GroupShare",_g);</script><script>
+const $=id=>document.getElementById(id);
+let googleClientId='';
+let googleInit=false;
+let healthInFlight=null;
+function setMsg(el, text, cls=''){ if(!el)return; el.textContent=text||''; el.className='msg '+cls; }
+function setGoogleState(text, cls=''){const el=$('googleState'); if(el){el.textContent=text; el.className='google-state '+cls;}}
+async function health(){
+  if(healthInFlight)return healthInFlight;
+  healthInFlight=(async()=>{
+    try{
+      const r=await fetch('/health',{cache:'no-store',credentials:'same-origin'});
+      const d=await r.json();
+      if(r.ok&&d.version==='5.0'&&d.service==='Cime dos Mundos'){
+        const port=d.port||'';
+        $('serverStatus').textContent='🟢 Cime 5.0 conectado'+(port?' · porta '+port:'');
+        $('serverStatus').className='status ok';
+        return true;
+      }
+      throw Error('Servidor incompatível');
+    }catch(e){
+      $('serverStatus').textContent='🔴 Cime 5.0 não respondeu. Abra o inicializador do Cime e tente novamente.';
+      $('serverStatus').className='status bad';
+      return false;
+    }finally{healthInFlight=null}
+  })();
+  return healthInFlight;
+}
+async function api(path,init={}){
+  let r;
+  try{r=await fetch(path,{credentials:'same-origin',cache:'no-store',...init});}
+  catch(e){throw Error('Não foi possível conectar ao Cime 5.0. Abra o inicializador novamente.')}
+  const ct=r.headers.get('content-type')||'';
+  const t=await r.text();
+  let d={};
+  try{d=ct.includes('application/json')&&t?JSON.parse(t):{}}catch{}
+  if(!r.ok)throw Error(d.error||d.message||('Servidor respondeu HTTP '+r.status));
+  return d;
+}
+function bindPasswordToggle(inputId,buttonId){
+  const input=$(inputId),btn=$(buttonId); if(!input||!btn)return;
+  btn.addEventListener('click',()=>{const visible=input.type==='text';input.type=visible?'password':'text';btn.textContent=visible?'◉':'◌';btn.setAttribute('aria-label',visible?'Mostrar senha':'Ocultar senha');});
+}
+async function goLogin(){
+  const email=$('le').value.trim(),password=$('lp').value;
+  if(!email||!password){setMsg($('lm'),'❌ Preencha e-mail e senha.','bad');return;}
+  $('loginBtn').disabled=true; setMsg($('lm'),'Entrando…');
+  try{
+    if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
+    const d=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    if(d.token)localStorage.setItem('cime5Token',d.token);
+    setMsg($('lm'),'✅ Login realizado. Abrindo sua biblioteca…','ok');
+    location.assign('/app');
+  }catch(e){setMsg($('lm'),'❌ '+e.message,'bad');$('loginBtn').disabled=false;}
+}
+async function goReg(){
+  const name=$('rn').value.trim(),email=$('re').value.trim(),password=$('rp').value;
+  if(!name||!email||!password){setMsg($('rm'),'❌ Preencha nome, e-mail e senha.','bad');return;}
+  if(password.length<8){setMsg($('rm'),'❌ A senha precisa ter pelo menos 8 caracteres.','bad');return;}
+  $('regBtn').disabled=true; setMsg($('rm'),'Criando sua conta…');
+  try{
+    if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
+    const d=await api('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,display_name:name})});
+    if(d.token)localStorage.setItem('cime5Token',d.token);
+    setMsg($('rm'),'✅ Conta criada. Abrindo sua biblioteca…','ok');
+    setTimeout(()=>location.assign('/app'),250);
+  }catch(e){setMsg($('rm'),'❌ '+e.message,'bad');$('regBtn').disabled=false;}
+}
+function googleCallback(resp){
+  const credential=resp&&resp.credential;
+  if(!credential){setMsg($('lm'),'❌ O Google não retornou uma credencial. Tente novamente.','bad');return;}
+  $('googleBtn').disabled=true;setGoogleState('Validando sua conta Google…');setMsg($('lm'),'🔐 Validando sua conta Google…');
+  api('/api/auth/google/credential',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential})})
+   .then(d=>{if(d.token)localStorage.setItem('cime5Token',d.token);setGoogleState('Google conectado.','ok');setMsg($('lm'),'✅ Google conectado. Abrindo sua biblioteca…','ok');setTimeout(()=>location.assign('/app'),150);})
+   .catch(e=>{setGoogleState('Não foi possível concluir o login.','bad');setMsg($('lm'),'❌ '+e.message+' Confira a origem autorizada no Google Cloud se o erro continuar.','bad');$('googleBtn').disabled=false;});
+}
+function renderGoogle(){
+  if(googleInit)return;
+  if(!(window.google&&google.accounts&&google.accounts.id)){setTimeout(renderGoogle,400);return;}
+  googleInit=true;
+  google.accounts.id.initialize({client_id:googleClientId,callback:googleCallback,auto_select:false,cancel_on_tap_outside:true});
+  const host=$('googleOfficial'),fallback=$('googleBtn');
+  host.classList.remove('hidden'); host.innerHTML=''; if(fallback)fallback.classList.add('hidden');
+  try{
+    const width=Math.min(420,Math.max(240,host.clientWidth||320));
+    google.accounts.id.renderButton(host,{type:'standard',theme:'outline',size:'large',text:'continue_with',shape:'rectangular',width,logo_alignment:'left'});
+    setGoogleState('Google disponível para entrar.','ok');
+  }catch(e){
+    googleInit=false;host.classList.add('hidden');
+    if(fallback){fallback.classList.remove('hidden');fallback.onclick=()=>{try{google.accounts.id.prompt()}catch(_){}};}
+    setGoogleState('Botão oficial indisponível.','bad');
+  }
+}
+async function setupGoogle(){
+  try{
+    if(!(await health())){setGoogleState('Servidor indisponível.','bad');return;}
+    const s=await api('/api/auth/status');
+    googleClientId=(s&&s.google_client_id)||'';
+    if(!googleClientId){setGoogleState('Google ainda não está configurado neste servidor.','bad');$('googleBtn').disabled=true;$('googleBtn').textContent='Google indisponível';return;}
+    setGoogleState('Preparando login seguro…');renderGoogle();
+  }catch(e){setGoogleState('Google não pôde ser preparado agora.','bad');$('googleBtn').disabled=true;}
+}
+$('tl').onclick=()=>{$('login').classList.remove('hidden');$('reg').classList.add('hidden');$('tl').classList.add('active');$('tr').classList.remove('active');setMsg($('lm'),'');};
+$('tr').onclick=()=>{$('reg').classList.remove('hidden');$('login').classList.add('hidden');$('tr').classList.add('active');$('tl').classList.remove('active');setMsg($('rm'),'');};
+$('loginBtn').onclick=goLogin;$('regBtn').onclick=goReg;
+['le','lp'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')goLogin()}));
+['rn','re','rp'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')goReg()}));
+bindPasswordToggle('lp','toggleLp');bindPasswordToggle('rp','toggleRp');
+health().then(setupGoogle);
+</script>
+<script id="c5-mobile-access-js">
+(async function(){
+ const card=document.getElementById('mobileAccessCard'),urlEl=document.getElementById('mobileAccessUrl'),qr=document.getElementById('mobileAccessQr'),hint=document.getElementById('mobileAccessHint'),copy=document.getElementById('copyMobileUrl');
+ try{
+   const r=await fetch('/api/connection-info',{cache:'no-store'}); const d=await r.json();
+   const isPhone=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+   const url=d.lan_url||d.local_url;
+   if(card&&url){card.classList.remove('hidden');urlEl.textContent=url;if(qr)qr.src='/api/qr?text='+encodeURIComponent(url);if(hint)hint.textContent=isPhone?'📶 Você já está em um dispositivo móvel.':'💡 No celular, abra o Chrome, escaneie o QR Code e use o mesmo endereço LAN.';copy?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(url);copy.textContent='✅ Copiado';setTimeout(()=>copy.textContent='📋 Copiar endereço',1200)}catch(_){copy.textContent='⚠️ Copie o endereço acima'}})}
+ }catch(_){}
+})();
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js',{scope:'/'}).catch(()=>{}),{once:true});}</script></body></html>
