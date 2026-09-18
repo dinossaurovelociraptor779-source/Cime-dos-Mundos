@@ -284,8 +284,9 @@ def _load_google_client_file():
             break
         except Exception: pass
 
-if not os.getenv('GOOGLE_CLIENT_ID'):
-    os.environ['GOOGLE_CLIENT_ID']=GOOGLE_DEFAULT_CLIENT_ID
+# Cime 5.0 production uses this exact Google OAuth client.
+# Keep the backend audience identical to the client ID rendered in the browser.
+os.environ['GOOGLE_CLIENT_ID']=GOOGLE_DEFAULT_CLIENT_ID
 if not os.getenv('GOOGLE_REDIRECT_URI'):
     os.environ['GOOGLE_REDIRECT_URI']=f'http://localhost:{PORT}/oauth/google/callback'
 _load_google_client_file()
