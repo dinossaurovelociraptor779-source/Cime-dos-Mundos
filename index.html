@@ -15,7 +15,7 @@
   }
 })();
 </script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+
 <title>🌌 Cime dos Mundos 5.0 BETA</title><meta name="version" content="5.0"><meta http-equiv="Cache-Control" content="no-store">
 <style>
 :root{color-scheme:dark;--bg:#05070d;--bg2:#0a0e18;--surface:rgba(14,19,31,.82);--surface2:rgba(19,26,42,.9);--line:rgba(148,163,184,.16);--line2:rgba(148,163,184,.24);--text:#f7f9ff;--muted:#98a5bb;--accent:#8b5cf6;--accent2:#22d3ee;--ok:#34d399;--warn:#fbbf24;--danger:#fb7185;--shadow:0 32px 90px rgba(0,0,0,.42)}
@@ -79,10 +79,10 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div class="status" id="serverStatus">🔎 Verificando o servidor Cime 5.0…</div>
 <div class="tabs"><button id="tl" class="tab active">Entrar</button><button id="tr" class="tab">Criar conta</button></div>
 <div id="login"><div class="field"><label for="le">E-mail</label><input id="le" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="lp">Senha</label><div class="input-wrap"><input id="lp" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" class="eye" id="toggleLp" aria-label="Mostrar senha">◉</button></div></div><button id="loginBtn" class="btn primary">Entrar na minha biblioteca</button><div class="divider"><span>OU CONTINUE COM</span></div><div class="google-box">
-<div class="google-head"><div class="google-logo" aria-hidden="true">G</div><div><div class="google-title">Entrar com Google</div><div class="google-sub">Use sua conta Google para entrar sem criar outra senha.</div></div></div>
-<div id="googleState" class="google-state">Preparando o login seguro…</div>
-<div id="googleWrap" class="google-wrap"><div id="googleOfficial" class="google-official-frame"></div><button id="googleBtn" class="btn google-fallback hidden" type="button">Continuar com Google</button></div>
-<div class="google-note"><span>🔒</span><span>O Cime recebe apenas a credencial necessária para autenticar sua conta.</span></div>
+<div class="google-head"><div class="google-logo" aria-hidden="true">G</div><div><div class="google-title">Entrar com Google</div><div class="google-sub">O Google será aberto em uma página segura do Cime.</div></div></div>
+<div id="googleState" class="google-state">Pronto para entrar com Google.</div>
+<button id="googleServerBtn" class="btn google" type="button">Continuar com Google</button>
+<div class="google-note"><span>🔒</span><span>O login é concluído pelo backend do Cime.</span></div>
 <div id="googleOriginHint" class="google-origin-hint"></div>
 </div><div id="lm" class="msg" role="status" aria-live="polite"></div></div><div class="hint-row"><span>Você pode usar e-mail ou Google.</span><span>🔒 Seguro</span></div></div>
 <div id="reg" class="hidden"><div class="field"><label for="rn">Nome</label><input id="rn" autocomplete="name" placeholder="Como quer aparecer no Cime"></div><div class="field"><label for="re">E-mail</label><input id="re" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="rp">Senha</label><div class="input-wrap"><input id="rp" type="password" autocomplete="new-password" placeholder="Mínimo de 8 caracteres"><button type="button" class="eye" id="toggleRp" aria-label="Mostrar senha">◉</button></div></div><button id="regBtn" class="btn primary">Criar minha conta</button><div id="rm" class="msg"></div><p class="fine">A primeira conta criada recebe o perfil de criador. As demais entram como beta testers.</p></div>
@@ -94,44 +94,14 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div class="auth-footer"><span>🌌 Cime dos Mundos 5.0</span><span class="dot"></span><span>Beta</span></div></section></div></main>
 <script>const _g=new URLSearchParams(location.search).get("group_share");if(_g)localStorage.setItem("cime5GroupShare",_g);</script><script>
 const $=id=>document.getElementById(id);
-let googleClientId='';
-let googleInit=false;
 let healthInFlight=null;
+function setGoogleOriginHint(){
+  const el=$('googleOriginHint');
+  if(el)el.textContent='🔐 Login Google pelo servidor · '+location.origin+'/oauth/google/callback';
+}
 function setGoogleOriginHint(){const el=$('googleOriginHint');if(el)el.textContent=(location.protocol==='https:'?'🔐 Origem deste site: '+location.origin:'🔐 Modo local: registre a origem HTTPS do deploy no Google Cloud.');}
 function setMsg(el, text, cls=''){ if(!el)return; el.textContent=text||''; el.className='msg '+cls; }
 function setGoogleState(text, cls=''){const el=$('googleState'); if(el){el.textContent=text; el.className='google-state '+cls;}}
-async function health(){
-  if(healthInFlight)return healthInFlight;
-  healthInFlight=(async()=>{
-    try{
-      const r=await fetch('/api/health',{cache:'no-store',credentials:'same-origin'});
-      const d=await r.json();
-      if(r.ok&&d.version==='5.0'&&d.service==='Cime dos Mundos'){
-        const port=d.port||'';
-        $('serverStatus').textContent='🟢 Cime 5.0 conectado'+(port?' · porta '+port:'');
-        $('serverStatus').className='status ok';
-        return true;
-      }
-      throw Error('Servidor incompatível');
-    }catch(e){
-      $('serverStatus').textContent='🔴 Cime 5.0 não respondeu. Abra o inicializador do Cime e tente novamente.';
-      $('serverStatus').className='status bad';
-      return false;
-    }finally{healthInFlight=null}
-  })();
-  return healthInFlight;
-}
-async function api(path,init={}){
-  let r;
-  try{r=await fetch(path,{credentials:'same-origin',cache:'no-store',...init});}
-  catch(e){throw Error('Não foi possível conectar ao Cime 5.0. Abra o inicializador novamente.')}
-  const ct=r.headers.get('content-type')||'';
-  const t=await r.text();
-  let d={};
-  try{d=ct.includes('application/json')&&t?JSON.parse(t):{}}catch{}
-  if(!r.ok)throw Error(d.error||d.message||('Servidor respondeu HTTP '+r.status));
-  return d;
-}
 function bindPasswordToggle(inputId,buttonId){
   const input=$(inputId),btn=$(buttonId); if(!input||!btn)return;
   btn.addEventListener('click',()=>{const visible=input.type==='text';input.type=visible?'password':'text';btn.textContent=visible?'◉':'◌';btn.setAttribute('aria-label',visible?'Mostrar senha':'Ocultar senha');});
@@ -185,15 +155,6 @@ function renderGoogle(){
     if(fallback){fallback.classList.remove('hidden');fallback.onclick=()=>{try{google.accounts.id.prompt()}catch(_){}};}
     setGoogleState('Botão oficial indisponível.','bad');
   }
-}
-async function setupGoogle(){
-  try{
-    if(!(await health())){setGoogleState('Servidor indisponível.','bad');return;}
-    const s=await api('/api/auth/status');
-    googleClientId=(s&&s.google_client_id)||'';
-    if(!googleClientId){setGoogleState('Google ainda não está configurado neste servidor.','bad');$('googleBtn').disabled=true;$('googleBtn').textContent='Google indisponível';return;}
-    setGoogleState('Preparando login seguro…');renderGoogle();
-  }catch(e){setGoogleState('Google não pôde ser preparado agora.','bad');$('googleBtn').disabled=true;}
 }
 $('tl').onclick=()=>{$('login').classList.remove('hidden');$('reg').classList.add('hidden');$('tl').classList.add('active');$('tr').classList.remove('active');setMsg($('lm'),'');};
 $('tr').onclick=()=>{$('reg').classList.remove('hidden');$('login').classList.add('hidden');$('tr').classList.add('active');$('tl').classList.remove('active');setMsg($('rm'),'');};
