@@ -1,11 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index.py" },
     { "source": "/app", "destination": "/app.html" },
     { "source": "/login", "destination": "/index.html" },
     { "source": "/cadastro", "destination": "/index.html" },
-    { "source": "/register", "destination": "/index.html" },
-    { "source": "/oauth/:path*", "destination": "/api/index.py" }
+    { "source": "/register", "destination": "/index.html" }
   ]
 }
