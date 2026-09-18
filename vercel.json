@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/auth/complete",
-      "destination": "/api/index.py"
+      "destination": "/api/auth_complete.py"
     },
     {
       "source": "/api/health",
