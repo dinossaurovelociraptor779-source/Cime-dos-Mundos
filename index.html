@@ -16,7 +16,7 @@
   }
 })();
 </script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+
 
 <title>🌌 Cime dos Mundos 5.0 BETA</title><meta name="version" content="5.0"><meta http-equiv="Cache-Control" content="no-store">
 <style>
@@ -132,32 +132,13 @@ async function googleCredentialLogin(credential){
 function initGoogleSignIn(){
   const host=$('googleGisButton');
   if(!host)return;
-  if(!window.google?.accounts?.id){
-    setGoogleState('Carregando o Google…');
-    setTimeout(initGoogleSignIn,250);
-    return;
-  }
-  try{
-    google.accounts.id.initialize({
-      client_id:'826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com',
-      callback:(response)=>googleCredentialLogin(response.credential),
-      auto_select:false,
-      cancel_on_tap_outside:true,
-      context:'signin',
-      ux_mode:'popup'
-    });
-    google.accounts.id.renderButton(host,{
-      type:'standard',
-      theme:'outline',
-      size:'large',
-      text:'signin_with',
-      shape:'rectangular',
-      width:Math.min(420,Math.max(240,host.clientWidth||320))
-    });
-    setGoogleState('Pronto para entrar com Google.');
-  }catch(e){
-    setGoogleState('❌ Não foi possível carregar o botão do Google.','bad');
-  }
+  host.innerHTML='<button type="button" class="btn google" style="width:100%;min-height:48px">G&nbsp;&nbsp; Entrar com Google</button>';
+  const btn=host.querySelector('button');
+  btn.addEventListener('click',()=>{
+    setGoogleState('Abrindo o Google com segurança…');
+    location.assign('/oauth/google/start');
+  });
+  setGoogleState('Pronto para entrar com Google.');
 }
 async function health(){
   const publicSite=location.protocol==='https:' && location.hostname==='cime-dos-mundos.vercel.app';
