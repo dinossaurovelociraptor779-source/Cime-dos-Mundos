@@ -12,7 +12,7 @@ os.environ.setdefault("CIME_BIND", "0.0.0.0")
 os.environ["CIME_DEPLOYMENT"] = "vercel"
 # OAuth MUST use one fixed production callback. Do not let VERCEL_URL or an old
 # Vercel environment variable replace it, because Google compares redirect_uri exactly.
-os.environ["CIME_PUBLIC_URL"] = "https://cime-dos-mundos-5-0-miguel-3106.vercel.app"
+os.environ["CIME_PUBLIC_URL"] = "https://cime-dos-mundos.vercel.app"
 os.environ["GOOGLE_REDIRECT_URI"] = os.environ["CIME_PUBLIC_URL"] + "/oauth/google/callback"
 
 _HANDLER_CLASS = None
