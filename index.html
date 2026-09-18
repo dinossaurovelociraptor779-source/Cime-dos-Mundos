@@ -66,11 +66,6 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div class="hero-foot"><span class="secure-note">🛡️ Sessão protegida · 💾 armazenamento persistente</span><span>Construído para crescer com você</span></div></section>
 <section class="card auth-card"><div class="auth-head"><div><div class="auth-title">Acesse sua conta</div><div class="auth-sub">Entre para abrir sua biblioteca e continuar de onde parou.</div></div><span class="online-dot">Cime 5.0</span></div>
 <div class="status" id="serverStatus">🔎 Verificando o servidor Cime 5.0…</div>
-<div id="mobileAccessCard" class="mobile-access-card hidden">
-  <div><div class="mobile-access-title">📱 Abrir no celular</div><div class="mobile-access-sub">Use este mesmo endereço online no celular. O notebook não precisa ficar ligado.</div></div>
-  <div class="mobile-access-row"><div><div id="mobileAccessUrl" class="mobile-access-url">Detectando endereço online…</div><button type="button" id="copyMobileUrl" class="btn mobile-copy">📋 Copiar endereço</button></div><img id="mobileAccessQr" class="mobile-access-qr" alt="QR Code para abrir o Cime dos Mundos no celular"></div>
-  <div id="mobileAccessHint" class="mobile-access-hint">🌐 O Cime está hospedado online; o celular não depende do servidor do notebook.</div>
-</div>
 <div class="tabs"><button id="tl" class="tab active">Entrar</button><button id="tr" class="tab">Criar conta</button></div>
 <div id="login"><div class="field"><label for="le">E-mail</label><input id="le" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="lp">Senha</label><div class="input-wrap"><input id="lp" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" class="eye" id="toggleLp" aria-label="Mostrar senha">◉</button></div></div><button id="loginBtn" class="btn primary">Entrar na minha biblioteca</button><div class="divider"><span>OU CONTINUE COM</span></div><div class="google-box">
 <div class="google-head"><div class="google-logo" aria-hidden="true">G</div><div><div class="google-title">Entrar com Google</div><div class="google-sub">Use sua conta Google para entrar sem criar outra senha.</div></div></div>
@@ -80,6 +75,11 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div id="googleOriginHint" class="google-origin-hint"></div>
 </div><div id="lm" class="msg" role="status" aria-live="polite"></div></div><div class="hint-row"><span>Você pode usar e-mail ou Google.</span><span>🔒 Seguro</span></div></div>
 <div id="reg" class="hidden"><div class="field"><label for="rn">Nome</label><input id="rn" autocomplete="name" placeholder="Como quer aparecer no Cime"></div><div class="field"><label for="re">E-mail</label><input id="re" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="rp">Senha</label><div class="input-wrap"><input id="rp" type="password" autocomplete="new-password" placeholder="Mínimo de 8 caracteres"><button type="button" class="eye" id="toggleRp" aria-label="Mostrar senha">◉</button></div></div><button id="regBtn" class="btn primary">Criar minha conta</button><div id="rm" class="msg"></div><p class="fine">A primeira conta criada recebe o perfil de criador. As demais entram como beta testers.</p></div>
+<div id="mobileAccessCard" class="mobile-access-card hidden">
+  <div><div class="mobile-access-title">📱 Abrir no celular</div><div class="mobile-access-sub">Use este mesmo endereço online no celular. O notebook não precisa ficar ligado.</div></div>
+  <div class="mobile-access-row"><div><div id="mobileAccessUrl" class="mobile-access-url">Detectando endereço online…</div><button type="button" id="copyMobileUrl" class="btn mobile-copy">📋 Copiar endereço</button></div><img id="mobileAccessQr" class="mobile-access-qr" alt="QR Code para abrir o Cime dos Mundos no celular"></div>
+  <div id="mobileAccessHint" class="mobile-access-hint">🌐 O Cime está hospedado online; o celular não depende do servidor do notebook.</div>
+</div>
 <div class="auth-footer"><span>🌌 Cime dos Mundos 5.0</span><span class="dot"></span><span>Beta</span></div></section></div></main>
 <script>const _g=new URLSearchParams(location.search).get("group_share");if(_g)localStorage.setItem("cime5GroupShare",_g);</script><script>
 const $=id=>document.getElementById(id);
