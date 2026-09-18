@@ -553,9 +553,9 @@ class Gateway(BaseHTTPRequestHandler):
             u=_stateless_user(qtoken) if qtoken else None
             if not u:
                 return self.send_json({'error':'Sessão Google inválida ou expirada.','code':'AUTH_HANDOFF_INVALID'},401)
-            set_session_cookie(self,qtoken)
             self.send_response(302)
-            self.send_header('Location','/app')
+            set_session_cookie(self,qtoken)
+            self.send_header('Location','/app?token='+qtoken)
             self.send_header('Cache-Control','no-store')
             self.send_header('Content-Length','0')
             self.end_headers()
