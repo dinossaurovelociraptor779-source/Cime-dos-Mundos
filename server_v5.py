@@ -590,7 +590,7 @@ class Gateway(BaseHTTPRequestHandler):
                 role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'; cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
             else:
                 uid=u['id']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
-            c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app'); self.end_headers(); return
+            c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
         if path=='/api/auth/status':
             u=get_user(self); return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':f'http://localhost:{PORT}','google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
         if path=='/api/bootstrap':
