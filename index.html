@@ -85,7 +85,7 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div id="googleState" class="google-state">Pronto para entrar com Google.</div>
 <div id="googleGisButton" class="google-gis-button" aria-label="Entrar com Google"></div>
 <div class="google-note"><span>🔒</span><span>O Google entrega um token seguro ao Cime para concluir seu login.</span></div>
-<div id="googleOriginHint" class="google-origin-hint"></div>
+
 </div>
 <div id="mobileAccessCard" class="mobile-access-card hidden">
   <div><div class="mobile-access-title">📱 Abrir no celular</div><div class="mobile-access-sub">Use este mesmo endereço online no celular. O notebook não precisa ficar ligado.</div></div>
@@ -226,7 +226,6 @@ $('regBtn').onclick=goReg;
 bindPasswordToggle('lp','toggleLp');
 bindPasswordToggle('rp','toggleRp');
 
-setGoogleOriginHint();
 initGoogleSignIn();
 health();
 </script>
