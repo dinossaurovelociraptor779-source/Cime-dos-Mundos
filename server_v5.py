@@ -227,8 +227,39 @@ def ensure_library(uid):
             legacy_conn.close()
     finally: delattr(_tls,'user_id') if hasattr(_tls,'user_id') else None
 
+SESSION_TOKEN_SECRET = os.getenv('CIME_SESSION_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET') or 'CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0'
+
+def _stateless_token(uid, email='', name='', role='beta', provider='local'):
+    now=datetime.now(timezone.utc).replace(tzinfo=None)
+    exp=now+timedelta(days=SESSION_DAYS)
+    payload={'uid':int(uid),'email':str(email or ''),'name':str(name or ''),'role':str(role or 'beta'),'provider':str(provider or 'local'),'exp':int(exp.timestamp())}
+    body=json.dumps(payload,ensure_ascii=False,separators=(',',':')).encode()
+    enc=base64.urlsafe_b64encode(body).decode().rstrip('=')
+    sig=hmac.new(SESSION_TOKEN_SECRET.encode(),enc.encode(),hashlib.sha256).hexdigest()
+    return 'c5.'+enc+'.'+sig
+
+def _stateless_user(raw):
+    try:
+        a=str(raw or '').split('.')
+        if len(a)!=3 or a[0]!='c5': return None
+        enc,sig=a[1],a[2]
+        exp_sig=hmac.new(SESSION_TOKEN_SECRET.encode(),enc.encode(),hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig,exp_sig): return None
+        body=base64.urlsafe_b64decode(enc+'='*((4-len(enc)%4)%4))
+        p=json.loads(body.decode())
+        if int(p.get('exp',0)) <= int(datetime.now(timezone.utc).timestamp()): return None
+        return {'id':int(p.get('uid')),'email':str(p.get('email') or ''),'display_name':str(p.get('name') or ''),'role':str(p.get('role') or 'beta'),'provider':str(p.get('provider') or 'local')}
+    except Exception:
+        return None
+
 def token_make(uid, ua=''):
-    raw=secrets.token_urlsafe(48); h=hashlib.sha256(raw.encode()).hexdigest(); now=datetime.now(timezone.utc).replace(tzinfo=None); exp=now+timedelta(days=SESSION_DAYS); c=auth_db(); c.execute('INSERT INTO sessions(token_hash,user_id,created_at,expires_at,user_agent) VALUES(?,?,?,?,?)',(h,uid,now.isoformat(timespec='seconds'),exp.isoformat(timespec='seconds'),ua[:500])); c.commit(); c.close(); return raw
+    c=auth_db()
+    row=c.execute('SELECT email,display_name,role,provider FROM users WHERE id=?',(uid,)).fetchone()
+    now=datetime.now(timezone.utc).replace(tzinfo=None); exp=now+timedelta(days=SESSION_DAYS)
+    raw=_stateless_token(uid,row['email'],row['display_name'],row['role'],row['provider']) if row else _stateless_token(uid)
+    h=hashlib.sha256(raw.encode()).hexdigest()
+    c.execute('INSERT OR REPLACE INTO sessions(token_hash,user_id,created_at,expires_at,user_agent) VALUES(?,?,?,?,?)',(h,uid,now.isoformat(timespec='seconds'),exp.isoformat(timespec='seconds'),ua[:500]))
+    c.commit(); c.close(); return raw
 
 def _cookie_token(handler):
     raw_cookie=handler.headers.get('Cookie','')
@@ -248,21 +279,31 @@ def get_user(handler):
     if not raw:
         raw=_cookie_token(handler)
     if not raw: return None
-    h=hashlib.sha256(raw.encode()).hexdigest(); c=auth_db(); row=c.execute('SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',(h,datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'))).fetchone();
+    token_hash=hashlib.sha256(raw.encode()).hexdigest()
+    c=auth_db()
+    row=c.execute('SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',(token_hash,datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'))).fetchone()
     if row:
         now=datetime.now(timezone.utc).replace(tzinfo=None)
-        try:
-            exp=datetime.fromisoformat(str(row['expires_at']))
-        except Exception:
-            exp=now
+        try: exp=datetime.fromisoformat(str(row['expires_at']))
+        except Exception: exp=now
         if (exp-now).total_seconds() < 3*86400:
-            c.execute('UPDATE sessions SET expires_at=? WHERE token_hash=?',((now+timedelta(days=SESSION_DAYS)).isoformat(timespec='seconds'),h)); c.commit()
-    c.close(); return dict(row) if row else None
+            c.execute('UPDATE sessions SET expires_at=? WHERE token_hash=?',((now+timedelta(days=SESSION_DAYS)).isoformat(timespec='seconds'),token_hash)); c.commit()
+        c.close(); return dict(row)
+    c.close()
+    # Vercel Functions can serve consecutive requests on different instances.
+    # In that case /tmp SQLite sessions may not be present in the new instance.
+    # Accept the signed token itself so a successful login is not immediately lost.
+    return _stateless_user(raw)
 
 def require(handler):
     u=get_user(handler)
-    if not u: handler.send_json({'error':'Faça login para continuar.','code':'AUTH_REQUIRED'},401); return None
-    _tls.user_id=u['id']; return u
+    if not u:
+        handler.send_json({'error':'Faça login para continuar.','code':'AUTH_REQUIRED'},401)
+        return None
+    _tls.user_id=u['id']
+    try: ensure_library(u['id'])
+    except Exception: pass
+    return u
 
 # Google Identity Services uses a public OAuth Client ID in the browser.
 # Keep the legacy code-flow support optional, but do not require a client secret
