@@ -1,3 +1,6 @@
 Pillow>=10.0,<12
 PyJWT>=2.8,<3
 qrcode>=7.4,<9
+requests>=2.31,<3
+pytesseract>=0.3.10,<0.4
+rapidfuzz>=3.9,<4
