@@ -26,10 +26,15 @@ def _public_base():
     return ""
 
 
+_GATEWAY = None
+_IMPORT_ERROR = None
+_BOOT_DONE = False
+
+
 def _load_gateway():
-    global _HANDLER_CLASS, _IMPORT_ERROR
-    if _HANDLER_CLASS is not None:
-        return _HANDLER_CLASS
+    global _GATEWAY, _IMPORT_ERROR, _BOOT_DONE
+    if _GATEWAY is not None:
+        return _GATEWAY
     if _IMPORT_ERROR is not None:
         raise _IMPORT_ERROR
 
@@ -42,20 +47,32 @@ def _load_gateway():
             cime.public_lan_base = lambda: public
             os.environ["GOOGLE_REDIRECT_URI"] = public + "/oauth/google/callback"
 
-        # Initialize only when the first non-health request arrives.
-        bootstrap()
+        if not _BOOT_DONE:
+            bootstrap()
+            _BOOT_DONE = True
 
-        class VercelGateway(Gateway):
-            pass
-
-        _HANDLER_CLASS = VercelGateway
-        return _HANDLER_CLASS
+        # Copy the gateway implementation onto the lightweight Vercel handler.
+        # This keeps /api/health independent from heavyweight imports while
+        # preserving the original Gateway request handling for every other route.
+        for name in (
+            "send_json", "send_html", "body", "public", "do_OPTIONS",
+            "do_GET", "do_POST"
+        ):
+            setattr(handler, name, getattr(Gateway, name))
+        handler.send_file = getattr(Gateway, "send_file", None)
+        handler.protocol_version = getattr(Gateway, "protocol_version", "HTTP/1.1")
+        handler.server_version = getattr(Gateway, "server_version", "CimeDosMundos/5.0")
+        _GATEWAY = Gateway
+        return _GATEWAY
     except Exception as exc:
         _IMPORT_ERROR = exc
         raise
 
 
 class handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    server_version = "CimeDosMundos/5.0"
+
     def _health(self):
         public = _public_base()
         raw = json.dumps({
@@ -76,15 +93,8 @@ class handler(BaseHTTPRequestHandler):
 
     def _delegate(self, method):
         try:
-            Gateway = _load_gateway()
-            # Rebind this instance's class so the existing server_v5 methods
-            # can process the request with the original implementation.
-            self.__class__ = type(
-                "_RuntimeGateway",
-                (Gateway, handler),
-                {}
-            )
-            return getattr(Gateway, method)(self)
+            _load_gateway()
+            return getattr(self, method)( )
         except Exception as exc:
             raw = json.dumps({
                 "ok": False,
@@ -110,15 +120,6 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         return self._delegate("do_POST")
-
-    def do_PUT(self):
-        return self._delegate("do_PUT")
-
-    def do_PATCH(self):
-        return self._delegate("do_PATCH")
-
-    def do_DELETE(self):
-        return self._delegate("do_DELETE")
 
     def do_OPTIONS(self):
         return self._delegate("do_OPTIONS")
