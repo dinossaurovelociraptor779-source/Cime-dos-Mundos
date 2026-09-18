@@ -9,10 +9,11 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("CIME_DATA_DIR", "/tmp/CimeDados")
 os.environ.setdefault("CIME_PORT", "80")
 os.environ.setdefault("CIME_BIND", "0.0.0.0")
-os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
-# Keep one stable public origin for OAuth and mobile access. Vercel's VERCEL_URL
-# points at each deployment and would produce a different redirect_uri every time.
-os.environ.setdefault("CIME_PUBLIC_URL", "https://cime-dos-mundos-5-0-miguel-3106.vercel.app")
+os.environ["CIME_DEPLOYMENT"] = "vercel"
+# OAuth MUST use one fixed production callback. Do not let VERCEL_URL or an old
+# Vercel environment variable replace it, because Google compares redirect_uri exactly.
+os.environ["CIME_PUBLIC_URL"] = "https://cime-dos-mundos-5-0-miguel-3106.vercel.app"
+os.environ["GOOGLE_REDIRECT_URI"] = os.environ["CIME_PUBLIC_URL"] + "/oauth/google/callback"
 
 _HANDLER_CLASS = None
 _IMPORT_ERROR = None
@@ -48,6 +49,8 @@ def _load_gateway():
         public = _public_base()
         if public:
             cime.public_lan_base = lambda: public
+            # Re-assert the same exact URI after importing server_v5 so local
+            # defaults or an old client_secret.json cannot overwrite production OAuth.
             os.environ["GOOGLE_REDIRECT_URI"] = public + "/oauth/google/callback"
 
         if not _BOOT_DONE:
