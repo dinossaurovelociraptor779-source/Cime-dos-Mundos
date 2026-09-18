@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a0d15"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="/manifest.json">\n<link rel="icon" href="/cime-logo.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="/cime-logo.svg">\n<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="manifest" href="/manifest.json">\n<link rel="icon" href="/cime-logo.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="/cime-logo.svg">
 <script>
 (function(){
   const stable='cime-dos-mundos.vercel.app';
-  const h=location.hostname;
-  const isVercelDeployment=h.endsWith('.vercel.app') && h!==stable && h!=='cime-dos-mundos-5-0.vercel.app' && h!=='cime-dos-mundos.vercel.app';
+  const h=String(location.hostname||'').toLowerCase();
+  const isVercelDeployment=h.endsWith('.vercel.app') && h!==stable;
   if(isVercelDeployment){
-    const target='https://'+stable+location.pathname+location.search+location.hash;
-    location.replace(target);
+    location.replace('https://'+stable+location.pathname+location.search+location.hash);
   }
 })();
 </script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <title>🌌 Cime dos Mundos 5.0 BETA</title><meta name="version" content="5.0"><meta http-equiv="Cache-Control" content="no-store">
 <style>
