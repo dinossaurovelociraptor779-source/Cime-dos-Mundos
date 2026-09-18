@@ -1,11 +1,27 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index.py" }
+    { "source": "/api/:path*", "destination": "/api/index.py" },
+    { "source": "/app", "destination": "/api/index.py" },
+    { "source": "/app/:path*", "destination": "/api/index.py" },
+    { "source": "/login", "destination": "/api/index.py" },
+    { "source": "/cadastro", "destination": "/api/index.py" },
+    { "source": "/register", "destination": "/api/index.py" },
+    { "source": "/oauth/:path*", "destination": "/api/index.py" },
+    { "source": "/health", "destination": "/api/index.py" },
+    { "source": "/connection-info", "destination": "/api/index.py" }
   ],
   "functions": {
     "api/index.py": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": [
+        "server_v5.py",
+        "server_legacy.py",
+        "*.html",
+        "manifest.json",
+        "service-worker.js"
+      ]
     }
   }
 }
