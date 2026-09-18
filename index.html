@@ -4,6 +4,17 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a0d15"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.json">
+<script>
+(function(){
+  const stable='cime-dos-mundos-5-0-miguel-3106.vercel.app';
+  const h=location.hostname;
+  const isVercelDeployment=h.endsWith('.vercel.app') && h!==stable && h!=='cime-dos-mundos-5-0.vercel.app';
+  if(isVercelDeployment){
+    const target='https://'+stable+location.pathname+location.search+location.hash;
+    location.replace(target);
+  }
+})();
+</script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <title>🌌 Cime dos Mundos 5.0 BETA</title><meta name="version" content="5.0"><meta http-equiv="Cache-Control" content="no-store">
 <style>
