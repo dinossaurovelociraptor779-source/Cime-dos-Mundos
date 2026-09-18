@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index.py" },
     { "source": "/app", "destination": "/api/index.py" },
@@ -14,14 +13,7 @@
   ],
   "functions": {
     "api/index.py": {
-      "maxDuration": 30,
-      "includeFiles": [
-        "server_v5.py",
-        "server_legacy.py",
-        "*.html",
-        "manifest.json",
-        "service-worker.js"
-      ]
+      "maxDuration": 30
     }
   }
 }
