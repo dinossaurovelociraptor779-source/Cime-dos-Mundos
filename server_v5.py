@@ -546,6 +546,21 @@ class Gateway(BaseHTTPRequestHandler):
             # through /api/bootstrap using the token saved from ?token=...
             # This avoids Vercel trying to authenticate the static page itself.
             return self.send_html('app.html')
+        if path=='/auth/complete':
+            # Finalize the Google login on the server before loading the static app.
+            # This avoids losing the session between the OAuth callback and /api/bootstrap.
+            qtoken=str(parse_qs(p.query).get('token',[''])[0] or '').strip()
+            u=_stateless_user(qtoken) if qtoken else None
+            if not u:
+                return self.send_json({'error':'Sessão Google inválida ou expirada.','code':'AUTH_HANDOFF_INVALID'},401)
+            set_session_cookie(self,qtoken)
+            self.send_response(302)
+            self.send_header('Location','/app')
+            self.send_header('Cache-Control','no-store')
+            self.send_header('Content-Length','0')
+            self.end_headers()
+            return
+
         if path=='/oauth/google/start':
             if not google_ok(): return self.send_json({'error':'Google ainda não está configurado. Coloque client_secret.json ao lado do servidor 5.0 ou configure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e GOOGLE_REDIRECT_URI.','code':'GOOGLE_NOT_CONFIGURED'},503)
             state=secrets.token_urlsafe(24); c=auth_db(); c.execute('DELETE FROM oauth_states WHERE created_at<?',((datetime.now(timezone.utc).replace(tzinfo=None)-timedelta(minutes=10)).isoformat(timespec='seconds'),)); c.execute('INSERT INTO oauth_states(state,created_at) VALUES(?,?)',(state,datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'))); c.commit(); c.close(); q=urlencode({'client_id':os.getenv('GOOGLE_CLIENT_ID'),'redirect_uri':os.getenv('GOOGLE_REDIRECT_URI'),'response_type':'code','scope':'openid email profile','state':state,'prompt':'select_account'}); self.send_response(302); self.send_header('Location','https://accounts.google.com/o/oauth2/v2/auth?'+q); self.end_headers(); return
@@ -589,7 +604,7 @@ class Gateway(BaseHTTPRequestHandler):
                 role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'; cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
             else:
                 uid=u['id']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
-            c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
+            c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); self.send_header('Location','/auth/complete?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
         if path=='/api/auth/status':
             u=get_user(self); return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':f'http://localhost:{PORT}','google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
         if path=='/api/bootstrap':
