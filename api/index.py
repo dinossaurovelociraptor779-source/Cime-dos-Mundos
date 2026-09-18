@@ -1,74 +1,124 @@
-import os, sys
+import os, sys, json, traceback
 from pathlib import Path
+from http.server import BaseHTTPRequestHandler
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# Vercel functions have a read-only source tree; runtime data goes to /tmp.
 os.environ.setdefault("CIME_DATA_DIR", "/tmp/CimeDados")
 os.environ.setdefault("CIME_PORT", "80")
 os.environ.setdefault("CIME_BIND", "0.0.0.0")
 os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
 
-import threading
+_HANDLER_CLASS = None
+_IMPORT_ERROR = None
 
-import server_v5 as cime
-from server_v5 import Gateway, bootstrap
 
-# Vercel exposes these hostnames automatically. Keep public links online even
-# though the legacy helper was originally designed for local LAN access.
 def _public_base():
-    explicit = str(os.getenv('CIME_PUBLIC_URL','')).strip().rstrip('/')
+    explicit = str(os.getenv("CIME_PUBLIC_URL", "")).strip().rstrip("/")
     if explicit:
         return explicit
-    for key in ('VERCEL_PROJECT_PRODUCTION_URL','VERCEL_URL'):
-        host = str(os.getenv(key,'')).strip().rstrip('/')
+    for key in ("VERCEL_PROJECT_PRODUCTION_URL", "VERCEL_URL"):
+        host = str(os.getenv(key, "")).strip().rstrip("/")
         if host:
-            return host if host.startswith(('http://','https://')) else 'https://' + host
-    return ''
+            return host if host.startswith(("http://", "https://")) else "https://" + host
+    return ""
 
-_public = _public_base()
-if _public:
-    cime.public_lan_base = lambda: _public
-    os.environ['GOOGLE_REDIRECT_URI'] = _public + '/oauth/google/callback'
 
-_BOOT_LOCK = threading.Lock()
-_BOOT_DONE = False
+def _load_gateway():
+    global _HANDLER_CLASS, _IMPORT_ERROR
+    if _HANDLER_CLASS is not None:
+        return _HANDLER_CLASS
+    if _IMPORT_ERROR is not None:
+        raise _IMPORT_ERROR
 
-def _ensure_bootstrap():
-    global _BOOT_DONE
-    if _BOOT_DONE:
-        return
-    with _BOOT_LOCK:
-        if not _BOOT_DONE:
-            bootstrap()
-            _BOOT_DONE = True
+    try:
+        import server_v5 as cime
+        from server_v5 import Gateway, bootstrap
 
-# Keep an explicit subclass named "handler": this is the Python entry-point
-# format documented by Vercel for BaseHTTPRequestHandler functions.
-class handler(Gateway):
-    def _needs_bootstrap(self):
-        path = self.path.split('?',1)[0].rstrip('/') or '/'
-        return path not in ('/api/health', '/health')
+        public = _public_base()
+        if public:
+            cime.public_lan_base = lambda: public
+            os.environ["GOOGLE_REDIRECT_URI"] = public + "/oauth/google/callback"
+
+        # Initialize only when the first non-health request arrives.
+        bootstrap()
+
+        class VercelGateway(Gateway):
+            pass
+
+        _HANDLER_CLASS = VercelGateway
+        return _HANDLER_CLASS
+    except Exception as exc:
+        _IMPORT_ERROR = exc
+        raise
+
+
+class handler(BaseHTTPRequestHandler):
+    def _health(self):
+        public = _public_base()
+        raw = json.dumps({
+            "ok": True,
+            "version": "5.0",
+            "service": "Cime dos Mundos",
+            "deployment": "vercel",
+            "online": bool(public),
+            "public_url": public or None,
+        }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _delegate(self, method):
+        try:
+            Gateway = _load_gateway()
+            # Rebind this instance's class so the existing server_v5 methods
+            # can process the request with the original implementation.
+            self.__class__ = type(
+                "_RuntimeGateway",
+                (Gateway, handler),
+                {}
+            )
+            return getattr(Gateway, method)(self)
+        except Exception as exc:
+            raw = json.dumps({
+                "ok": False,
+                "version": "5.0",
+                "error": "Backend Python não conseguiu inicializar.",
+                "detail": str(exc),
+            }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            try:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+            except Exception:
+                pass
 
     def do_GET(self):
-        if self._needs_bootstrap():
-            _ensure_bootstrap()
-        return super().do_GET()
+        path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        if path in ("/api/health", "/health"):
+            return self._health()
+        return self._delegate("do_GET")
 
     def do_POST(self):
-        _ensure_bootstrap()
-        return super().do_POST()
+        return self._delegate("do_POST")
 
     def do_PUT(self):
-        _ensure_bootstrap()
-        return super().do_PUT()
+        return self._delegate("do_PUT")
 
     def do_PATCH(self):
-        _ensure_bootstrap()
-        return super().do_PATCH()
+        return self._delegate("do_PATCH")
 
     def do_DELETE(self):
-        _ensure_bootstrap()
-        return super().do_DELETE()
+        return self._delegate("do_DELETE")
+
+    def do_OPTIONS(self):
+        return self._delegate("do_OPTIONS")
