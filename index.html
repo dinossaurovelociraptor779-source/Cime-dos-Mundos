@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a0d15"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest.json">\n<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
   const stable='cime-dos-mundos-5-0-miguel-3106.vercel.app';
@@ -81,8 +81,8 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div id="login"><div class="field"><label for="le">E-mail</label><input id="le" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="lp">Senha</label><div class="input-wrap"><input id="lp" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" class="eye" id="toggleLp" aria-label="Mostrar senha">◉</button></div></div><button id="loginBtn" class="btn primary">Entrar na minha biblioteca</button><div class="divider"><span>OU CONTINUE COM</span></div><div class="google-box">
 <div class="google-head"><div class="google-logo" aria-hidden="true">G</div><div><div class="google-title">Entrar com Google</div><div class="google-sub">O Google será aberto em uma página segura do Cime.</div></div></div>
 <div id="googleState" class="google-state">Pronto para entrar com Google.</div>
-<button id="googleServerBtn" class="btn google" type="button">Continuar com Google</button>
-<div class="google-note"><span>🔒</span><span>O login é concluído pelo backend do Cime.</span></div>
+<div id="googleGisButton" class="google-gis-button" aria-label="Entrar com Google"></div>
+<div class="google-note"><span>🔒</span><span>O Google entrega um token seguro ao Cime para concluir seu login.</span></div>
 <div id="googleOriginHint" class="google-origin-hint"></div>
 </div><div id="lm" class="msg" role="status" aria-live="polite"></div></div><div class="hint-row"><span>Você pode usar e-mail ou Google.</span><span>🔒 Seguro</span></div></div>
 <div id="reg" class="hidden"><div class="field"><label for="rn">Nome</label><input id="rn" autocomplete="name" placeholder="Como quer aparecer no Cime"></div><div class="field"><label for="re">E-mail</label><input id="re" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="rp">Senha</label><div class="input-wrap"><input id="rp" type="password" autocomplete="new-password" placeholder="Mínimo de 8 caracteres"><button type="button" class="eye" id="toggleRp" aria-label="Mostrar senha">◉</button></div></div><button id="regBtn" class="btn primary">Criar minha conta</button><div id="rm" class="msg"></div><p class="fine">A primeira conta criada recebe o perfil de criador. As demais entram como beta testers.</p></div>
@@ -107,7 +107,52 @@ function setGoogleState(text,cls=''){
 }
 function setGoogleOriginHint(){
   const el=$('googleOriginHint');
-  if(el)el.textContent='🔐 Login Google pelo servidor · '+location.origin+'/oauth/google/callback';
+  if(el)el.textContent='🔐 Origem Google autorizada: '+location.origin;
+}
+async function googleCredentialLogin(credential){
+  setGoogleState('Validando sua conta Google…');
+  try{
+    const d=await api('/api/auth/google/credential',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({credential})
+    });
+    if(d.token)localStorage.setItem('cime5Token',d.token);
+    setGoogleState('✅ Login realizado. Abrindo sua biblioteca…','ok');
+    location.assign('/app');
+  }catch(e){
+    setGoogleState('❌ '+e.message,'bad');
+  }
+}
+function initGoogleSignIn(){
+  const host=$('googleGisButton');
+  if(!host)return;
+  if(!window.google?.accounts?.id){
+    setGoogleState('Carregando o Google…');
+    setTimeout(initGoogleSignIn,250);
+    return;
+  }
+  try{
+    google.accounts.id.initialize({
+      client_id:'826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com',
+      callback:(response)=>googleCredentialLogin(response.credential),
+      auto_select:false,
+      cancel_on_tap_outside:true,
+      context:'signin',
+      ux_mode:'popup'
+    });
+    google.accounts.id.renderButton(host,{
+      type:'standard',
+      theme:'outline',
+      size:'large',
+      text:'signin_with',
+      shape:'rectangular',
+      width:Math.min(420,Math.max(240,host.clientWidth||320))
+    });
+    setGoogleState('Pronto para entrar com Google.');
+  }catch(e){
+    setGoogleState('❌ Não foi possível carregar o botão do Google.','bad');
+  }
 }
 async function health(){
   if(healthInFlight)return healthInFlight;
@@ -208,12 +253,8 @@ $('regBtn').onclick=goReg;
 bindPasswordToggle('lp','toggleLp');
 bindPasswordToggle('rp','toggleRp');
 
-$('googleServerBtn')?.addEventListener('click',()=>{
-  setGoogleState('Abrindo o login seguro do Google…','ok');
-  location.assign('/oauth/google/start');
-});
-
 setGoogleOriginHint();
+initGoogleSignIn();
 health();
 </script>
 <script id="c5-mobile-access-js">
