@@ -10,6 +10,9 @@ os.environ.setdefault("CIME_DATA_DIR", "/tmp/CimeDados")
 os.environ.setdefault("CIME_PORT", "80")
 os.environ.setdefault("CIME_BIND", "0.0.0.0")
 os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
+# Keep one stable public origin for OAuth and mobile access. Vercel's VERCEL_URL
+# points at each deployment and would produce a different redirect_uri every time.
+os.environ.setdefault("CIME_PUBLIC_URL", "https://cime-dos-mundos-5-0-miguel-3106.vercel.app")
 
 _HANDLER_CLASS = None
 _IMPORT_ERROR = None
