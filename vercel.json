@@ -6,6 +6,10 @@
       "destination": "/api/health.py"
     },
     {
+      "source": "/api/qr",
+      "destination": "/api/qr.py"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/index.py"
     },
