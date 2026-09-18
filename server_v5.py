@@ -530,6 +530,21 @@ class Gateway(BaseHTTPRequestHandler):
         if path in ('/','/login','/cadastro','/register'):
             return self.send_html('index.html')
         if path in ('/app','/app/'):
+            # Login handoff: the login page may pass the signed Cime session token
+            # in the URL. Convert it into the normal HttpOnly cookie before the
+            # protected /app page is served, then clean the token from the URL.
+            qtoken=str(parse_qs(p.query).get('token',[''])[0] or '').strip()
+            if qtoken:
+                handoff_user=_stateless_user(qtoken)
+                if handoff_user:
+                    _tls.user_id=int(handoff_user['id'])
+                    set_session_cookie(self,qtoken)
+                    self.send_response(302)
+                    self.send_header('Location','/app')
+                    self.send_header('Cache-Control','no-store')
+                    self.send_header('Content-Length','0')
+                    self.end_headers()
+                    return
             if not require(self): return
             return self.send_html('app.html')
         if path=='/oauth/google/start':
