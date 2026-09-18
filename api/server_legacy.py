@@ -34,8 +34,11 @@ except Exception:
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
-DB = os.path.join(BASE, "cime.db")
-MEDIA = os.path.join(BASE, "media")
+# Em Vercel, o código publicado é somente leitura. Dados mutáveis precisam ir para /tmp.
+DATA_DIR = os.getenv("CIME_DATA_DIR") or os.path.join(BASE, "CimeDados")
+os.makedirs(DATA_DIR, exist_ok=True)
+DB = os.path.join(DATA_DIR, "cime.db")
+MEDIA = os.path.join(DATA_DIR, "media")
 
 PORT = int(os.getenv("CIME_PORT", "8790"))
 
