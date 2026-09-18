@@ -399,7 +399,7 @@ class Gateway(BaseHTTPRequestHandler):
     def do_GET(self):
         _tls.__dict__.pop('user_id',None)
         p=urlparse(self.path); path=p.path.rstrip('/') or '/'
-        if path=='/health':
+        if path in ('/health','/api/health'):
             return self.send_json({'ok':True,'version':'5.0','service':'Cime dos Mundos','port':PORT,'bind':BIND,'lan_ip':lan_ip(),'lan_ips':lan_ips(),'lan_url':f'http://{lan_ip()}:{PORT}'})
         if path=='/api/library/enrich':
             u=require(self)
