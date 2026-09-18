@@ -494,9 +494,35 @@ class Gateway(BaseHTTPRequestHandler):
             if not google_ok() or not code or not ok: return self.send_json({'error':'Falha no login do Google.'},400)
             data=urlencode({'code':code,'client_id':os.getenv('GOOGLE_CLIENT_ID'),'client_secret':os.getenv('GOOGLE_CLIENT_SECRET'),'redirect_uri':os.getenv('GOOGLE_REDIRECT_URI'),'grant_type':'authorization_code'}).encode(); req=Request('https://oauth2.googleapis.com/token',data=data,headers={'Content-Type':'application/x-www-form-urlencoded'});
             try:
-                with urlopen(req,timeout=15) as r: tok=json.loads(r.read().decode()); req2=Request('https://openidconnect.googleapis.com/v1/userinfo',headers={'Authorization':'Bearer '+tok['access_token']});
-                with urlopen(req2,timeout=15) as r: info=json.loads(r.read().decode())
-            except Exception as e: return self.send_json({'error':'Não foi possível validar a conta Google.','detail':str(e)},502)
+                with urlopen(req,timeout=15) as r:
+                    tok=json.loads(r.read().decode())
+                # O fluxo OpenID Connect devolve um id_token junto com o access_token.
+                # Validamos o id_token assinado pelo Google para identificar a conta,
+                # evitando depender do endpoint userinfo (que pode responder 401 mesmo
+                # quando a troca do authorization code foi concluída corretamente).
+                info=None
+                id_token=str(tok.get('id_token') or '').strip()
+                if id_token:
+                    info=verify_google_credential(id_token)
+                if not info:
+                    access_token=str(tok.get('access_token') or '').strip()
+                    if not access_token:
+                        raise ValueError('Google não devolveu access_token nem id_token.')
+                    req2=Request(
+                        'https://openidconnect.googleapis.com/v1/userinfo',
+                        headers={
+                            'Authorization':'Bearer '+access_token,
+                            'Accept':'application/json',
+                            'User-Agent':'CimeDosMundos/5.0'
+                        }
+                    )
+                    with urlopen(req2,timeout=15) as r:
+                        info=json.loads(r.read().decode())
+            except Exception as e:
+                return self.send_json({
+                    'error':'Não foi possível validar a conta Google.',
+                    'detail':str(e)
+                },502)
             email=str(info.get('email','')).lower().strip(); sub=str(info.get('sub','')); name=str(info.get('name') or email.split('@')[0]); now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'); c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
             if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
             if not u:
