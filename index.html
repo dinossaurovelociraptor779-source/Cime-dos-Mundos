@@ -6,9 +6,9 @@
 <link rel="manifest" href="/manifest.json">\n<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
-  const stable='cime-dos-mundos-5-0-miguel-3106.vercel.app';
+  const stable='cime-dos-mundos.vercel.app';
   const h=location.hostname;
-  const isVercelDeployment=h.endsWith('.vercel.app') && h!==stable && h!=='cime-dos-mundos-5-0.vercel.app';
+  const isVercelDeployment=h.endsWith('.vercel.app') && h!==stable && h!=='cime-dos-mundos-5-0.vercel.app' && h!=='cime-dos-mundos.vercel.app';
   if(isVercelDeployment){
     const target='https://'+stable+location.pathname+location.search+location.hash;
     location.replace(target);
