@@ -91,7 +91,7 @@ async function health(){
   if(healthInFlight)return healthInFlight;
   healthInFlight=(async()=>{
     try{
-      const r=await fetch('/health',{cache:'no-store',credentials:'same-origin'});
+      const r=await fetch('/api/health',{cache:'no-store',credentials:'same-origin'});
       const d=await r.json();
       if(r.ok&&d.version==='5.0'&&d.service==='Cime dos Mundos'){
         const port=d.port||'';
