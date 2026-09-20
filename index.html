@@ -183,7 +183,7 @@ async function health(){
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),7000);
     try{
-      const r=await fetch('/api/auth/status?ts='+Date.now(),{
+      const r=await fetch('/api/health?ts='+Date.now(),{
         credentials:'same-origin',
         cache:'no-store',
         signal:controller.signal,
