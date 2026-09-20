@@ -114,7 +114,14 @@ function setGoogleOriginHint(){
   const el=$('googleOriginHint');
   if(el)el.textContent='🔐 Origem Google autorizada: '+location.origin;
 }
-async function googleCredentialLogin(credential){
+async function googleCredentialLogin(response){
+  const credential=typeof response==='string'
+    ? response
+    : String(response?.credential||'').trim();
+  if(!credential){
+    setGoogleState('❌ O Google não enviou a credencial de login. Tente novamente.','bad');
+    return;
+  }
   setGoogleState('Validando sua conta Google…');
   try{
     const d=await api('/api/auth/google/credential',{
