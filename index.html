@@ -161,7 +161,7 @@ async function initGoogleSignIn(){
       cancel_on_tap_outside:true,
       context:'signin'
     });
-    const width=Math.max(240,Math.min(host.clientWidth||420,420));
+    const width=Math.max(240,Math.min(host.clientWidth||400,400));
     google.accounts.id.renderButton(host,{
       type:'standard',
       theme:'filled_black',
