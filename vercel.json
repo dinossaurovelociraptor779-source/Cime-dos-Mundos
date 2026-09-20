@@ -45,5 +45,31 @@
       "source": "/oauth/:path*",
       "destination": "/api/index.py?__cime_path=/oauth/:path*"
     }
-  ]
+  ],
+  "functions": {
+    "api/cime.py": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/index.py": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/auth_complete.py": {
+      "memory": 512,
+      "maxDuration": 30
+    },
+    "api/cime_health.py": {
+      "memory": 256,
+      "maxDuration": 10
+    },
+    "api/health.py": {
+      "memory": 256,
+      "maxDuration": 10
+    },
+    "api/qr.py": {
+      "memory": 512,
+      "maxDuration": 30
+    }
+  }
 }
