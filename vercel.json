@@ -15,7 +15,7 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__cime_path=/api/:path*"
     },
     {
       "source": "/app",
@@ -35,7 +35,7 @@
     },
     {
       "source": "/oauth/:path*",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__cime_path=/oauth/:path*"
     }
   ]
 }
