@@ -180,34 +180,37 @@ async function initGoogleSignIn(){
 async function health(){
   if(healthInFlight)return healthInFlight;
   healthInFlight=(async()=>{
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),7000);
-    try{
-      const r=await fetch('/api/health?ts='+Date.now(),{
-        credentials:'same-origin',
-        cache:'no-store',
-        signal:controller.signal,
-        headers:{'Accept':'application/json'}
-      });
-      const ct=r.headers.get('content-type')||'';
-      const text=await r.text();
-      let d={};
-      try{d=ct.includes('application/json')&&text?JSON.parse(text):{};}catch(_){}
-      if(!r.ok)throw Error(d.error||'HTTP '+r.status);
-      $('serverStatus').textContent='🟢 Cime 5.0 conectado · servidor online';
-      $('serverStatus').className='status ok';
-      if(d.google_configured===false)setGoogleState('⚠️ Servidor online, mas o acesso Google ainda não está configurado.','bad');
-      return true;
-    }catch(e){
-      $('serverStatus').textContent='🔴 Cime 5.0 não respondeu. Verifique o servidor/API e tente novamente.';
-      $('serverStatus').className='status bad';
-      return false;
-    }finally{
-      clearTimeout(timer);
-      healthInFlight=null;
+    const endpoints=['/api/health?ts='+Date.now(),'/api/auth/status?ts='+Date.now()];
+    for(const url of endpoints){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),7000);
+      try{
+        const r=await fetch(url,{
+          credentials:'same-origin',
+          cache:'no-store',
+          signal:controller.signal,
+          headers:{'Accept':'application/json'}
+        });
+        const ct=r.headers.get('content-type')||'';
+        const body=await r.text();
+        let d={};
+        try{d=ct.includes('application/json')&&body?JSON.parse(body):{};}catch(_){}
+        if(!r.ok)throw Error(d.error||('HTTP '+r.status));
+        $('serverStatus').textContent='🟢 Cime 5.0 conectado · servidor online';
+        $('serverStatus').className='status ok';
+        if(d.google_configured===false)setGoogleState('⚠️ Servidor online, mas o acesso Google ainda não está configurado.','bad');
+        return true;
+      }catch(e){
+        // tenta a próxima rota de saúde antes de declarar o servidor offline
+      }finally{
+        clearTimeout(timer);
+      }
     }
+    $('serverStatus').textContent='🔴 Cime 5.0 não respondeu. Verifique o servidor/API e tente novamente.';
+    $('serverStatus').className='status bad';
+    return false;
   })();
-  return healthInFlight;
+  try{return await healthInFlight;}finally{healthInFlight=null;}
 }
 async function api(path,init={}){
   let r;
