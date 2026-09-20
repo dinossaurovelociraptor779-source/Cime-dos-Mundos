@@ -46,6 +46,10 @@
     "api/qr.py": {
       "memory": 512,
       "maxDuration": 30
+    },
+    "api/auth/google/credential.py": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   }
 }
