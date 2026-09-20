@@ -183,7 +183,7 @@ async function health(){
     try{
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),5000);
-      const r=await fetch('/cime-health?ts='+Date.now(),{
+      const r=await fetch('/api/cime_health?ts='+Date.now(),{
         credentials:'same-origin',
         cache:'no-store',
         headers:{'Accept':'application/json'},
@@ -207,7 +207,7 @@ async function health(){
 async function api(path,init={}){
   let r;
   try{
-    const targetPath=String(path||'').startsWith('/api/')?'/cime-api/'+String(path).slice(5):path; r=await fetch(targetPath,{credentials:'same-origin',cache:'no-store',...init});
+    r=await fetch(path,{credentials:'same-origin',cache:'no-store',...init});
   }catch(e){
     throw Error('Não foi possível conectar ao Cime 5.0.');
   }
