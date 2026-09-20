@@ -79,7 +79,7 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div class="feature-grid"><div class="feature"><div class="feature-icon">🔐</div><b>Conta individual</b><span>Sua sessão e sua biblioteca ficam separadas dos outros usuários.</span></div><div class="feature"><div class="feature-icon">✨</div><b>Completar biblioteca</b><span>Preencha informações faltantes usando fontes de dados e busca inteligente.</span></div><div class="feature"><div class="feature-icon">👥</div><b>Grupos e recomendações</b><span>Compartilhe recomendações e momentos com pessoas do seu grupo.</span></div><div class="feature"><div class="feature-icon">📸</div><b>Memórias</b><span>Guarde fotos, datas, locais e lembranças importantes.</span></div><div class="feature"><div class="feature-icon">📥</div><b>Importação Netflix</b><span>Traga seu histórico e organize temporadas e títulos no Cime.</span></div><div class="feature"><div class="feature-icon">⚡</div><b>Smart Vision</b><span>OCR e reconhecimento visual da linha 4.x preservados no 5.0.</span></div></div>
 <div class="hero-foot"><span class="secure-note">🛡️ Sessão protegida · 💾 armazenamento persistente</span><span>Construído para crescer com você</span></div></section>
 <section class="card auth-card"><div class="auth-head"><div><div class="auth-title">Acesse sua conta</div><div class="auth-sub">Entre para abrir sua biblioteca e continuar de onde parou.</div></div><span class="online-dot">Cime 5.0</span></div>
-<div class="status" id="serverStatus">🔎 Verificando o servidor Cime 5.0…</div>
+<div class="status" id="serverStatus">🔎 Conexão do Cime 5.0 será verificada ao entrar.</div>
 <div class="tabs"><button id="tl" class="tab active">Entrar</button><button id="tr" class="tab">Criar conta</button></div>
 <div id="login"><div class="field"><label for="le">E-mail</label><input id="le" type="email" autocomplete="email" placeholder="voce@email.com"></div><div class="field"><label for="lp">Senha</label><div class="input-wrap"><input id="lp" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" class="eye" id="toggleLp" aria-label="Mostrar senha">◉</button></div></div><button id="loginBtn" class="btn primary">Entrar na minha biblioteca</button><div class="divider"><span>OU CONTINUE COM</span></div><div class="google-box">
 <div class="google-head"><div class="google-logo" aria-hidden="true">G</div><div><div class="google-title">Entrar com Google</div><div class="google-sub">O Google será aberto em uma página segura do Cime.</div></div></div>
@@ -194,8 +194,8 @@ async function health(){
       $('serverStatus').className='status ok';
       return true;
     }catch(e){
-      $('serverStatus').textContent='🔴 Cime 5.0 não respondeu. Verifique o servidor/API e tente novamente.';
-      $('serverStatus').className='status bad';
+      $('serverStatus').textContent='⚠️ O teste automático do servidor não respondeu. O login continua disponível.';
+      $('serverStatus').className='status';
       return false;
     }finally{
       clearTimeout(timer);
@@ -234,7 +234,6 @@ async function goLogin(){
   $('loginBtn').disabled=true;
   setMsg($('lm'),'Entrando…');
   try{
-    if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
     const d=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
     localStorage.setItem('cime5Token',d.token);
@@ -252,7 +251,6 @@ async function goReg(){
   $('regBtn').disabled=true;
   setMsg($('rm'),'Criando sua conta…');
   try{
-    if(!(await health()))throw Error('Servidor 5.0 não está disponível.');
     const d=await api('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,display_name:name})});
     if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
     localStorage.setItem('cime5Token',d.token);
@@ -285,7 +283,7 @@ bindPasswordToggle('lp','toggleLp');
 bindPasswordToggle('rp','toggleRp');
 
 initGoogleSignIn();
-health();
+health().catch(()=>{});
 </script>
 <script id="c5-mobile-access-js">
 (async function(){
