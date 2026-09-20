@@ -6,6 +6,14 @@
       "destination": "/api/auth_complete"
     },
     {
+      "source": "/api/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/api/qr",
+      "destination": "/api/qr"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/index"
     },
