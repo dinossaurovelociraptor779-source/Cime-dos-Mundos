@@ -360,7 +360,7 @@ def _google_public_keys():
     return keys
 
 def verify_google_credential(credential):
-    """Validate a Google Identity Services ID token for the Cime production client."""
+    """Validate a Google Identity Services ID token using Google's official verifier."""
     if not credential:
         raise ValueError('Credencial Google ausente.')
 
@@ -368,46 +368,80 @@ def verify_google_credential(credential):
     if not expected_aud:
         raise ValueError('Client ID Google não configurado.')
 
-    # Primeiro usa o endpoint oficial do Google para validar o token.
-    # Isso evita falhas de rotação de chaves/JWK dentro da função Vercel.
+    # Método principal: biblioteca oficial do Google.
+    # Ela valida assinatura RS256, audience e expiração do ID token.
     try:
-        req=Request(
-            'https://oauth2.googleapis.com/tokeninfo?id_token='+str(credential),
-            headers={'User-Agent':'CimeDosMundos/5.0'}
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+
+        claims=google_id_token.verify_oauth2_token(
+            str(credential),
+            google_requests.Request(),
+            expected_aud
         )
-        with urlopen(req,timeout=10) as r:
-            claims=json.loads(r.read().decode('utf-8'))
-        aud=str(claims.get('aud',''))
-        if aud != expected_aud:
-            raise ValueError('O Client ID do token Google não corresponde ao Cime dos Mundos.')
+
+        issuer=str(claims.get('iss','')).strip()
+        if issuer not in ('accounts.google.com','https://accounts.google.com'):
+            raise ValueError('Emissor do token Google inválido.')
+        if not claims.get('sub'):
+            raise ValueError('O Google não informou o identificador da conta.')
         if not claims.get('email'):
             raise ValueError('A conta Google não forneceu e-mail.')
         if str(claims.get('email_verified')).lower() != 'true':
             raise ValueError('O Google não confirmou o e-mail desta conta.')
         return claims
-    except Exception as tokeninfo_error:
-        # Fallback local caso o tokeninfo esteja temporariamente indisponível.
+    except Exception as official_error:
+        # Fallback compatível com a validação oficial: tokeninfo e, por último,
+        # JWK + PyJWT. Isso mantém o login funcional durante falhas transitórias
+        # do pacote/ambiente sem aceitar um token sem assinatura válida.
         try:
-            import jwt
-            header=jwt.get_unverified_header(credential)
-            kid=header.get('kid')
-            jwk=_google_public_keys().get(kid)
-            if not jwk:
-                raise ValueError('Chave de assinatura do Google não encontrada.')
-            from jwt.algorithms import RSAAlgorithm
-            public_key=RSAAlgorithm.from_jwk(json.dumps(jwk))
-            claims=jwt.decode(
-                credential, public_key, algorithms=['RS256'],
-                audience=expected_aud,
-                issuer=['https://accounts.google.com','accounts.google.com']
+            req=Request(
+                'https://oauth2.googleapis.com/tokeninfo?id_token='+str(credential),
+                headers={'User-Agent':'CimeDosMundos/5.0'}
             )
+            with urlopen(req,timeout=10) as r:
+                claims=json.loads(r.read().decode('utf-8'))
+
+            aud=claims.get('aud')
+            azp=claims.get('azp')
+            accepted={expected_aud}
+            if aud not in accepted and azp not in accepted:
+                raise ValueError('O Client ID do token Google não corresponde ao Cime dos Mundos.')
+            if not claims.get('sub'):
+                raise ValueError('O Google não informou o identificador da conta.')
             if not claims.get('email'):
                 raise ValueError('A conta Google não forneceu e-mail.')
             if str(claims.get('email_verified')).lower() != 'true':
                 raise ValueError('O Google não confirmou o e-mail desta conta.')
             return claims
-        except Exception as local_error:
-            raise ValueError('Google recusou a credencial: '+str(local_error)[:300]) from tokeninfo_error
+        except Exception as tokeninfo_error:
+            try:
+                import jwt
+                header=jwt.get_unverified_header(credential)
+                kid=header.get('kid')
+                jwk=_google_public_keys().get(kid)
+                if not jwk:
+                    raise ValueError('Chave de assinatura do Google não encontrada.')
+                from jwt.algorithms import RSAAlgorithm
+                public_key=RSAAlgorithm.from_jwk(json.dumps(jwk))
+                claims=jwt.decode(
+                    credential,
+                    public_key,
+                    algorithms=['RS256'],
+                    audience=expected_aud,
+                    issuer=['https://accounts.google.com','accounts.google.com']
+                )
+                if not claims.get('sub'):
+                    raise ValueError('O Google não informou o identificador da conta.')
+                if not claims.get('email'):
+                    raise ValueError('A conta Google não forneceu e-mail.')
+                if str(claims.get('email_verified')).lower() != 'true':
+                    raise ValueError('O Google não confirmou o e-mail desta conta.')
+                return claims
+            except Exception as local_error:
+                raise ValueError(
+                    'Google recusou a credencial: '+str(local_error)[:300]
+                ) from official_error
 
 def portal_redirect(handler, path='/app'):
     handler.send_response(302); handler.send_header('Location',path); handler.send_header('Content-Length','0'); handler.send_header('Connection','keep-alive'); handler.end_headers()
