@@ -2,6 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "/api/index.py?__cime_path=/api/:path*"
+    },
+    {
+      "source": "/oauth/:path*",
+      "destination": "/api/index.py?__cime_path=/oauth/:path*"
+    },
+    {
       "source": "/app",
       "destination": "/app.html"
     },
