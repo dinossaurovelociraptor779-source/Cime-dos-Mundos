@@ -2,30 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/cime-health",
-      "destination": "/api/cime_health"
-    },
-    {
-      "source": "/cime-api/:path*",
-      "destination": "/api/cime?__cime_path=/api/:path*"
-    },
-    {
-      "source": "/auth/complete",
-      "destination": "/api/auth_complete.py"
-    },
-    {
-      "source": "/api/health",
-      "destination": "/api/health.py"
-    },
-    {
-      "source": "/api/qr",
-      "destination": "/api/qr.py"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index.py?__cime_path=/api/:path*"
-    },
-    {
       "source": "/app",
       "destination": "/app.html"
     },
@@ -42,8 +18,8 @@
       "destination": "/index.html"
     },
     {
-      "source": "/oauth/:path*",
-      "destination": "/api/index.py?__cime_path=/oauth/:path*"
+      "source": "/auth/complete",
+      "destination": "/api/auth_complete.py"
     }
   ],
   "functions": {
