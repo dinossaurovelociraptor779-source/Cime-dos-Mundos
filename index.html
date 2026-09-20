@@ -180,7 +180,7 @@ async function initGoogleSignIn(){
 async function health(){
   if(healthInFlight)return healthInFlight;
   healthInFlight=(async()=>{
-    const endpoints=['/api/health?ts='+Date.now(),'/api/auth/status?ts='+Date.now()];
+    const endpoints=['/api/index?health=1&ts='+Date.now(),'/api/health?ts='+Date.now(),'/api/auth/status?ts='+Date.now()];
     for(const url of endpoints){
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),7000);
