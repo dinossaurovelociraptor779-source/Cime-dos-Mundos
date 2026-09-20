@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/cime-health",
-      "destination": "/api/health.py"
+      "destination": "/api/cime_health"
     },
     {
       "source": "/cime-api/:path*",
-      "destination": "/api/index.py?__cime_path=/api/:path*"
+      "destination": "/api/cime?__cime_path=/api/:path*"
     },
     {
       "source": "/auth/complete",
