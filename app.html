@@ -421,7 +421,7 @@ html,body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 </style>
 </head>
 <body style="padding-top:48px"><div id="c5bar" style="position:fixed;top:0;left:0;right:0;z-index:20000;display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 12px;background:#0b1019eb;border-bottom:1px solid #ffffff12;font:13px system-ui"><span id="c5user">Conta</span><button onclick="c5openGroups()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">👥 Grupos</button><button onclick="c5feedback()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">🐞 Feedback</button><button onclick="cimeLogout()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">Sair</button></div><script>let lastUploadAsset=null;
-async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getElementById('c5user').textContent='👤 '+d.display_name+(d.role==='creator'?' · Criador':' · Beta tester');return}const r=await fetch('/api/auth/status');const x=await r.json();if(x.user)document.getElementById('c5user').textContent='👤 '+x.user.display_name+(x.user.role==='creator'?' · Criador':' · Beta tester')}catch(e){}}async function c5feedback(){let dlg=document.getElementById('c5feedbackDlg');if(!dlg){dlg=document.createElement('dialog');dlg.id='c5feedbackDlg';dlg.innerHTML=`<div class="modal" style="min-width:min(520px,92vw)"><h2>💬 Enviar feedback</h2><p class="muted">Conte o que aconteceu ou uma melhoria que você gostaria de ver.</p><select id="c5fk" class="c5gi"><option value="bug">🐞 Problema / erro</option><option value="idea">💡 Sugestão</option><option value="ui">🎨 Interface</option><option value="performance">⚡ Velocidade</option></select><input id="c5ft" class="c5gi" placeholder="Título"><textarea id="c5fd" class="c5gt" rows=5 placeholder="Explique com detalhes…"></textarea><div class="actions"><button class="btn" id="c5fc">Cancelar</button><button class="btn primary" id="c5fs">Enviar feedback</button></div><div id="c5fm" class="muted"></div></div>`;document.body.appendChild(dlg);dlg.querySelector('#c5fc').onclick=()=>dlg.close();dlg.querySelector('#c5fs').onclick=async()=>{const title=dlg.querySelector('#c5ft').value.trim(),description=dlg.querySelector('#c5fd').value.trim();if(!title||!description){dlg.querySelector('#c5fm').textContent='Preencha título e descrição.';return}const b=dlg.querySelector('#c5fs');b.disabled=true;try{const r=await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:dlg.querySelector('#c5fk').value,title,description,page:location.pathname})});if(r.ok){dlg.close();showToast('✅ Feedback enviado. Obrigado!')}else{dlg.querySelector('#c5fm').textContent='❌ Não foi possível enviar.'}}catch(e){dlg.querySelector('#c5fm').textContent='❌ '+e.message}finally{b.disabled=false}};}dlg.showModal();}c5me();</script>
+async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getElementById('c5user').textContent='👤 '+d.display_name+(d.role==='creator'?' · Criador':' · Beta tester');return}const r=await fetch(cimeApiUrl('/api/auth/status'));const x=await r.json();if(x.user)document.getElementById('c5user').textContent='👤 '+x.user.display_name+(x.user.role==='creator'?' · Criador':' · Beta tester')}catch(e){}}async function c5feedback(){let dlg=document.getElementById('c5feedbackDlg');if(!dlg){dlg=document.createElement('dialog');dlg.id='c5feedbackDlg';dlg.innerHTML=`<div class="modal" style="min-width:min(520px,92vw)"><h2>💬 Enviar feedback</h2><p class="muted">Conte o que aconteceu ou uma melhoria que você gostaria de ver.</p><select id="c5fk" class="c5gi"><option value="bug">🐞 Problema / erro</option><option value="idea">💡 Sugestão</option><option value="ui">🎨 Interface</option><option value="performance">⚡ Velocidade</option></select><input id="c5ft" class="c5gi" placeholder="Título"><textarea id="c5fd" class="c5gt" rows=5 placeholder="Explique com detalhes…"></textarea><div class="actions"><button class="btn" id="c5fc">Cancelar</button><button class="btn primary" id="c5fs">Enviar feedback</button></div><div id="c5fm" class="muted"></div></div>`;document.body.appendChild(dlg);dlg.querySelector('#c5fc').onclick=()=>dlg.close();dlg.querySelector('#c5fs').onclick=async()=>{const title=dlg.querySelector('#c5ft').value.trim(),description=dlg.querySelector('#c5fd').value.trim();if(!title||!description){dlg.querySelector('#c5fm').textContent='Preencha título e descrição.';return}const b=dlg.querySelector('#c5fs');b.disabled=true;try{const r=await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:dlg.querySelector('#c5fk').value,title,description,page:location.pathname})});if(r.ok){dlg.close();showToast('✅ Feedback enviado. Obrigado!')}else{dlg.querySelector('#c5fm').textContent='❌ Não foi possível enviar.'}}catch(e){dlg.querySelector('#c5fm').textContent='❌ '+e.message}finally{b.disabled=false}};}dlg.showModal();}c5me();</script>
 <header>
   <div class="brand">
     <div><h1>🌌 Cime dos Mundos</h1><p>Biblioteca inteligente de animes, séries e filmes.</p></div>
@@ -576,7 +576,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   try{
     const startupToken=localStorage.getItem('cime5Token')||'';
     const bootstrapUrl=startupToken?('/api/bootstrap?token='+encodeURIComponent(startupToken)):'/api/bootstrap';
-    const r=await originalFetch(bootstrapUrl,{headers:authHeaders(),cache:'no-store',credentials:'same-origin'});
+    const r=await originalFetch(cimeApiUrl(bootstrapUrl),{headers:authHeaders(),cache:'no-store',credentials:'same-origin'});
     if(r.status===401){const gs=q.get('group_share');if(gs)localStorage.setItem('cime5GroupShare',gs);location.href='/';return;}
     if(!r.ok)throw new Error('Bootstrap HTTP '+r.status);
     const d=await r.json();
@@ -584,13 +584,13 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     window.cimeSessionUser=d.user||null;
     const pendingShare=q.get('group_share')||localStorage.getItem('cime5GroupShare');
     if(pendingShare){
-      try{const rr=await originalFetch('/api/groups/share/accept',{method:'POST',headers:new Headers({'Content-Type':'application/json',...Object.fromEntries(authHeaders())}),body:JSON.stringify({token:pendingShare})});if(rr.ok){const dd=await rr.clone().json().catch(()=>({}));if(dd.group_id)localStorage.setItem('cime5AutoOpenGroup',String(dd.group_id));localStorage.removeItem('cime5GroupShare');history.replaceState({},'',location.pathname);}}catch(e){}
+      try{const rr=await originalFetch(cimeApiUrl('/api/groups/share/accept'),{method:'POST',headers:new Headers({'Content-Type':'application/json',...Object.fromEntries(authHeaders())}),body:JSON.stringify({token:pendingShare})});if(rr.ok){const dd=await rr.clone().json().catch(()=>({}));if(dd.group_id)localStorage.setItem('cime5AutoOpenGroup',String(dd.group_id));localStorage.removeItem('cime5GroupShare');history.replaceState({},'',location.pathname);}}catch(e){}
     }
   }catch(e){
     const gs=q.get('group_share');if(gs)localStorage.setItem('cime5GroupShare',gs);
     if(location.pathname.startsWith('/app')){console.error(e);}
   }
-  window.cimeLogout=async()=>{try{await originalFetch('/api/auth/logout',{method:'POST',headers:authHeaders()})}catch(e){}localStorage.removeItem('cime5Token');location.href='/';};
+  window.cimeLogout=async()=>{try{await originalFetch(cimeApiUrl('/api/auth/logout'),{method:'POST',headers:authHeaders()})}catch(e){}localStorage.removeItem('cime5Token');location.href='/';};
 })();</script><script>
 let titles=[]; let selectedCover=""; let selectedMeta={}; const $=id=>document.getElementById(id);
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
@@ -669,6 +669,12 @@ function restoreLibraryCache(){try{const raw=localStorage.getItem(titleCacheKey(
 function saveLibraryCache(){try{if(!Array.isArray(titles)||titles.length>600)return;localStorage.setItem(titleCacheKey(),JSON.stringify(titles));}catch(e){try{localStorage.removeItem(titleCacheKey())}catch(_){}}}
 async function loadWatchRate(){try{const r=await api('/api/watch-rate');autoWatchRate=Number(r.rate||2);localStorage.setItem('cime_auto_rate',String(autoWatchRate));if($("autoRateValue"))$("autoRateValue").textContent=autoWatchRate+' episódio(s)/dia';if($("autoRateInfo"))$("autoRateInfo").textContent=r.episodes?('Calculada a partir de '+r.episodes+' episódios em '+r.days+' dia(s).'):'Ainda não há histórico suficiente; usando 2 episódios/dia como base.';render();}catch(e){}}
 const cimeGetCache=new Map(),cimeGetInflight=new Map();
+function cimeApiUrl(url){
+  const raw=String(url||'');
+  if(!raw.startsWith('/api/') || raw.startsWith('/api/cime.py')) return raw;
+  const parts=raw.split('?');
+  return '/api/cime.py?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
+}
 function cimeInvalidateApiCache(){cimeGetCache.clear();}
 async function api(url,opt={}){
   const method=String(opt.method||'GET').toUpperCase();
@@ -682,7 +688,7 @@ async function api(url,opt={}){
   const controller=opt.signal?null:new AbortController();
   const timer=controller?setTimeout(()=>controller.abort(),20000):null;
   const request={...opt}; if(controller) request.signal=controller.signal;
-  const p=fetch(url,request).then(async r=>{
+  const p=fetch(cimeApiUrl(url),request).then(async r=>{
     let d={}; try{d=await r.json();}catch{}
     if(!r.ok) throw new Error(d.error||`Erro HTTP ${r.status}`);
     if(method==='GET') cimeGetCache.set(key,{time:performance.now(),data:d});
@@ -695,7 +701,7 @@ async function apiBlob(url,opt={}){
   const headers=new Headers(opt.headers||{});
   const t=localStorage.getItem('cime5Token');
   if(t&&!headers.has('Authorization'))headers.set('Authorization','Bearer '+t);
-  const r=await fetch(url,{...opt,headers});
+  const r=await fetch(cimeApiUrl(url),{...opt,headers});
   if(!r.ok){let d={};try{d=await r.json()}catch(_){}throw new Error(d.error||`Erro HTTP ${r.status}`);}
   return r.blob();
 }
