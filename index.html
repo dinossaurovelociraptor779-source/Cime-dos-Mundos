@@ -124,7 +124,7 @@ async function googleCredentialLogin(response){
   }
   setGoogleState('Validando sua conta Google…');
   try{
-    const d=await api('/api/auth/google/credential',{
+    const d=await api('/api/cime/auth/google/credential',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({credential})
@@ -190,7 +190,7 @@ async function health(){
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),5000);
     try{
-      const r=await fetch('/api/auth/status?ts='+Date.now(),{
+      const r=await fetch('/api/cime/auth/status?ts='+Date.now(),{
         credentials:'same-origin',
         cache:'no-store',
         headers:{'Accept':'application/json'},
@@ -302,7 +302,7 @@ health().catch(()=>{});
    const isHostedOnline=location.protocol==='https:';
    if(!isHostedOnline){
      try{
-       const r=await fetch('/api/connection-info',{cache:'no-store'});
+       const r=await fetch('/api/cime/connection-info',{cache:'no-store'});
        if(r.ok){const d=await r.json();url=d.lan_url||d.local_url||url;}
      }catch(_){}
    }
