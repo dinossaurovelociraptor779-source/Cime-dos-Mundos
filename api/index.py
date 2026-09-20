@@ -118,14 +118,41 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
+    def _restore_route(self):
+        # Vercel rewrites /api/* and /oauth/* to this gateway function.
+        # Preserve the original pathname in an internal query parameter so
+        # Gateway keeps seeing the real route (e.g. /api/auth/login).
+        try:
+            raw_q = self.path.split("?", 1)[1] if "?" in self.path else ""
+            from urllib.parse import parse_qs, urlencode, urlparse
+            q = parse_qs(raw_q, keep_blank_values=True)
+            original = str((q.get("__cime_path") or [""])[0] or "").strip()
+            if not original:
+                return
+            clean = []
+            for key, vals in q.items():
+                if key == "__cime_path":
+                    continue
+                for value in vals:
+                    clean.append((key, value))
+            suffix = ("?" + urlencode(clean, doseq=True)) if clean else ""
+            self.path = original.rstrip("/") or "/" 
+            self.path += suffix
+        except Exception:
+            pass
+
     def do_GET(self):
+        self._restore_route()
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
-        if path in ("/api/health", "/health"):
+        qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+        if path in ("/api/health", "/health") or "health=1" in qs:
             return self._health()
         return self._delegate("do_GET")
 
     def do_POST(self):
+        self._restore_route()
         return self._delegate("do_POST")
 
     def do_OPTIONS(self):
+        self._restore_route()
         return self._delegate("do_OPTIONS")
