@@ -181,10 +181,13 @@ async function health(){
   if(healthInFlight)return healthInFlight;
   healthInFlight=(async()=>{
     try{
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),5000);
       const r=await fetch('/cime-health?ts='+Date.now(),{
         credentials:'same-origin',
         cache:'no-store',
-        headers:{'Accept':'application/json'}
+        headers:{'Accept':'application/json'},
+        signal:controller.signal
       });
       if(!r.ok)throw Error('HTTP '+r.status);
       $('serverStatus').textContent='🟢 Cime 5.0 conectado · servidor online';
@@ -195,11 +198,11 @@ async function health(){
       $('serverStatus').className='status bad';
       return false;
     }finally{
+      clearTimeout(timer);
       healthInFlight=null;
     }
   })();
   return healthInFlight;
-}
 }
 async function api(path,init={}){
   let r;
