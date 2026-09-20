@@ -2,6 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/cime-health",
+      "destination": "/api/health.py"
+    },
+    {
+      "source": "/cime-api/:path*",
+      "destination": "/api/index.py?__cime_path=/api/:path*"
+    },
+    {
       "source": "/auth/complete",
       "destination": "/api/auth_complete.py"
     },
