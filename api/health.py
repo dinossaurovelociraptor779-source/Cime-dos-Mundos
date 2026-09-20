@@ -9,7 +9,8 @@ class handler(BaseHTTPRequestHandler):
             "service":"Cime dos Mundos",
             "deployment":"vercel",
             "online":True,
-            "public_url":"https://cime-dos-mundos.vercel.app"
+            "public_url":"https://cime-dos-mundos.vercel.app",
+            "backend_probe":"/api/auth/status"
         },ensure_ascii=False,separators=(",",":")).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type","application/json; charset=utf-8")
