@@ -208,6 +208,13 @@ async function health(){
     }
     $('serverStatus').textContent='🔴 Cime 5.0 não respondeu. Verifique o servidor/API e tente novamente.';
     $('serverStatus').className='status bad';
+    try{
+      const probe=await fetch('/cime-health?diag=1&ts='+Date.now(),{cache:'no-store'});
+      const pd=await probe.json();
+      if(pd.detail){
+        $('serverStatus').textContent='🔴 Backend: '+String(pd.detail).slice(0,180);
+      }
+    }catch(_){}
     return false;
   })();
   try{return await healthInFlight;}finally{healthInFlight=null;}
