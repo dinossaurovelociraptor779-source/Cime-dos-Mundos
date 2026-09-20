@@ -2,12 +2,36 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/index.py?__cime_path=/api/:path*"
+      "source": "/api/auth/google/credential",
+      "destination": "/api/index.py?__cime_path=/api/auth/google/credential"
     },
     {
-      "source": "/oauth/:path*",
-      "destination": "/api/index.py?__cime_path=/oauth/:path*"
+      "source": "/api/auth/status",
+      "destination": "/api/index.py?__cime_path=/api/auth/status"
+    },
+    {
+      "source": "/api/auth/login",
+      "destination": "/api/index.py?__cime_path=/api/auth/login"
+    },
+    {
+      "source": "/api/auth/register",
+      "destination": "/api/index.py?__cime_path=/api/auth/register"
+    },
+    {
+      "source": "/api/auth/logout",
+      "destination": "/api/index.py?__cime_path=/api/auth/logout"
+    },
+    {
+      "source": "/api/bootstrap",
+      "destination": "/api/index.py?__cime_path=/api/bootstrap"
+    },
+    {
+      "source": "/oauth/google/start",
+      "destination": "/api/index.py?__cime_path=/oauth/google/start"
+    },
+    {
+      "source": "/oauth/google/callback",
+      "destination": "/api/index.py?__cime_path=/oauth/google/callback"
     },
     {
       "source": "/app",
