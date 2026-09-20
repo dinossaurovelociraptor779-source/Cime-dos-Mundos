@@ -180,21 +180,23 @@ async function initGoogleSignIn(){
 async function health(){
   if(healthInFlight)return healthInFlight;
   healthInFlight=(async()=>{
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),5000);
     try{
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),5000);
-      const r=await fetch('/api/cime_health?ts='+Date.now(),{
+      const r=await fetch('/api/auth/status?ts='+Date.now(),{
         credentials:'same-origin',
         cache:'no-store',
         headers:{'Accept':'application/json'},
         signal:controller.signal
       });
-      if(!r.ok)throw Error('HTTP '+r.status);
+      // 200, 401 or 403 all prove that the backend endpoint answered.
+      // Only network/timeout/5xx means the backend itself failed to answer normally.
+      if(r.status>=500)throw Error('HTTP '+r.status);
       $('serverStatus').textContent='🟢 Cime 5.0 conectado · servidor online';
       $('serverStatus').className='status ok';
       return true;
     }catch(e){
-      $('serverStatus').textContent='⚠️ O teste automático do servidor não respondeu. O login continua disponível.';
+      $('serverStatus').textContent='⚠️ O servidor do Cime não respondeu ao teste automático. O login continua disponível.';
       $('serverStatus').className='status';
       return false;
     }finally{
@@ -203,6 +205,7 @@ async function health(){
     }
   })();
   return healthInFlight;
+}
 }
 async function api(path,init={}){
   let r;
