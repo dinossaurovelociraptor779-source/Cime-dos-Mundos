@@ -180,7 +180,7 @@ async function initGoogleSignIn(){
 async function health(){
   if(healthInFlight)return healthInFlight;
   healthInFlight=(async()=>{
-    const endpoints=['/api/index?health=1&ts='+Date.now(),'/api/health?ts='+Date.now(),'/api/auth/status?ts='+Date.now()];
+    const endpoints=['/api/index?health=1&ts='+Date.now(),'/api/health?ts='+Date.now(),'/cime-health?ts='+Date.now()];
     for(const url of endpoints){
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),7000);
@@ -215,7 +215,7 @@ async function health(){
 async function api(path,init={}){
   let r;
   try{
-    r=await fetch(path,{credentials:'same-origin',cache:'no-store',...init});
+    const targetPath=String(path||'').startsWith('/api/')?'/cime-api/'+String(path).slice(5):path; r=await fetch(targetPath,{credentials:'same-origin',cache:'no-store',...init});
   }catch(e){
     throw Error('Não foi possível conectar ao Cime 5.0.');
   }
