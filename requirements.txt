@@ -4,3 +4,4 @@ qrcode>=7.4,<9
 requests>=2.31,<3
 pytesseract>=0.3.10,<0.4
 rapidfuzz>=3.9,<4
+google-auth>=2.35,<3
