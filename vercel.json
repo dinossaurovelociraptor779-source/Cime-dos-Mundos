@@ -3,19 +3,11 @@
   "rewrites": [
     {
       "source": "/auth/complete",
-      "destination": "/api/auth_complete.py"
-    },
-    {
-      "source": "/api/health",
-      "destination": "/api/health.py"
-    },
-    {
-      "source": "/api/qr",
-      "destination": "/api/qr.py"
+      "destination": "/api/auth_complete"
     },
     {
       "source": "/api/:path*",
-      "destination": "/api/index.py"
+      "destination": "/api/index"
     },
     {
       "source": "/app",
@@ -35,7 +27,7 @@
     },
     {
       "source": "/oauth/:path*",
-      "destination": "/api/index.py"
+      "destination": "/api/index"
     }
   ]
 }
