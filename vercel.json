@@ -64,11 +64,11 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "/api/cime.py?__cime_path=/api/:path*"
+      "destination": "/api/cime?__cime_path=/api/:path*"
     },
     {
       "source": "/oauth/:path*",
-      "destination": "/api/cime.py?__cime_path=/oauth/:path*"
+      "destination": "/api/cime?__cime_path=/oauth/:path*"
     }
   ]
 }
