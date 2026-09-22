@@ -191,7 +191,7 @@ async function health(){
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),5000);
     try{
-      const r=await fetch('/api/cime.py?__cime_path=%2Fapi%2Fauth%2Fstatus&ts='+Date.now(),{
+      const r=await fetch('/api/cime?__cime_path=%2Fapi%2Fauth%2Fstatus&ts='+Date.now(),{
         credentials:'same-origin',
         cache:'no-store',
         headers:{'Accept':'application/json'},
@@ -303,7 +303,7 @@ health().catch(()=>{});
    const isHostedOnline=location.protocol==='https:';
    if(!isHostedOnline){
      try{
-       const r=await fetch('/api/cime.py?__cime_path=%2Fapi%2Fconnection-info',{cache:'no-store'});
+       const r=await fetch('/api/cime?__cime_path=%2Fapi%2Fconnection-info',{cache:'no-store'});
        if(r.ok){const d=await r.json();url=d.lan_url||d.local_url||url;}
      }catch(_){}
    }
