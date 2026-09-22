@@ -37,7 +37,7 @@ class handler(BaseHTTPRequestHandler):
             return
         self.send_response(302)
         self.send_header("Set-Cookie",f"cime5_session={token}; Path=/; Max-Age={SESSION_DAYS*24*60*60}; HttpOnly; Secure; SameSite=Lax")
-        self.send_header("Location","/app?token="+token)
+        self.send_header("Location","/app.html?token="+token)
         self.send_header("Cache-Control","no-store")
         self.send_header("Content-Length","0")
         self.end_headers()
