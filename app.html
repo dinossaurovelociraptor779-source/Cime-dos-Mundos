@@ -571,12 +571,18 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   const token=q.get('token');
   if(token){localStorage.setItem('cime5Token',token);history.replaceState({},'',location.pathname);}
   const originalFetch=window.fetch.bind(window);
+  const apiUrlEarly=url=>{
+    const raw=String(url||'');
+    if(!raw.startsWith('/api/') || raw.startsWith('/api/cime.py'))return raw;
+    const parts=raw.split('?');
+    return '/api/cime.py?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
+  };
   const authHeaders=()=>{const h=new Headers();const t=localStorage.getItem('cime5Token');if(t)h.set('Authorization','Bearer '+t);return h};
   window.fetch=async function(input,init={}){const headers=new Headers(init.headers||{});const t=localStorage.getItem('cime5Token');if(t && !headers.has('Authorization'))headers.set('Authorization','Bearer '+t);let target=input;init={...init,headers};const r=await originalFetch(target,init);if(r.status===401){localStorage.removeItem('cime5Token');if(location.pathname.startsWith('/app'))location.href='/';}return r;};
   try{
     const startupToken=localStorage.getItem('cime5Token')||'';
     const bootstrapUrl=startupToken?('/api/bootstrap?token='+encodeURIComponent(startupToken)):'/api/bootstrap';
-    const r=await originalFetch(cimeApiUrl(bootstrapUrl),{headers:authHeaders(),cache:'no-store',credentials:'same-origin'});
+    const r=await originalFetch(apiUrlEarly(bootstrapUrl),{headers:authHeaders(),cache:'no-store',credentials:'same-origin'});
     if(r.status===401){const gs=q.get('group_share');if(gs)localStorage.setItem('cime5GroupShare',gs);location.href='/';return;}
     if(!r.ok)throw new Error('Bootstrap HTTP '+r.status);
     const d=await r.json();
@@ -584,7 +590,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     window.cimeSessionUser=d.user||null;
     const pendingShare=q.get('group_share')||localStorage.getItem('cime5GroupShare');
     if(pendingShare){
-      try{const rr=await originalFetch(cimeApiUrl('/api/groups/share/accept'),{method:'POST',headers:new Headers({'Content-Type':'application/json',...Object.fromEntries(authHeaders())}),body:JSON.stringify({token:pendingShare})});if(rr.ok){const dd=await rr.clone().json().catch(()=>({}));if(dd.group_id)localStorage.setItem('cime5AutoOpenGroup',String(dd.group_id));localStorage.removeItem('cime5GroupShare');history.replaceState({},'',location.pathname);}}catch(e){}
+      try{const rr=await originalFetch(apiUrlEarly('/api/groups/share/accept'),{method:'POST',headers:new Headers({'Content-Type':'application/json',...Object.fromEntries(authHeaders())}),body:JSON.stringify({token:pendingShare})});if(rr.ok){const dd=await rr.clone().json().catch(()=>({}));if(dd.group_id)localStorage.setItem('cime5AutoOpenGroup',String(dd.group_id));localStorage.removeItem('cime5GroupShare');history.replaceState({},'',location.pathname);}}catch(e){}
     }
   }catch(e){
     const gs=q.get('group_share');if(gs)localStorage.setItem('cime5GroupShare',gs);
