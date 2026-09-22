@@ -4,7 +4,6 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a0d15"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.json">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="icon" href="/cime-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/cime-logo.svg">
 <script>
@@ -17,7 +16,7 @@
   }
 })();
 </script>
-
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <title>🌌 Cime dos Mundos 5.0 BETA</title><meta name="version" content="5.0"><meta http-equiv="Cache-Control" content="no-store">
 <style>
@@ -134,7 +133,7 @@ async function googleCredentialLogin(response){
     setGoogleState('✅ Login realizado. Abrindo sua biblioteca…','ok');
     location.assign('/app?token='+encodeURIComponent(d.token));
   }catch(e){
-    setGoogleState('❌ '+e.message,'bad');
+    setGoogleState('❌ '+(e?.message||'Não foi possível concluir o login com Google.'),'bad');
   }
 }
 const GOOGLE_CLIENT_ID='826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com';
@@ -166,7 +165,9 @@ async function initGoogleSignIn(){
       callback:googleCredentialLogin,
       auto_select:false,
       cancel_on_tap_outside:true,
-      context:'signin'
+      context:'signin',
+      ux_mode:'popup',
+      use_fedcm_for_prompt:false
     });
     const width=Math.max(240,Math.min(host.clientWidth||400,400));
     google.accounts.id.renderButton(host,{
