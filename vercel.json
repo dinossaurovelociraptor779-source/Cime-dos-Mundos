@@ -32,16 +32,6 @@
   },
   "redirects": [
     {
-      "source": "/app",
-      "destination": "/app.html",
-      "permanent": false
-    },
-    {
-      "source": "/app/",
-      "destination": "/app.html",
-      "permanent": false
-    },
-    {
       "source": "/login",
       "destination": "/index.html",
       "permanent": false
@@ -59,8 +49,24 @@
   ],
   "rewrites": [
     {
+      "source": "/app",
+      "destination": "/api/index.py?__cime_path=/app"
+    },
+    {
+      "source": "/app/",
+      "destination": "/api/index.py?__cime_path=/app"
+    },
+    {
       "source": "/auth/complete",
-      "destination": "/api/auth_complete.py"
+      "destination": "/api/index.py?__cime_path=/auth/complete"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index.py?__cime_path=/api/:path*"
+    },
+    {
+      "source": "/oauth/:path*",
+      "destination": "/api/index.py?__cime_path=/oauth/:path*"
     }
   ]
 }
