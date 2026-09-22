@@ -1,27 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    {
-      "source": "/app",
-      "destination": "/app.html"
-    },
-    {
-      "source": "/login",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/cadastro",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/register",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/auth/complete",
-      "destination": "/api/auth_complete.py"
-    }
-  ],
   "functions": {
     "api/cime.py": {
       "memory": 1024,
@@ -51,5 +29,38 @@
       "memory": 1024,
       "maxDuration": 60
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/app",
+      "destination": "/app.html",
+      "permanent": false
+    },
+    {
+      "source": "/app/",
+      "destination": "/app.html",
+      "permanent": false
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html",
+      "permanent": false
+    },
+    {
+      "source": "/cadastro",
+      "destination": "/index.html",
+      "permanent": false
+    },
+    {
+      "source": "/register",
+      "destination": "/index.html",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/auth/complete",
+      "destination": "/api/auth_complete.py"
+    }
+  ]
 }
