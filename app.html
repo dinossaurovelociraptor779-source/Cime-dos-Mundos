@@ -573,9 +573,9 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   const originalFetch=window.fetch.bind(window);
   const apiUrlEarly=url=>{
     const raw=String(url||'');
-    if(!raw.startsWith('/api/') || raw.startsWith('/api/cime.py'))return raw;
+    if(!raw.startsWith('/api/') || raw.startsWith('/api/cime'))return raw;
     const parts=raw.split('?');
-    return '/api/cime.py?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
+    return '/api/cime?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
   };
   const authHeaders=()=>{const h=new Headers();const t=localStorage.getItem('cime5Token');if(t)h.set('Authorization','Bearer '+t);return h};
   window.fetch=async function(input,init={}){const headers=new Headers(init.headers||{});const t=localStorage.getItem('cime5Token');if(t && !headers.has('Authorization'))headers.set('Authorization','Bearer '+t);let target=input;init={...init,headers};const r=await originalFetch(target,init);if(r.status===401){localStorage.removeItem('cime5Token');if(location.pathname.startsWith('/app'))location.href='/';}return r;};
@@ -677,9 +677,9 @@ async function loadWatchRate(){try{const r=await api('/api/watch-rate');autoWatc
 const cimeGetCache=new Map(),cimeGetInflight=new Map();
 function cimeApiUrl(url){
   const raw=String(url||'');
-  if(!raw.startsWith('/api/') || raw.startsWith('/api/cime.py')) return raw;
+  if(!raw.startsWith('/api/') || raw.startsWith('/api/cime')) return raw;
   const parts=raw.split('?');
-  return '/api/cime.py?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
+  return '/api/cime?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
 }
 function cimeInvalidateApiCache(){cimeGetCache.clear();}
 async function api(url,opt={}){
