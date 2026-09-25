@@ -792,7 +792,7 @@ class Gateway(BaseHTTPRequestHandler):
                 finally:
                     _tls.__dict__.pop('user_id',None)
 
-            if path=='/api/auth/google/credential':
+            if path in ('/api/auth/google/credential','/api/google_login','/api/google-login'):
                 try:
                     payload=json.loads(self.body().decode('utf-8'))
                     claims=verify_google_credential(str(payload.get('credential','')))
