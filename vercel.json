@@ -28,6 +28,10 @@
     "api/auth/google/credential.py": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/google_login.py": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "redirects": [
