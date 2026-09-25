@@ -2,7 +2,7 @@ import os, sys
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -23,6 +23,7 @@ def load_gateway():
     import server_v5 as cime
     from server_v5 import Gateway, bootstrap
     cime.public_lan_base = lambda: os.environ["CIME_PUBLIC_URL"]
+    os.environ["GOOGLE_REDIRECT_URI"] = os.environ["CIME_PUBLIC_URL"] + "/oauth/google/callback"
     if not _boot:
         bootstrap()
         _boot = True
