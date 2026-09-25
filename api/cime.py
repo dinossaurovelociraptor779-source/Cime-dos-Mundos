@@ -52,6 +52,14 @@ class handler(BaseHTTPRequestHandler):
             # Native Vercel routing sends /api/cime/... directly to this file.
             # Gateway expects the public API path /api/....
             parsed=urlparse(self.path)
+            # Google login has a dedicated public alias. If Vercel ever sends
+            # that request through the generic gateway, normalize it before
+            # delegating to server_v5 so it can never end in "Rota não encontrada".
+            if parsed.path in ("/api/google_login","/api/google-login"):
+                self.path="/api/auth/google/credential"
+                if parsed.query:
+                    self.path+="?"+parsed.query
+                return
             if parsed.path=="/api/cime" or parsed.path.startswith("/api/cime/"):
                 suffix=parsed.path[len("/api/cime"):] or "/"
                 self.path="/api"+suffix
