@@ -63,7 +63,7 @@
       "source": "/register",
       "destination": "/index.html",
       "permanent": false
-    },
+    }
   ],
   "rewrites": [
     {
