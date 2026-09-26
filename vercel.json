@@ -32,6 +32,10 @@
     "api/google_login.py": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/auth/login.py": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "redirects": [
@@ -77,6 +81,10 @@
     {
       "source": "/api/cime_health",
       "destination": "/api/cime_health.py"
+    },
+    {
+      "source": "/api/auth/login",
+      "destination": "/api/auth/login.py"
     },
     {
       "source": "/api/:path*",
