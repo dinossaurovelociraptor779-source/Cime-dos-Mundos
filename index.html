@@ -149,42 +149,20 @@ function waitForGoogleIdentity(timeout=8000){
   });
 }
 
-async function initGoogleSignIn(){
+function initGoogleSignIn(){
   const host=$('googleGisButton');
   if(!host)return;
-  host.innerHTML='';
-  setGoogleState('Carregando o acesso seguro do Google…');
-  const ready=await waitForGoogleIdentity();
-  if(!ready){
-    setGoogleState('❌ O componente do Google não carregou. Recarregue a página e tente novamente.','bad');
-    return;
-  }
-  try{
-    google.accounts.id.initialize({
-      client_id:GOOGLE_CLIENT_ID,
-      callback:googleCredentialLogin,
-      auto_select:false,
-      cancel_on_tap_outside:true,
-      context:'signin',
-      ux_mode:'popup',
-      use_fedcm_for_prompt:false
+  host.innerHTML='<button type="button" class="btn google" id="googleOAuthBtn" aria-label="Entrar com Google"><span style="display:inline-flex;align-items:center;gap:9px;justify-content:center;width:100%"><span style="font-weight:900;font-family:Arial,sans-serif;color:#4285f4;font-size:18px">G</span><span>Continuar com Google</span></span></button>';
+  setGoogleState('Pronto para entrar com sua conta Google.');
+  const btn=$('googleOAuthBtn');
+  if(btn){
+    btn.addEventListener('click',()=>{
+      btn.disabled=true;
+      setGoogleState('Abrindo o Google com conexão segura…');
+      location.assign('/oauth/google/start');
     });
-    const width=Math.max(240,Math.min(host.clientWidth||400,400));
-    google.accounts.id.renderButton(host,{
-      type:'standard',
-      theme:'filled_black',
-      size:'large',
-      text:'signin_with',
-      shape:'pill',
-      logo_alignment:'left',
-      width
-    });
-    setGoogleState('Pronto para entrar com sua conta Google.');
-  }catch(e){
-    setGoogleState('❌ Não foi possível preparar o login do Google.','bad');
   }
 }
-
 async function health(){
   if(healthInFlight)return healthInFlight;
   healthInFlight=(async()=>{
