@@ -480,9 +480,14 @@ class Gateway(BaseHTTPRequestHandler):
         if use_gzip:self.send_header('Content-Encoding','gzip')
         self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw)
     def body(self):
+        cached=getattr(self,'_cime_body_cache',None)
+        if cached is not None:
+            return cached
         n=int(self.headers.get('Content-Length','0') or 0)
         if n>MAX_BODY: raise ValueError('Requisição muito grande.')
-        return self.rfile.read(n)
+        raw=self.rfile.read(n)
+        self._cime_body_cache=raw
+        return raw
     def public(self,path): return path in ('/','/app','/oauth/google/start','/oauth/google/callback','/api/auth/status','/api/auth/register','/api/auth/login','/api/auth/logout','/api/vision/status','/api/qr','/api/auth/google/credential')
 
     def do_OPTIONS(self):
@@ -779,6 +784,17 @@ class Gateway(BaseHTTPRequestHandler):
         self.send_json({'error':'Rota não encontrada.'},404)
     def do_POST(self):
         _tls.__dict__.pop('user_id',None); p=urlparse(self.path); path=p.path.rstrip('/') or '/'
+        # Fallback absoluto para o login Google: mesmo se um rewrite encaminhar
+        # o POST para um endpoint genérico, a presença de "credential" identifica
+        # sem ambiguidade uma tentativa de login Google.
+        try:
+            raw_probe=self.body()
+            probe=json.loads(raw_probe.decode('utf-8') or '{}') if raw_probe else {}
+            if isinstance(probe,dict) and str(probe.get('credential') or '').strip():
+                path='/api/auth/login'
+                self.path='/api/auth/login'
+        except Exception:
+            probe={}
         # Não invalide a cache para login, QR, grupos, feedback ou outras rotas que
         # não alteram a biblioteca. Isso evitava aproveitar a cache e deixava cada
         # carregamento voltar ao SQLite sem necessidade.
