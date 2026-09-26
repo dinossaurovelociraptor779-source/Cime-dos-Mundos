@@ -28,6 +28,14 @@
     "api/auth/google/credential.py": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/google_oauth_start.py": {
+      "memory": 256,
+      "maxDuration": 10
+    },
+    "api/google_oauth_callback.py": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "redirects": [
@@ -55,6 +63,11 @@
       "source": "/register",
       "destination": "/index.html",
       "permanent": false
+    },
+    {
+      "source": "/oauth/google/callback",
+      "destination": "/oauth/google/callback.html",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -77,18 +90,6 @@
     {
       "source": "/api/:path*",
       "destination": "/api/cime?__cime_path=/api/:path*"
-    },
-    {
-      "source": "/oauth/google/start",
-      "destination": "/api/cime?__cime_path=/oauth/google/start"
-    },
-    {
-      "source": "/oauth/google/callback",
-      "destination": "/api/cime?__cime_path=/oauth/google/callback"
-    },
-    {
-      "source": "/oauth/:path*",
-      "destination": "/api/cime?__cime_path=/oauth/:path*"
     }
   ]
 }
