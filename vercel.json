@@ -67,6 +67,10 @@
       "destination": "/api/auth_complete.py"
     },
     {
+      "source": "/google-login",
+      "destination": "/api/google_login.py"
+    },
+    {
       "source": "/api/health",
       "destination": "/api/health.py"
     },
