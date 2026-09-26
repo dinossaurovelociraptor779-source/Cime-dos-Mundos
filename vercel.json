@@ -64,13 +64,16 @@
       "destination": "/index.html",
       "permanent": false
     },
-    {
-      "source": "/oauth/google/callback",
-      "destination": "/oauth/google/callback.html",
-      "permanent": false
-    }
   ],
   "rewrites": [
+    {
+      "source": "/oauth/google/start",
+      "destination": "/api/cime?__cime_path=/oauth/google/start"
+    },
+    {
+      "source": "/oauth/google/callback",
+      "destination": "/api/cime?__cime_path=/oauth/google/callback"
+    },
     {
       "source": "/auth/complete",
       "destination": "/api/auth_complete.py"
