@@ -32,10 +32,6 @@
     "api/google_login.py": {
       "memory": 1024,
       "maxDuration": 60
-    },
-    "api/auth/login.py": {
-      "memory": 1024,
-      "maxDuration": 60
     }
   },
   "redirects": [
@@ -69,26 +65,6 @@
     {
       "source": "/auth/complete",
       "destination": "/api/auth_complete.py"
-    },
-    {
-      "source": "/api/health",
-      "destination": "/api/health.py"
-    },
-    {
-      "source": "/api/qr",
-      "destination": "/api/qr.py"
-    },
-    {
-      "source": "/api/cime_health",
-      "destination": "/api/cime_health.py"
-    },
-    {
-      "source": "/api/auth/login",
-      "destination": "/api/auth/login.py"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/cime?__cime_path=/api/:path*"
     },
     {
       "source": "/oauth/:path*",
