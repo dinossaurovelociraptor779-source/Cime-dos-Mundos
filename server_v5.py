@@ -603,7 +603,7 @@ class Gateway(BaseHTTPRequestHandler):
         # Compatibilidade com telas 5.0 antigas/cacheadas: os aliases antigos nunca devem dar 404.
         if path=='/api/google_oauth_start':
             self.send_response(302)
-            self.send_header('Location','/oauth/google/start')
+            self.send_header('Location','/api/google_oauth_start.py')
             self.send_header('Cache-Control','no-store')
             self.send_header('Content-Length','0')
             self.end_headers()
