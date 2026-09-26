@@ -600,6 +600,28 @@ class Gateway(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        # Compatibilidade com telas 5.0 antigas/cacheadas: os aliases antigos nunca devem dar 404.
+        if path=='/api/google_oauth_start':
+            self.send_response(302)
+            self.send_header('Location','/oauth/google/start')
+            self.send_header('Cache-Control','no-store')
+            self.send_header('Content-Length','0')
+            self.end_headers()
+            return
+        if path=='/api/google_oauth_callback':
+            q=parse_qs(p.query)
+            code=q.get('code',[''])[0]
+            state=q.get('state',[''])[0]
+            if code or state:
+                target='/oauth/google/callback?'+urlencode({'code':code,'state':state,'legacy':'1'})
+                self.send_response(302)
+                self.send_header('Location',target)
+                self.send_header('Cache-Control','no-store')
+                self.send_header('Content-Length','0')
+                self.end_headers()
+                return
+            return self.send_json({'error':'Callback Google aguardando código de autenticação.','code':'GOOGLE_CALLBACK_WAITING'},400)
+
         if path=='/oauth/google/start':
             if not google_ok(): return self.send_json({'error':'Google ainda não está configurado. Coloque client_secret.json ao lado do servidor 5.0 ou configure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e GOOGLE_REDIRECT_URI.','code':'GOOGLE_NOT_CONFIGURED'},503)
             state=secrets.token_urlsafe(24); c=auth_db(); c.execute('DELETE FROM oauth_states WHERE created_at<?',((datetime.now(timezone.utc).replace(tzinfo=None)-timedelta(minutes=10)).isoformat(timespec='seconds'),)); c.execute('INSERT INTO oauth_states(state,created_at) VALUES(?,?)',(state,datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'))); c.commit(); c.close(); q=urlencode({'client_id':os.getenv('GOOGLE_CLIENT_ID'),'redirect_uri':os.getenv('GOOGLE_REDIRECT_URI'),'response_type':'code','scope':'openid email profile','state':state,'prompt':'select_account'}); self.send_response(302); self.send_header('Location','https://accounts.google.com/o/oauth2/v2/auth?'+q); self.end_headers(); return
