@@ -123,7 +123,7 @@ async function googleCredentialLogin(response){
   }
   setGoogleState('Validando sua conta Google…');
   try{
-    const d=await api('/oauth/google/start',{
+    const d=await api('/api/cime?__cime_path=%2Fapi%2Fauth%2Flogin',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({credential})
