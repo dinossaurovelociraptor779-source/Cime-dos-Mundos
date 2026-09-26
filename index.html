@@ -159,7 +159,7 @@ function initGoogleSignIn(){
     btn.addEventListener('click',()=>{
       btn.disabled=true;
       setGoogleState('Abrindo o Google com conexão segura…');
-      location.assign('/oauth/google/start');
+      location.assign('/api/google_oauth_start.py');
     });
   }
 }
