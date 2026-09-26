@@ -61,14 +61,20 @@
       "permanent": false
     }
   ],
-  "rewrites": [
-    {
-      "source": "/auth/complete",
-      "destination": "/api/auth_complete.py"
-    },
-    {
-      "source": "/oauth/:path*",
-      "destination": "/api/cime?__cime_path=/oauth/:path*"
-    }
-  ]
+  "rewrites": {
+    "afterFiles": [
+      {
+        "source": "/auth/complete",
+        "destination": "/api/auth_complete.py"
+      },
+      {
+        "source": "/api/:path*",
+        "destination": "/api/cime?__cime_path=/api/:path*"
+      },
+      {
+        "source": "/oauth/:path*",
+        "destination": "/api/cime?__cime_path=/oauth/:path*"
+      }
+    ]
+  }
 }
