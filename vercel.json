@@ -88,6 +88,14 @@
       "destination": "/api/cime_health.py"
     },
     {
+      "source": "/api/google_oauth_start",
+      "destination": "/api/google_oauth_start.py"
+    },
+    {
+      "source": "/api/google_oauth_callback",
+      "destination": "/api/google_oauth_callback.py"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/cime?__cime_path=/api/:path*"
     }
