@@ -792,9 +792,9 @@ class Gateway(BaseHTTPRequestHandler):
                 finally:
                     _tls.__dict__.pop('user_id',None)
 
-            if path in ('/api/auth/google/credential','/api/google_login','/api/google-login'):
+            if path in ('/api/auth/google/credential','/api/google_login','/api/google-login','/api/cime','/api/index','/google-login','/google_login'):
                 try:
-                    payload=json.loads(self.body().decode('utf-8'))
+                    payload=json.loads(self.body().decode('utf-8') or '{}')
                     claims=verify_google_credential(str(payload.get('credential','')))
                 except Exception as e:
                     return self.send_json({'error':'Não foi possível validar o login do Google.','detail':str(e),'code':'GOOGLE_INVALID_CREDENTIAL'},401)
