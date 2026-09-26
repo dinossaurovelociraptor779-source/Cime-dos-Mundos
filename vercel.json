@@ -79,6 +79,14 @@
       "destination": "/api/cime?__cime_path=/api/:path*"
     },
     {
+      "source": "/oauth/google/start",
+      "destination": "/api/cime?__cime_path=/oauth/google/start"
+    },
+    {
+      "source": "/oauth/google/callback",
+      "destination": "/api/cime?__cime_path=/oauth/google/callback"
+    },
+    {
       "source": "/oauth/:path*",
       "destination": "/api/cime?__cime_path=/oauth/:path*"
     }
