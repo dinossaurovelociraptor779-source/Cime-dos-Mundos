@@ -2,7 +2,9 @@ import os, sys
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+# credential.py is nested under api/auth/google; the repository root is
+# therefore three parents above this file.
+ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -42,6 +44,9 @@ class handler(BaseHTTPRequestHandler):
             handler.send_file = getattr(cls, "send_file", None)
             handler.protocol_version = getattr(cls, "protocol_version", "HTTP/1.1")
             handler.server_version = getattr(cls, "server_version", "CimeDosMundos/5.0")
+
+            # GIS sends the ID-token credential here. Keep the path deterministic
+            # so the Gateway reaches its dedicated Google credential branch.
             self.path = "/api/auth/google/credential"
             return getattr(self, method)()
         except Exception as exc:
