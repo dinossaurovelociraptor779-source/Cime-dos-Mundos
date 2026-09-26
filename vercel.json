@@ -68,11 +68,11 @@
   "rewrites": [
     {
       "source": "/oauth/google/start",
-      "destination": "/api/cime?__cime_path=/oauth/google/start"
+      "destination": "/api/google_oauth_start.py"
     },
     {
       "source": "/oauth/google/callback",
-      "destination": "/api/cime?__cime_path=/oauth/google/callback"
+      "destination": "/api/google_oauth_callback.py"
     },
     {
       "source": "/auth/complete",
