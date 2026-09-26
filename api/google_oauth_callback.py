@@ -30,9 +30,27 @@ def cookie_value(handler,name):
             return part.split("=",1)[1]
     return ""
 
+def signed_handoff(code):
+    payload=str(code or "")
+    sig=hmac.new(SECRET.encode(),payload.encode(),hashlib.sha256).hexdigest()
+    return payload+"."+sig
+
+def verify_handoff(value):
+    try:
+        raw=str(value or "")
+        if "." not in raw:return ""
+        code,sig=raw.rsplit(".",1)
+        expected=hmac.new(SECRET.encode(),code.encode(),hashlib.sha256).hexdigest()
+        return code if hmac.compare_digest(sig,expected) else ""
+    except Exception:
+        return ""
+
 def finish_login(handler,code,state,as_json=False):
     code=str(code or "").strip()
     state=str(state or "").strip()
+    legacy_mode = str(getattr(handler, "_legacy_google_mode", "") or "") == "1"
+    if not code:
+        code=verify_handoff(cookie_value(handler,"cime_google_handoff"))
     if not code or not state:
         raise ValueError("Código Google ausente.")
     if not verify_state(state,cookie_value(handler,"cime_google_state")):
@@ -123,6 +141,7 @@ def finish_login(handler,code,state,as_json=False):
         handler.send_header("Content-Type","application/json; charset=utf-8")
         handler.send_header("Cache-Control","no-store")
         handler.send_header("Set-Cookie","cime_google_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
+    handler.send_header("Set-Cookie","cime_google_handoff=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
         handler.send_header("Content-Length",str(len(raw)))
         handler.end_headers()
         handler.wfile.write(raw)
@@ -150,11 +169,12 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             q=parse_qs(urlparse(self.path).query,keep_blank_values=True)
+            self._legacy_google_mode=str(q.get("legacy",[""])[0] or "")
             finish_login(
                 self,
                 q.get("code",[""])[0],
                 q.get("state",[""])[0],
-                as_json=False
+                as_json=self._legacy_google_mode=="1"
             )
         except Exception as exc:
             self._reply(400,{"ok":False,"error":str(exc)[:500]})
@@ -164,11 +184,18 @@ class handler(BaseHTTPRequestHandler):
             n=int(self.headers.get("Content-Length","0") or 0)
             body=self.rfile.read(n)
             d=json.loads(body.decode("utf-8") or "{}")
-            finish_login(
-                self,
-                d.get("code"),
-                d.get("state"),
-                as_json=True
-            )
+            code=str(d.get("code") or "").strip()
+            state=str(d.get("state") or "").strip()
+            # Old callback.html used fetch(POST). Hand it off to the same native GET
+            # flow, preserving the short-lived authorization code in a signed cookie.
+            if code and state:
+                self.send_response(303)
+                self.send_header("Location","/oauth/google/callback?"+__import__("urllib.parse").parse.urlencode({"state":state,"legacy":"1"}))
+                self.send_header("Set-Cookie","cime_google_handoff="+signed_handoff(code)+"; Path=/; Max-Age=120; HttpOnly; Secure; SameSite=Lax")
+                self.send_header("Cache-Control","no-store")
+                self.send_header("Content-Length","0")
+                self.end_headers()
+                return
+            finish_login(self,code,state,as_json=True)
         except Exception as exc:
             self._reply(400,{"ok":False,"error":str(exc)[:500]})
