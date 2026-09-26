@@ -816,7 +816,36 @@ class Gateway(BaseHTTPRequestHandler):
                 except sqlite3.IntegrityError: c.close(); return self.send_json({'error':'Este e-mail já está cadastrado.'},409)
                 c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(201); set_session_cookie(self,tok); raw=json.dumps({'token':tok,'user':{'id':uid,'email':email,'display_name':name,'role':'creator' if first else 'beta'}},ensure_ascii=False).encode(); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
             if path in ('/api/auth/login','/api/login','/login'):
-                d=json.loads(self.body().decode() or '{}'); email=str(d.get('email','')).strip().lower(); pw=str(d.get('password','')); c=auth_db(); u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone();
+                d=json.loads(self.body().decode() or '{}')
+                # Google também usa a rota de login principal para evitar qualquer
+                # colisão com rewrites/aliases específicos do Vercel.
+                if str(d.get('credential','')).strip():
+                    try:
+                        claims=verify_google_credential(str(d.get('credential')).strip())
+                    except Exception as e:
+                        return self.send_json({'error':'Não foi possível validar o login do Google.','detail':str(e),'code':'GOOGLE_INVALID_CREDENTIAL'},401)
+                    email=normalize_email(claims.get('email'))
+                    sub=str(claims.get('sub',''))
+                    name=str(claims.get('name') or email.split('@')[0])
+                    now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
+                    c=auth_db()
+                    u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
+                    if not u:
+                        u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
+                    if not u:
+                        role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'
+                        cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now))
+                        uid=cur.lastrowid
+                    else:
+                        uid=u['id']; role=u['role']
+                        c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
+                    c.commit(); c.close()
+                    ensure_library(uid)
+                    tok=token_make(uid,self.headers.get('User-Agent',''))
+                    self.send_response(200); set_session_cookie(self,tok)
+                    raw=json.dumps({'ok':True,'token':tok,'user':{'id':uid,'email':email,'display_name':name,'role':role,'provider':'google'}},ensure_ascii=False).encode()
+                    self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
+                email=str(d.get('email','')).strip().lower(); pw=str(d.get('password','')); c=auth_db(); u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone();
                 if not u or not u['password_hash'] or not pw_ok(pw,u['password_hash']): c.close(); return self.send_json({'error':'E-mail ou senha inválidos.'},401)
                 c.execute('UPDATE users SET last_login_at=?,updated_at=? WHERE id=?',(datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'),datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'),u['id'])); c.commit(); c.close(); ensure_library(u['id']); tok=token_make(u['id'],self.headers.get('User-Agent','')); self.send_response(200); set_session_cookie(self,tok); raw=json.dumps({'token':tok,'user':{'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role']}},ensure_ascii=False).encode(); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
             if path=='/api/auth/logout':
