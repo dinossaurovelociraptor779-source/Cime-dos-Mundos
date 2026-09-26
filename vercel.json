@@ -63,6 +63,10 @@
   ],
   "rewrites": [
     {
+      "source": "/login-google",
+      "destination": "/api/google_login.py"
+    },
+    {
       "source": "/auth/complete",
       "destination": "/api/auth_complete.py"
     },
