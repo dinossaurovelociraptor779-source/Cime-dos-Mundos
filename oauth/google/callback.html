@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrando no Cime dos Mundos</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#05070d;color:#fff;font:16px system-ui,sans-serif}
+.box{padding:30px;border:1px solid #263047;border-radius:20px;background:#0d1322;text-align:center;max-width:380px}
+.s{color:#9aa8bf;font-size:13px;margin-top:9px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="box"><div style="font-size:34px">🌌</div><b>Conectando ao Cime dos Mundos…</b><div class="s" id="s">Validando sua conta Google.</div></div>
+<script>
+(async()=>{
+ const s=document.getElementById('s');
+ const q=new URLSearchParams(location.search);
+ const code=q.get('code')||'';
+ const state=q.get('state')||'';
+ const err=q.get('error');
+ if(err){s.textContent='❌ '+err;return;}
+ try{
+   const r=await fetch('/api/google_oauth_callback',{
+     method:'POST',
+     headers:{'Content-Type':'application/json'},
+     credentials:'same-origin',
+     cache:'no-store',
+     body:JSON.stringify({code,state})
+   });
+   const d=await r.json();
+   if(!r.ok||!d.token)throw new Error(d.error||'Não foi possível concluir o login.');
+   localStorage.setItem('cime5Token',d.token);
+   s.textContent='✅ Login concluído. Abrindo sua biblioteca…';
+   location.replace('/app?token='+encodeURIComponent(d.token));
+ }catch(e){
+   s.textContent='❌ '+(e&&e.message?e.message:'Falha no login do Google.');
+ }
+})();
+</script>
+</body>
+</html>
