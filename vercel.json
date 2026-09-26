@@ -66,12 +66,12 @@
     },
     {
       "source": "/oauth/google/start",
-      "destination": "/api/google_oauth_start",
+      "destination": "/api/google_oauth_start.py",
       "permanent": false
     },
     {
       "source": "/oauth/google/callback",
-      "destination": "/api/google_oauth_callback",
+      "destination": "/api/google_oauth_callback.py",
       "permanent": false
     }
   ],
