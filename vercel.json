@@ -63,17 +63,19 @@
       "source": "/register",
       "destination": "/index.html",
       "permanent": false
-    }
-  ],
-  "rewrites": [
+    },
     {
       "source": "/oauth/google/start",
-      "destination": "/api/google_oauth_start.py"
+      "destination": "/api/google_oauth_start",
+      "permanent": false
     },
     {
       "source": "/oauth/google/callback",
-      "destination": "/api/google_oauth_callback.py"
-    },
+      "destination": "/api/google_oauth_callback",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
     {
       "source": "/auth/complete",
       "destination": "/api/auth_complete.py"
