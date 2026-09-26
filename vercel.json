@@ -67,18 +67,6 @@
       "destination": "/api/auth_complete.py"
     },
     {
-      "source": "/api/auth/google/credential",
-      "destination": "/api/cime?__cime_path=/api/auth/google/credential"
-    },
-    {
-      "source": "/api/google_login",
-      "destination": "/api/cime?__cime_path=/api/auth/google/credential"
-    },
-    {
-      "source": "/api/auth/google",
-      "destination": "/api/cime?__cime_path=/api/auth/google/credential"
-    },
-    {
       "source": "/api/health",
       "destination": "/api/health.py"
     },
