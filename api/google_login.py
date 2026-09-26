@@ -43,7 +43,7 @@ class handler(BaseHTTPRequestHandler):
             handler.protocol_version=getattr(cls,"protocol_version","HTTP/1.1")
             handler.server_version=getattr(cls,"server_version","CimeDosMundos/5.0")
             # Always invoke the one known Google credential route inside the gateway.
-            self.path="/api/auth/google/credential"
+            self.path="/api/auth/login"
             return getattr(self,method)()
         except Exception as exc:
             raw=json.dumps({
