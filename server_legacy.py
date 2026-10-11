@@ -3623,7 +3623,9 @@ class Handler(
         return self.send_json(
             {
                 "error":
-                    "Rota não encontrada."
+                    "Rota não encontrada.",
+                    "route": self.path.split("?", 1)[0],
+                    "method": getattr(self, "command", "")
             },
             404
         )
@@ -4205,7 +4207,9 @@ class Handler(
         return self.send_json(
             {
                 "error":
-                    "Rota não encontrada."
+                    "Rota não encontrada.",
+                    "route": self.path.split("?", 1)[0],
+                    "method": getattr(self, "command", "")
             },
             404
         )
@@ -4292,7 +4296,9 @@ class Handler(
         return self.send_json(
             {
                 "error":
-                    "Rota não encontrada."
+                    "Rota não encontrada.",
+                    "route": self.path.split("?", 1)[0],
+                    "method": getattr(self, "command", "")
             },
             404
         )
@@ -4363,7 +4369,9 @@ class Handler(
         return self.send_json(
             {
                 "error":
-                    "Rota não encontrada."
+                    "Rota não encontrada.",
+                    "route": self.path.split("?", 1)[0],
+                    "method": getattr(self, "command", "")
             },
             404
         )
