@@ -38,14 +38,21 @@ jobs:
           print("Google client: OK")
           PY
 
-      - name: Verify frontend auth wiring
+      - name: Verify frontend auth wiring and API routes
         run: |
           python - <<'PY'
+          import json
           from pathlib import Path
           html = Path("index.html").read_text(encoding="utf-8")
+          config = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
           assert "https://accounts.google.com/gsi/client" in html
           assert "/api/auth/google/credential" in html
           assert "/api/auth/status?ts=" in html
+          assert "function cimeBackendPath(path)" in html
+          assert "fetch(cimeBackendPath(path)" in html
           assert "location.assign('/oauth/google/start')" not in html
-          print("Frontend auth wiring: OK")
+          rewrites = config.get("rewrites", [])
+          assert any(r.get("source") == "/api" and r.get("destination") == "/api/cime" for r in rewrites)
+          assert any(r.get("source") == "/api/:path*" and r.get("destination") == "/api/cime?__cime_path=/api/:path*" for r in rewrites)
+          print("Frontend auth wiring and Vercel API routes: OK")
           PY
