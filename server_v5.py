@@ -277,10 +277,13 @@ def _cookie_token(handler):
     return ''
 
 def set_session_cookie(handler, token, max_age=SESSION_DAYS*24*60*60):
-    handler.send_header('Set-Cookie', f'cime5_session={token}; Path=/; Max-Age={max_age}; HttpOnly; SameSite=Lax')
+    # Em produção HTTPS, impeça que o cookie de sessão seja enviado por HTTP.
+    secure = '; Secure' if os.getenv('CIME_DEPLOYMENT') == 'vercel' or str(getattr(handler, 'headers', {}).get('X-Forwarded-Proto', '')).lower() == 'https' else ''
+    handler.send_header('Set-Cookie', f'cime5_session={token}; Path=/; Max-Age={max_age}; HttpOnly; SameSite=Lax{secure}')
 
 def clear_session_cookie(handler):
-    handler.send_header('Set-Cookie', 'cime5_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax')
+    secure = '; Secure' if os.getenv('CIME_DEPLOYMENT') == 'vercel' or str(getattr(handler, 'headers', {}).get('X-Forwarded-Proto', '')).lower() == 'https' else ''
+    handler.send_header('Set-Cookie', f'cime5_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax{secure}')
 
 def get_user(handler):
     route=handler.path.split('?',1)[0].rstrip('/') or '/'
