@@ -1555,8 +1555,8 @@ img{max-width:100%}
 (function(){
   function updateSummary(){
     const el=document.getElementById('c5FunnelSummary');
-    if(!el||!Array.isArray(window.titles))return;
-    const all=window.titles;
+    if(!el||typeof titles==='undefined'||!Array.isArray(titles))return;
+    const all=titles;
     const imported=all.filter(x=>{try{return typeof importedSources==='function'&&importedSources(x).length>0}catch(_){return false}});
     const noCover=all.filter(x=>{try{return !(typeof coverOf==='function'&&coverOf(x))}catch(_){return true}});
     const netflix=imported.filter(x=>{try{return importedSources(x).includes('netflix')}catch(_){return false}}).length;
