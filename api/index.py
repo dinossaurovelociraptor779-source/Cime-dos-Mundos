@@ -60,10 +60,9 @@ def _load_gateway():
         # Copy the gateway implementation onto the lightweight Vercel handler.
         # This keeps /api/health independent from heavyweight imports while
         # preserving the original Gateway request handling for every other route.
-        for name in (
-            "send_json", "send_html", "body", "public", "do_OPTIONS",
-            "do_GET", "do_POST"
-        ):
+        # Copy helpers only; keep the wrapper methods so every invocation
+        # restores Vercel's rewritten route before dispatching to the gateway.
+        for name in ("send_json", "send_html", "body", "read_body", "public"):
             setattr(handler, name, getattr(Gateway, name))
         handler.send_file = getattr(Gateway, "send_file", None)
         handler.protocol_version = getattr(Gateway, "protocol_version", "HTTP/1.1")
@@ -99,8 +98,8 @@ class handler(BaseHTTPRequestHandler):
 
     def _delegate(self, method):
         try:
-            _load_gateway()
-            return getattr(self, method)( )
+            gateway = _load_gateway()
+            return getattr(gateway, method)(self)
         except Exception as exc:
             raw = json.dumps({
                 "ok": False,
@@ -152,6 +151,14 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._restore_route()
         return self._delegate("do_POST")
+
+    def do_PUT(self):
+        self._restore_route()
+        return self._delegate("do_PUT")
+
+    def do_DELETE(self):
+        self._restore_route()
+        return self._delegate("do_DELETE")
 
     def do_OPTIONS(self):
         self._restore_route()
