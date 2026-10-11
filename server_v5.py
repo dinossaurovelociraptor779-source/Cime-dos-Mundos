@@ -1049,7 +1049,7 @@ class Gateway(BaseHTTPRequestHandler):
                 if path in ('/api/titles','/api/import','/api/import/history','/api/titles/cover-photo'):
                     legacy.invalidate_library_cache()
                 return result
-            self.send_json({'error':'Rota não encontrada.'},404)
+            self.send_json({'error':'Rota não encontrada.','route':path,'method':'POST'},404)
         except Exception as e: self.send_json({'error':str(e)},500)
     def do_PUT(self):
         _tls.__dict__.pop('user_id',None)
