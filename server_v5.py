@@ -203,6 +203,9 @@ def maybe_send_invite_email(email,group_name,inviter_name,link):
     return True,'sent'
 
 def ensure_library(uid):
+    # Preserve the authenticated request context when initializing a user's DB.
+    # require() calls this while the same user is already active on the request.
+    previous_uid=getattr(_tls,'user_id',None)
     _tls.user_id=uid
     try:
         legacy.init_db()
@@ -225,7 +228,12 @@ def ensure_library(uid):
                     qs=','.join('?' for _ in keys); tgt.execute(f"INSERT INTO titles ({','.join(keys)}) VALUES ({qs})",[r[k] for k in keys])
                 tgt.commit(); tgt.close()
             legacy_conn.close()
-    finally: delattr(_tls,'user_id') if hasattr(_tls,'user_id') else None
+    finally:
+        if previous_uid is None:
+            if hasattr(_tls,'user_id'):
+                delattr(_tls,'user_id')
+        else:
+            _tls.user_id=previous_uid
 
 SESSION_TOKEN_SECRET = os.getenv('CIME_SESSION_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET') or 'CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0'
 
