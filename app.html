@@ -438,20 +438,22 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   </div>
 </header>
 <nav id="c5MobileNav" class="c5-mobile-nav" aria-label="Navegação principal no celular">
-  <button type="button" class="c5mnav active" data-view="library" aria-label="Biblioteca"><span>📚</span><small>Biblioteca</small></button>
-  <button type="button" class="c5mnav" data-view="discover" aria-label="Pesquisar"><span>🔎</span><small>Pesquisar</small></button>
+  <button type="button" class="c5mnav active" data-view="home" aria-label="Início"><span>⌂</span><small>Início</small></button>
+  <button type="button" class="c5mnav" data-view="discover" aria-label="Buscar"><span>🔎</span><small>Buscar</small></button>
   <button type="button" class="c5mnav c5mnav-plus" id="c5MobileAdd" aria-label="Adicionar"><span>＋</span><small>Adicionar</small></button>
-  <button type="button" class="c5mnav" id="c5MobileGroups" aria-label="Grupos"><span>👥</span><small>Grupos</small><b id="c5MobileGroupBadge" hidden>•</b></button>
+  <button type="button" class="c5mnav" data-view="favorites" id="c5MobileFavorites" aria-label="Favoritos"><span>♡</span><small>Favoritos</small></button>
   <button type="button" class="c5mnav" id="c5MobileMore" aria-label="Mais opções"><span>☰</span><small>Mais</small></button>
 </nav>
 <div id="c5MobileMoreSheet" class="c5-mobile-more" hidden>
   <div class="c5-mobile-more-card">
     <div class="c5-mobile-more-head"><div><b>Mais opções</b><span>Cime dos Mundos 5.0</span></div><button type="button" id="c5CloseMore" aria-label="Fechar">✕</button></div>
     <div class="c5-mobile-more-grid">
+      <button type="button" id="c5MobileLibrary">📚<b>Minha biblioteca</b><span>Todos os títulos e filtros</span></button>
+      <button type="button" id="c5MobileGroups">👥<b>Grupos</b><span>Conversas e recomendações <i id="c5MobileGroupBadge" hidden>•</i></span></button>
       <button type="button" id="c5MobileStats">📊<b>Estatísticas</b><span>Seu progresso</span></button>
       <button type="button" id="c5MobileSettings">⚙️<b>Configurações</b><span>Tema e conta</span></button>
-      <button type="button" id="c5MobileHistory">📥<b>Histórico</b><span>Netflix / Tomato</span></button>
-      <button type="button" id="c5MobileCovers">🖼️<b>Atualizar capas</b><span>Manter sua coleção completa</span></button>
+      <button type="button" id="c5MobileHistory">📥<b>Importar histórico</b><span>Netflix / Tomato</span></button>
+      <button type="button" id="c5MobileCovers">🖼️<b>Atualizar capas</b><span>Completar sua coleção</span></button>
     </div>
     <button type="button" id="c5InstallApp" class="c5-install-app">📱 Adicionar o Cime à tela inicial</button>
   </div>
@@ -1573,6 +1575,176 @@ img{max-width:100%}
   });
   window.addEventListener('load',()=>setTimeout(updateSummary,350),{once:true});
   window.addEventListener('cime:library-updated',updateSummary);
+})();
+</script>
+
+<style id="c5-tomato-inspired-mobile">
+#c5MobileHomeView{display:none}
+.c5-mobile-header-search{display:none}
+.c5-mobile-home-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 0 10px}
+.c5-mobile-home-eyebrow{color:#a78bfa;font-size:10px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
+.c5-mobile-home-top h2{margin:5px 0 4px;font-size:25px;line-height:1.12;letter-spacing:-.04em}
+.c5-mobile-home-top p{margin:0;color:#98a6bd;font-size:12px;line-height:1.45}
+.c5-mobile-home-search{display:none}
+.c5-mobile-home-actions{display:flex;gap:8px;margin:6px 0 12px}
+.c5-mobile-home-actions button{flex:1;min-width:0;min-height:43px;padding:9px 10px;border:1px solid #29364e;border-radius:13px;background:#111a2a;color:#ecf1fb;font-size:11px;font-weight:800}
+.c5-mobile-home-actions button:first-child{background:linear-gradient(135deg,#31245f,#17172c);border-color:#514186}
+.c5-home-shelf{margin:18px calc(-1 * var(--c5-mobile-gutter,12px)) 0;padding:0 var(--c5-mobile-gutter,12px)}
+.c5-home-shelf-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.c5-home-shelf-head h3{font-size:16px;letter-spacing:-.02em;margin:0;font-weight:850}
+.c5-home-shelf-head p{font-size:10px;color:#8593ab;margin:4px 0 0}
+.c5-home-shelf-head button{background:transparent;color:#b5a5ff;font-size:11px;font-weight:800;padding:7px 2px;white-space:nowrap}
+.c5-home-rail{display:grid;grid-auto-flow:column;grid-auto-columns:clamp(104px,31vw,132px);gap:10px;overflow-x:auto;overflow-y:hidden;padding:2px 1px 13px;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.c5-home-rail::-webkit-scrollbar{display:none}
+.c5-home-card{display:block;width:100%;min-width:0;padding:0;text-align:left;border:0;background:transparent;color:#f5f7fb;scroll-snap-align:start}
+.c5-home-poster{position:relative;display:block;width:100%;aspect-ratio:2/3;overflow:hidden;border-radius:11px;background:linear-gradient(145deg,#171d2d,#0b111b);border:1px solid rgba(148,163,184,.15);box-shadow:0 6px 17px rgba(0,0,0,.18)}
+.c5-home-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.c5-home-placeholder{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:31px;background:radial-gradient(circle at 30% 20%,rgba(139,92,246,.23),transparent 50%),linear-gradient(145deg,#182235,#0a0e17)}
+.c5-home-rating{position:absolute;left:5px;bottom:5px;max-width:calc(100% - 10px);padding:4px 6px;border-radius:7px;background:rgba(3,7,14,.82);color:#ffe5a1;font-size:9px;font-weight:900;backdrop-filter:blur(8px)}
+.c5-home-poster-status{position:absolute;top:5px;left:5px;right:5px;display:flex;align-items:center;gap:4px}
+.c5-home-progress{height:3px;border-radius:99px;overflow:hidden;background:#344057;flex:1}
+.c5-home-progress i{display:block;height:100%;background:linear-gradient(90deg,#8b5cf6,#22d3ee)}
+.c5-home-card-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;margin-top:7px;font-size:11px;font-weight:800;line-height:1.35;min-height:30px;overflow-wrap:anywhere}
+.c5-home-card-sub{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px;color:#8492a8;font-size:9px}
+.c5-mobile-home-empty{margin:18px 0;padding:24px 16px;text-align:center;border:1px dashed #303b52;border-radius:18px;background:#0d1420}
+.c5-mobile-home-empty h3{margin:0 0 7px;font-size:17px}
+.c5-mobile-home-empty p{margin:0 0 13px;color:#98a6bd;font-size:12px;line-height:1.5}
+.c5-mobile-home-empty button{min-height:44px;padding:10px 14px;border-radius:12px;background:#6d4fe0;color:#fff;font-weight:850}
+.c5-mobile-more-grid button{position:relative}
+.c5-mobile-more-grid #c5MobileGroupBadge{font-style:normal;color:#c4b5fd;margin-left:3px}
+@media(max-width:760px){
+  header .nav{display:none!important}
+  header{position:sticky!important;padding-right:56px!important}
+  header .brand{padding-right:0!important}
+  .brand h1{max-width:calc(100vw - 115px)}
+  .c5-mobile-header-search{position:absolute;display:flex;align-items:center;justify-content:center;right:12px;top:12px;width:42px;height:42px;min-height:42px;border-radius:14px;border:1px solid #2b3650;background:#111827;color:#f4f5fa;font-size:19px}
+  #c5MobileHomeView{display:none}
+  body.c5-mobile-home #c5MobileHomeView{display:block!important}
+  body.c5-mobile-home #libraryView,body.c5-mobile-home #discoverView,body.c5-mobile-home #statsView{display:none!important}
+  .c5-mobile-home-top{padding-top:12px}
+  .c5-mobile-home-top h2{font-size:25px}
+  .c5-mobile-home-actions{position:relative}
+  .c5-home-shelf{margin-top:17px}
+  .c5-home-shelf-head h3{font-size:15px}
+  .c5-home-rail{grid-auto-columns:clamp(100px,30vw,126px);gap:9px}
+  .c5-home-card:active .c5-home-poster{transform:scale(.985)}
+  .c5-home-poster{transition:transform .15s ease}
+  #c5MobileNav{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+  #c5MobileNav .c5mnav{min-width:0}
+  #c5MobileNav .c5mnav>span{font-size:20px!important}
+  #c5MobileNav .c5mnav small{font-size:9px!important}
+  #c5MobileNav .c5mnav.active{color:#fff!important;background:rgba(139,92,246,.18)!important;box-shadow:inset 0 0 0 1px rgba(139,92,246,.2)}
+  #c5MobileNav .c5mnav-plus>span{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#8b5cf6,#5428b7);color:white}
+  #c5MobileMoreSheet .c5-mobile-more-card{max-height:78dvh;overflow-y:auto}
+  #c5MobileMoreSheet .c5-mobile-more-grid button{min-width:0;padding:12px 10px!important}
+}
+@media(min-width:761px){#c5MobileHomeView,.c5-mobile-header-search{display:none!important}}
+@media(prefers-reduced-motion:reduce){.c5-home-poster{transition:none!important}}
+</style>
+<script id="c5-tomato-inspired-mobile-js">
+(function(){
+  'use strict';
+  const q=s=>document.querySelector(s);
+  const qa=s=>Array.from(document.querySelectorAll(s));
+  const home=document.createElement('section');
+  home.id='c5MobileHomeView';
+  home.setAttribute('aria-label','Início do Cime dos Mundos');
+  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu universo</h2><p>Animes, séries e filmes para continuar, rever e descobrir.</p></div></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeLibrary">📚 Biblioteca completa</button><button type="button" id="c5HomeHistory">📥 Importar histórico</button></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe o histórico da Netflix ou do Tomato para organizar o que você já assistiu.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
+  const main=q('main');
+  if(main)main.insertBefore(home,main.firstChild);
+  const header=q('header');
+  if(header&&!q('#c5MobileHeaderSearch')){
+    const search=document.createElement('button');
+    search.type='button';search.id='c5MobileHeaderSearch';search.className='c5-mobile-header-search';
+    search.setAttribute('aria-label','Buscar animes, séries e filmes');search.textContent='⌕';
+    header.appendChild(search);
+  }
+  const getTitles=()=>typeof titles!=='undefined'&&Array.isArray(titles)?titles:[];
+  const e=v=>typeof esc==='function'?esc(String(v==null?'':v)):String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const iconFor=x=>String(x&&x.category||'').toLowerCase().includes('anime')?'🎌':String(x&&x.category||'').toLowerCase().includes('filme')?'🎬':'📺';
+  function shelfCard(x){
+    const id=e(x.id);
+    const name=x.name||x.title||'Título sem nome';
+    let cover='';try{if(typeof coverOf==='function')cover=coverOf(x)||'';}catch(_){}
+    let progress=0;try{if(typeof pct==='function')progress=Math.max(0,Math.min(100,Number(pct(x))||0));}catch(_){}
+    const ep=Number(x.current_episode||0),season=Number(x.current_season||1);
+    const total=Number(x.episodes||x.total_episodes||0);
+    const rating=x.rating!==null&&x.rating!==undefined&&x.rating!==''?'<span class="c5-home-rating">⭐ '+e(Number(x.rating).toFixed(1))+'</span>':'';
+    const prog=x.status==='Assistindo'?'<span class="c5-home-poster-status"><span class="c5-home-progress"><i style="width:'+progress+'%"></i></span></span>':'';
+    const subtitle=x.status==='Assistindo'&&total?'T'+season+' · Episódio '+ep+'/'+total:(typeof statusPT==='function'?statusPT(x.status||'Quero assistir'):x.status||'Quero assistir');
+    const picture=cover?'<img src="'+e(cover)+'" alt="Capa de '+e(name)+'" loading="lazy" decoding="async" onerror="this.style.display=\\'none\\'">':'<span class="c5-home-placeholder">'+iconFor(x)+'</span>';
+    return '<button type="button" class="c5-home-card" data-c5-home-id="'+id+'" aria-label="Abrir '+e(name)+'"><span class="c5-home-poster">'+picture+rating+prog+'</span><span class="c5-home-card-title">'+e(name)+'</span><span class="c5-home-card-sub">'+e(subtitle)+'</span></button>';
+  }
+  function renderShelves(){
+    const root=q('#c5MobileShelves');if(!root)return;
+    const all=getTitles();
+    const shelves=[
+      {title:'▶ Continuar assistindo',sub:'Retome de onde você parou',filter:'Assistindo',items:all.filter(x=>x.status==='Assistindo')},
+      {title:'♡ Seus favoritos',sub:'Os títulos que você marcou',filter:'favorite',items:all.filter(x=>!!x.favorite)},
+      {title:'＋ Para assistir depois',sub:'Sua lista de próximos títulos',filter:'Quero assistir',items:all.filter(x=>x.status==='Quero assistir')},
+      {title:'✓ Já concluídos',sub:'Sua jornada até aqui',filter:'Concluído',items:all.filter(x=>x.status==='Concluído')},
+      {title:'Explore sua coleção',sub:all.length+' título(s) na sua biblioteca',filter:'all',items:all}
+    ];
+    const active=shelves.filter(x=>x.items.length).map(function(shelf){
+      const items=shelf.items.slice(0,12);
+      return '<section class="c5-home-shelf"><div class="c5-home-shelf-head"><div><h3>'+e(shelf.title)+'</h3><p>'+e(shelf.sub)+'</p></div><button type="button" data-c5-home-filter="'+e(shelf.filter)+'">Ver tudo ›</button></div><div class="c5-home-rail" aria-label="'+e(shelf.title)+'">'+items.map(shelfCard).join('')+'</div></section>';
+    });
+    root.innerHTML=active.join('');
+    const empty=q('#c5MobileHomeEmpty');if(empty)empty.hidden=all.length>0;
+    if(all.length===0)root.innerHTML='';
+  }
+  function setActive(page){qa('#c5MobileNav .c5mnav[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===page));}
+  function showHome(){
+    if(typeof showView==='function')showView('library');
+    document.body.classList.add('c5-mobile-home');
+    setActive('home');
+    renderShelves();
+  }
+  function showDiscover(){
+    document.body.classList.remove('c5-mobile-home');
+    if(typeof showView==='function')showView('discover');
+    setActive('discover');
+  }
+  function openLibrary(filterValue){
+    document.body.classList.remove('c5-mobile-home');
+    try{q('#resetFilters')&&q('#resetFilters').click();}catch(_){}
+    const search=q('#librarySearch');if(search)search.value='';
+    const genre=q('#genreFilter');if(genre)genre.value='all';
+    const filter=q('#filter');if(filter)filter.value=filterValue||'all';
+    if(typeof showView==='function')showView('library');
+    if(typeof render==='function')render();
+    setActive(filterValue==='favorite'?'favorites':'');
+  }
+  qa('#c5MobileNav .c5mnav[data-view]').forEach(b=>b.addEventListener('click',function(){
+    if(b.dataset.view==='home')showHome();
+    else if(b.dataset.view==='discover')showDiscover();
+    else if(b.dataset.view==='favorites')openLibrary('favorite');
+  }));
+  q('#c5MobileHeaderSearch')&&q('#c5MobileHeaderSearch').addEventListener('click',showDiscover);
+  q('#c5MobileLibrary')&&q('#c5MobileLibrary').addEventListener('click',function(){if(q('#c5MobileMoreSheet'))q('#c5MobileMoreSheet').hidden=true;openLibrary('all');});
+  q('#c5HomeLibrary')&&q('#c5HomeLibrary').addEventListener('click',function(){openLibrary('all');});
+  q('#c5HomeHistory')&&q('#c5HomeHistory').addEventListener('click',function(){if(typeof openDialog==='function')openDialog('historyImportDlg');else q('#openHistoryImport')&&q('#openHistoryImport').click();});
+  q('#c5HomeEmptyAdd')&&q('#c5HomeEmptyAdd').addEventListener('click',function(){if(typeof openDialog==='function')openDialog('dlg');});
+  q('#c5MobileStats')&&q('#c5MobileStats').addEventListener('click',function(){document.body.classList.remove('c5-mobile-home');if(typeof showView==='function')showView('stats');});
+  q('#c5MobileMore')&&q('#c5MobileMore').addEventListener('click',function(){const sheet=q('#c5MobileMoreSheet');if(sheet)q('#c5MobileMore').classList.toggle('active',!sheet.hidden);});
+  q('#c5MobileMoreSheet')&&q('#c5MobileMoreSheet').addEventListener('click',function(ev){if(ev.target===q('#c5MobileMoreSheet'))q('#c5MobileMore').classList.remove('active');});
+  q('#c5CloseMore')&&q('#c5CloseMore').addEventListener('click',function(){q('#c5MobileMore')&&q('#c5MobileMore').classList.remove('active');});
+  q('#c5MobileShelves')&&q('#c5MobileShelves').addEventListener('click',function(ev){
+    const filterBtn=ev.target.closest('[data-c5-home-filter]');
+    if(filterBtn){openLibrary(filterBtn.dataset.c5HomeFilter);return;}
+    const card=ev.target.closest('[data-c5-home-id]');
+    if(card){const found=getTitles().find(x=>String(x.id)===card.dataset.c5HomeId);if(found&&typeof openPanel==='function')openPanel(found);}
+  });
+  const grid=q('#grid');
+  if(grid&&typeof MutationObserver!=='undefined')new MutationObserver(function(){renderShelves();}).observe(grid,{childList:true});
+  window.addEventListener('cime:library-updated',renderShelves);
+  setTimeout(renderShelves,100);
+  setTimeout(renderShelves,900);
+  const media=window.matchMedia('(max-width:760px)');
+  function syncMode(){if(media.matches){showHome();}else{document.body.classList.remove('c5-mobile-home');home.style.display='none';if(typeof showView==='function')showView('library');}}
+  if(media.matches)showHome();
+  if(typeof media.addEventListener==='function')media.addEventListener('change',syncMode);
+  else if(typeof media.addListener==='function')media.addListener(syncMode);
 })();
 </script>
 </body></html>
