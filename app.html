@@ -1398,5 +1398,155 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 })();
 </script>
 
+<style id="cime-responsive-ux-v4">
+/* Cime dos Mundos 5.0 — responsive UX pass: phone, tablet and notebook */
+:root{--c5-touch:44px;--c5-radius:16px}
+button,select,input,textarea{font:inherit}
+button,select{touch-action:manipulation}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #a78bfa;outline-offset:2px}
+img{max-width:100%}
+#funnelDlg .modal{width:min(760px,calc(100vw - 32px));max-height:min(88dvh,820px);overflow:auto;padding:clamp(16px,2.4vw,26px);border-radius:22px}
+#funnelDlg .history-head{padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
+#funnelDlg .history-head h2{font-size:clamp(21px,2.4vw,29px);line-height:1.15}
+#funnelDlg .panel-box{padding:clamp(12px,2vw,20px);border-radius:18px}
+#funnelDlg .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#funnelDlg .field{min-width:0}
+#funnelDlg .field label{display:block;margin-bottom:7px;font-weight:750;font-size:13px}
+#funnelDlg .field select{width:100%;min-height:var(--c5-touch);border-radius:12px;padding:10px 12px}
+#funnelDlg .actions{display:flex;flex-wrap:wrap;gap:9px;position:sticky;bottom:-1px;padding-top:14px;background:var(--surface,#101624)}
+#funnelDlg .actions .btn{min-height:var(--c5-touch);flex:1}
+#funnelInfo{margin-top:12px;line-height:1.5}
+#openFunnel{border-color:rgba(139,92,246,.42);background:rgba(109,40,217,.13)}
+#historyImportDlg .modal,.history-import-modal{max-width:min(980px,calc(100vw - 32px))}
+#c5go .c5gm{width:min(1120px,100%);max-height:90dvh;overscroll-behavior:contain}
+#c5go .c5ggrid{grid-template-columns:minmax(230px,290px) minmax(0,1fr);gap:12px}
+#c5go .c5ggrid>.c5gc{min-width:0}
+#c5go .c5gc input,#c5go .c5gc textarea,#c5go .c5gc select{max-width:100%}
+#c5go .c5chat-section{min-width:0}
+#c5go .c5chat-feed{overscroll-behavior:contain;overflow-wrap:anywhere}
+#c5go .c5chat-composer{display:flex;align-items:flex-end;gap:8px}
+#c5go .c5chat-input{min-width:0;max-height:120px;resize:none}
+#c5go .c5chat-send,#c5go .c5chat-attach{flex:0 0 var(--c5-touch);min-width:var(--c5-touch);min-height:var(--c5-touch)}
+#c5go .c5chat-tools .c5gb{min-height:var(--c5-touch)}
+#c5go .c5anime-share-fields{align-items:stretch}
+#c5go .c5anime-share-fields>.c5gi{min-width:0}
+#c5go .c5anime-rating{flex:0 0 auto}
+#c5go .c5anime-rating select{min-height:var(--c5-touch)}
+.c5-mobile-more[hidden]{display:none!important}
+@media(min-width:761px){
+  #c5go{padding:24px}
+  #c5go .c5gm{border-radius:22px;padding:20px}
+  #c5go .c5ggrid{min-height:min(650px,70dvh)}
+  #c5go .c5ggrid>.c5gc:last-child{display:flex;flex-direction:column;min-height:0}
+  #c5go #c5gv{min-width:0}
+  #c5go #c5chatSection{display:flex;flex-direction:column;min-height:300px}
+  #c5go .c5chat-feed{flex:1;min-height:240px;max-height:52dvh}
+  #c5go .c5chat-composer{position:sticky;bottom:0;padding:8px 0 2px;background:#0b111c}
+  #c5go .c5group-card{min-height:64px}
+}
+@media(max-width:760px){
+  html,body{max-width:100%;overflow-x:clip}
+  body{padding-bottom:calc(82px + env(safe-area-inset-bottom,0px))}
+  main{min-width:0}
+  .library-heading h2{font-size:21px}
+  .toolbar.compact-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.8fr);gap:8px}
+  .toolbar.compact-toolbar .library-search{grid-column:1/-1;min-width:0;width:100%;min-height:46px}
+  .toolbar.compact-toolbar .filter,.toolbar.compact-toolbar .bulk-btn{min-width:0;width:100%;min-height:44px;font-size:12px;padding:9px 8px}
+  #openFilters,#openFunnel{white-space:nowrap}
+  .select-mode-toolbar .bulk-btn,.selection-options .bulk-btn{min-height:44px}
+  .selection-options{display:none;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .selection-mode .selection-options{display:grid}
+  .selection-options .select-status{grid-column:1/-1}
+  .selection-options select{min-width:0;width:100%}
+  .grid{align-items:stretch}
+  .card{height:100%;min-width:0}
+  .card .title,.card .sub{overflow-wrap:anywhere}
+  .cover{height:clamp(170px,52vw,240px)!important}
+  .card-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .card-actions button{min-width:0;padding:9px 6px;font-size:11px}
+  .modal{max-width:calc(100vw - 20px)!important}
+  dialog{max-width:100vw}
+  #funnelDlg{padding:0!important;align-items:flex-end}
+  #funnelDlg[open]{display:flex;justify-content:center;align-items:flex-end}
+  #funnelDlg .modal{width:100%;max-width:none!important;max-height:90dvh;padding:18px 14px calc(16px + env(safe-area-inset-bottom,0px));border-radius:22px 22px 0 0;overflow-y:auto;overscroll-behavior:contain}
+  #funnelDlg .history-head{gap:10px}
+  #funnelDlg .history-head h2{font-size:22px}
+  #funnelDlg .history-head p{font-size:12px;line-height:1.5}
+  #funnelDlg .form-grid{grid-template-columns:minmax(0,1fr);gap:11px}
+  #funnelDlg .field select{font-size:16px;min-height:48px}
+  #funnelDlg .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #funnelDlg .actions .btn{min-height:46px;padding:10px}
+  #funnelDlg #applyFunnel{grid-column:1/-1;grid-row:1}
+  #historyImportDlg .modal,.history-import-modal{width:100%;max-width:none!important;max-height:92dvh;overflow:auto;border-radius:22px 22px 0 0}
+  #c5bar{gap:5px;padding-top:7px;padding-bottom:7px}
+  #c5bar #c5user{max-width:34vw;overflow:hidden;text-overflow:ellipsis}
+  #c5bar button{min-height:42px;padding:8px 9px;font-size:11px}
+  #c5go{padding:0!important;align-items:stretch!important}
+  #c5go .c5gm{display:flex!important;flex-direction:column;width:100%!important;max-width:none!important;height:100dvh!important;max-height:100dvh!important;min-height:0!important;margin:0!important;padding:12px 11px calc(10px + env(safe-area-inset-bottom,0px))!important;border:0!important;border-radius:0!important;overflow:hidden!important;box-sizing:border-box}
+  #c5go .c5gm>div:first-child{position:relative!important;flex:0 0 auto;display:flex!important;align-items:center!important;gap:8px!important;padding:2px 0 10px!important;background:#101725!important}
+  #c5go .c5gm>div:first-child>div:first-child{min-width:0;flex:1}
+  #c5go .c5gm>div:first-child .c5group-title{font-size:16px!important;line-height:1.2}
+  #c5go .c5gm>div:first-child .c5group-sub{font-size:10px!important}
+  #c5go .c5gm>div:first-child>div:last-child{gap:5px!important}
+  #c5go .c5gm>div:first-child button{min-width:0!important;min-height:42px!important;padding:8px!important;font-size:11px!important}
+  #c5go .c5ggrid{display:flex!important;flex-direction:column!important;flex:1!important;min-height:0!important;height:auto!important;overflow:hidden!important;margin-top:0!important;gap:0!important}
+  #c5go .c5ggrid>.c5gc:first-child{display:none!important}
+  #c5go .c5ggrid>.c5gc:last-child{display:flex!important;flex:1!important;flex-direction:column!important;min-width:0!important;min-height:0!important;overflow:hidden!important;padding:0!important;border:0!important;background:transparent!important}
+  #c5go .c5quick-wrap{display:block!important;flex:0 0 auto;margin:0 0 7px!important}
+  #c5go .c5quick-label{margin:2px 0 6px!important;font-size:10px!important}
+  #c5go .c5quick-groups{display:flex!important;flex-direction:row!important;gap:7px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:1px 1px 7px!important;scroll-snap-type:x proximity}
+  #c5go .c5quick-group{min-width:135px!important;max-width:210px;min-height:45px;padding:9px!important;scroll-snap-align:start}
+  #c5go #c5gvempty{padding:16px!important}
+  #c5go #c5gv{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+  #c5go .c5-group-mobile-head{flex:0 0 auto;align-items:center;padding:3px 0 8px!important}
+  #c5go .c5-group-mobile-head h3{font-size:17px!important;overflow-wrap:anywhere}
+  #c5go .c5-group-mobile-head .c5group-sub{max-width:68vw;overflow-wrap:anywhere}
+  #c5go .c5-group-tabs{position:static!important;display:flex!important;flex:0 0 auto;gap:5px!important;margin:0 0 7px!important;padding:2px 0 7px!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;background:transparent!important;scroll-snap-type:x proximity}
+  #c5go .c5-group-tabs button{min-height:42px!important;padding:8px 11px!important;font-size:11px!important;scroll-snap-align:start}
+  #c5go .c5section{min-width:0;max-width:100%;box-sizing:border-box;border-radius:14px!important;margin-top:5px!important;padding:10px!important}
+  #c5go #c5chatSection{display:flex!important;flex:1;flex-direction:column;min-height:0;overflow:hidden}
+  #c5go .c5chat-head{flex:0 0 auto;gap:8px;margin-bottom:5px}
+  #c5go .c5chat-head h4{font-size:14px}
+  #c5go .c5chat-head .c5mut{font-size:10px}
+  #c5go .c5chat-feed{display:flex;flex:1;flex-direction:column;min-height:80px;max-height:none!important;height:auto;overflow-y:auto;overscroll-behavior:contain;padding:7px 2px 10px;gap:7px}
+  #c5go .c5chat-row{max-width:100%;gap:6px}
+  #c5go .c5chat-avatar{width:27px;height:27px;font-size:11px}
+  #c5go .c5chat-bubble{max-width:calc(100% - 35px);padding:9px 10px;font-size:13px;overflow-wrap:anywhere}
+  #c5go .c5chat-tools{flex:0 0 auto;padding:6px 0;gap:6px}
+  #c5go .c5chat-tools .c5gb{width:100%;min-height:44px;font-size:12px}
+  #c5go .c5chat-tools .c5mut{display:none}
+  #c5go .c5anime-share-box{flex:0 0 auto;max-height:36dvh;overflow:auto;padding:10px!important}
+  #c5go .c5anime-share-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:5px}
+  #c5go .c5anime-share-fields>.c5gi{width:100%;min-width:0;font-size:16px;min-height:44px}
+  #c5go .c5anime-rating{display:flex;justify-content:space-between;min-height:40px}
+  #c5go .c5anime-rating select{width:auto;min-width:90px}
+  #c5go .c5anime-share-box textarea{font-size:16px;min-height:58px}
+  #c5go .c5chat-composer{display:flex;flex:0 0 auto;align-items:flex-end;gap:6px;padding:7px 0 calc(2px + env(safe-area-inset-bottom,0px));background:#0b111c}
+  #c5go .c5chat-attach,#c5go .c5chat-send{width:44px;min-width:44px;height:44px;min-height:44px;border-radius:14px}
+  #c5go .c5chat-input{flex:1;min-width:0;width:0;min-height:44px;max-height:100px;padding:11px 12px!important;font-size:16px!important;line-height:1.3;resize:none}
+  #c5go #c5gmembers,#c5go #c5recSection,#c5go #c5memSection,#c5go #c5shareSection{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+  #c5go .c5actionrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  #c5go .c5actionrow .c5gb{min-width:0;min-height:44px;padding:9px 7px;font-size:11px}
+  #c5go .c5gi,#c5go .c5gt{font-size:16px!important;min-height:44px}
+  #c5go .c5photos{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  #c5go .c5ph img{aspect-ratio:1/1;max-height:none;object-fit:cover}
+  .c5-mobile-more{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+}
+@media(max-width:390px){
+  .toolbar.compact-toolbar{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .card-actions{grid-template-columns:minmax(0,1fr)!important}
+  #c5go .c5gm>div:first-child .c5group-title{font-size:14px!important}
+  #c5go .c5gm>div:first-child .c5newgroup{max-width:90px}
+  #c5go .c5gm>div:first-child button{font-size:10px!important;padding:7px 5px!important}
+  #c5go .c5-group-tabs button{padding:8px 9px!important}
+}
+@media(min-width:761px) and (max-width:1050px){
+  #c5go .c5gm{max-width:96vw}
+  #c5go .c5ggrid{grid-template-columns:220px minmax(0,1fr)}
+  #c5go .c5chat-feed{max-height:48dvh}
+  .toolbar.compact-toolbar{gap:7px}
+}
+@media(prefers-reduced-motion:reduce){#c5go *,#funnelDlg *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
 </body></html>
 
