@@ -1672,7 +1672,7 @@ img{max-width:100%}
     const rating=x.rating!==null&&x.rating!==undefined&&x.rating!==''?'<span class="c5-home-rating">⭐ '+e(Number(x.rating).toFixed(1))+'</span>':'';
     const prog=x.status==='Assistindo'?'<span class="c5-home-poster-status"><span class="c5-home-progress"><i style="width:'+progress+'%"></i></span></span>':'';
     const subtitle=x.status==='Assistindo'&&total?'T'+season+' · Episódio '+ep+'/'+total:(typeof statusPT==='function'?statusPT(x.status||'Quero assistir'):x.status||'Quero assistir');
-    const picture=cover?'<img src="'+e(cover)+'" alt="Capa de '+e(name)+'" loading="lazy" decoding="async" onerror="this.style.display=\\'none\\'">':'<span class="c5-home-placeholder">'+iconFor(x)+'</span>';
+    const picture=cover?'<img src="'+e(cover)+'" alt="Capa de '+e(name)+'" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">':'<span class="c5-home-placeholder">'+iconFor(x)+'</span>';
     return '<button type="button" class="c5-home-card" data-c5-home-id="'+id+'" aria-label="Abrir '+e(name)+'"><span class="c5-home-poster">'+picture+rating+prog+'</span><span class="c5-home-card-title">'+e(name)+'</span><span class="c5-home-card-sub">'+e(subtitle)+'</span></button>';
   }
   function renderShelves(){
