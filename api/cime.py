@@ -72,12 +72,14 @@ class handler(BaseHTTPRequestHandler):
         self._restore_route()
         try:
             cls=load_gateway()
-            for name in ("send_json","send_html","body","public","do_OPTIONS","do_GET","do_POST"):
+            # Copy only request helpers. Do not overwrite handler.do_GET/do_POST:
+            # those wrappers must restore Vercel's __cime_path on every invocation.
+            for name in ("send_json","send_html","body","read_body","public"):
                 setattr(handler,name,getattr(cls,name))
             handler.send_file=getattr(cls,"send_file",None)
             handler.protocol_version=getattr(cls,"protocol_version","HTTP/1.1")
             handler.server_version=getattr(cls,"server_version","CimeDosMundos/5.0")
-            return getattr(self,method)()
+            return getattr(cls,method)(self)
         except Exception as exc:
             raw=json.dumps({
                 "ok":False,
@@ -175,5 +177,14 @@ class handler(BaseHTTPRequestHandler):
             return
         return self._run("do_POST")
 
+    def do_PUT(self):
+        self._restore_route()
+        return self._run("do_PUT")
+
+    def do_DELETE(self):
+        self._restore_route()
+        return self._run("do_DELETE")
+
     def do_OPTIONS(self):
+        self._restore_route()
         return self._run("do_OPTIONS")
