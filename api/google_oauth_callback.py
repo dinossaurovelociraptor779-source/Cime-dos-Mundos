@@ -141,7 +141,7 @@ def finish_login(handler,code,state,as_json=False):
         handler.send_header("Content-Type","application/json; charset=utf-8")
         handler.send_header("Cache-Control","no-store")
         handler.send_header("Set-Cookie","cime_google_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
-    handler.send_header("Set-Cookie","cime_google_handoff=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
+        handler.send_header("Set-Cookie","cime_google_handoff=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
         handler.send_header("Content-Length",str(len(raw)))
         handler.end_headers()
         handler.wfile.write(raw)
