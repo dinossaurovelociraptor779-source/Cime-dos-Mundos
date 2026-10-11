@@ -477,6 +477,8 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     <span class="select-status" id="bulkCount">0 selecionados</span>
     <button class="bulk-btn" id="selectAllTitles">☑️ Selecionar tudo</button>
     <button class="bulk-btn" id="clearSelectedTitles">↩️ Limpar seleção</button>
+    <select class="bulk-btn" id="bulkStatusSelect" aria-label="Novo status para os títulos selecionados"><option value="Quero assistir">▶️ Quero assistir</option><option value="Assistindo">👀 Assistindo</option><option value="Concluído">✅ Concluído</option></select>
+    <button class="bulk-btn" id="applyBulkStatus" disabled>Aplicar status</button>
     <button class="bulk-btn danger" id="deleteSelectedTitles" disabled>🗑️ Apagar selecionados</button>
     <button class="bulk-btn danger" id="deleteAllTitles" title="Apaga toda a biblioteca desta conta">💥 Apagar tudo</button>
   </div>
@@ -786,7 +788,7 @@ function nextPosition(x){const ss=seasonEntries(x);const cur=Math.max(1,Number(x
 const selectedTitleIds=new Set();
 let selectionMode=false;
 function setSelectionMode(on){selectionMode=!!on;document.body.classList.toggle('selection-mode',selectionMode);const b=$('selectMode');if(b){b.innerHTML=selectionMode?'✕ Sair da seleção':'☑️ Selecionar';b.setAttribute('aria-pressed',String(selectionMode));}if(!selectionMode)selectedTitleIds.clear();syncBulkUI();render();}
-function syncBulkUI(){const n=selectedTitleIds.size;const c=$('bulkCount');if(c)c.textContent=`${n} selecionado${n===1?'':'s'}`;const b=$('deleteSelectedTitles');if(b)b.disabled=n===0;document.querySelectorAll('[data-card-id]').forEach(el=>el.classList.toggle('is-selected',selectedTitleIds.has(String(el.dataset.cardId))));}
+function syncBulkUI(){const n=selectedTitleIds.size;const c=$('bulkCount');if(c)c.textContent=`${n} selecionado${n===1?'':'s'}`;const b=$('deleteSelectedTitles');if(b)b.disabled=n===0;const sb=$('applyBulkStatus');if(sb)sb.disabled=n===0;document.querySelectorAll('[data-card-id]').forEach(el=>el.classList.toggle('is-selected',selectedTitleIds.has(String(el.dataset.cardId))));}
 function toggleTitleSelected(id,checked){if(!selectionMode)return;const k=String(id);if(checked)selectedTitleIds.add(k);else selectedTitleIds.delete(k);syncBulkUI();}
 function selectAllVisible(){if(!selectionMode){selectionMode=true;document.body.classList.add('selection-mode');const b=$('selectMode');if(b){b.innerHTML='✕ Sair da seleção';b.setAttribute('aria-pressed','true');}}titles.forEach(t=>selectedTitleIds.add(String(t.id)));syncBulkUI();render();}
 function clearSelected(){selectedTitleIds.clear();syncBulkUI();render();}
@@ -861,6 +863,7 @@ $('selectMode').onclick=()=>setSelectionMode(!selectionMode);
 $('selectAllTitles').onclick=()=>{if(!selectionMode)setSelectionMode(true);selectAllVisible();};
 $('clearSelectedTitles').onclick=()=>{clearSelected();syncBulkUI();};
 $('deleteSelectedTitles').onclick=deleteSelected;
+$('applyBulkStatus').onclick=async()=>{const ids=[...selectedTitleIds].map(Number).filter(Number.isFinite);const status=$('bulkStatusSelect')?.value||'Assistindo';if(!ids.length)return;const btn=$('applyBulkStatus');if(btn){btn.disabled=true;btn.textContent='⏳ Aplicando…';}let updated=0;try{for(const id of ids){await api('/api/titles/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});updated++;if(btn)btn.textContent=`⏳ ${updated}/${ids.length}`;}await load();showToast(`✅ Status “${status}” aplicado a ${updated} título(s).`);}catch(e){showToast(`⚠️ ${updated} título(s) atualizados antes do erro: ${e.message}`);await load();}finally{if(btn){btn.textContent='Aplicar status';btn.disabled=selectedTitleIds.size===0;}}};
 $('deleteAllTitles').onclick=deleteAllTitles;
 $('themeDark').onclick=()=>applyTheme('dark');$('themeLight').onclick=()=>applyTheme('light');
 $('usePhotoDate')?.addEventListener('click',()=>{const v=$('photoDate')?.value||'';if(v&&$('end')){$('end').value=v;showToast('📷 Data da foto usada como término.')}});
@@ -924,10 +927,11 @@ async function enrichLibrary(){
       const batch=r.results||[];
       scanned+=Number(r.processed||0);
       changed+=batch.filter(x=>x.changed).length;
-      cursor=Number(r.next_after_id||cursor);
+      const nextCursor=Number(r.next_after_id||0);
       if(text) text.textContent=`🧠 Análise profunda: ${scanned} título(s) verificados · ${changed} atualizado(s).`;
       if(bar) bar.style.width=Math.min(98,Math.max(4,scanned%100))+'%';
-      if(!batch.length || r.finished) break;
+      if(!batch.length || r.finished || nextCursor<=cursor) break;
+      cursor=nextCursor;
       await load();
     }
     if(bar) bar.style.width='100%';
@@ -947,9 +951,10 @@ async function refreshAllCovers(){
   try{
     while(guard++<200){
       const r=await api('/api/library/covers?limit=3&after_id='+cursor+'&force=1');
-      const batch=r.results||[]; scanned+=Number(r.processed||0); changed+=batch.filter(x=>x.changed).length; cursor=Number(r.next_after_id||cursor);
+      const batch=r.results||[]; scanned+=Number(r.processed||0); changed+=batch.filter(x=>x.changed).length; const nextCursor=Number(r.next_after_id||0);
       if(btn) btn.textContent=`🖼️ Capas ${scanned}...`; showToast(`🖼️ Capas: ${scanned} analisadas · ${changed} atualizadas`);
-      if(!batch.length||r.finished) break;
+      if(!batch.length||r.finished||nextCursor<=cursor) break;
+      cursor=nextCursor;
       await load();
     }
     await load(); showToast(`✅ Capas atualizadas: ${changed} título(s).`);
