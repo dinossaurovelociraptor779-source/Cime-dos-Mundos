@@ -1139,7 +1139,7 @@ async function c5select(id){
     c5groups(true);
     if(c5x('c5share')) c5x('c5share').innerHTML='';
     if(c5x('c5gvempty')) c5x('c5gvempty').style.display='none';
-    if(c5x('c5gv')) c5x('c5gv').style.display='block';
+    if(c5x('c5gv')) c5x('c5gv').style.display='flex';
     c5x('c5gname').textContent = d.group.name;
     c5x('c5gdesc').textContent = (d.group.description || '') + (d.group.description ? ' · ' : '') + c5groupTypeLabel(d.group.group_type);
 
@@ -1507,7 +1507,7 @@ img{max-width:100%}
   #c5go .c5-group-tabs{position:static!important;display:flex!important;flex:0 0 auto;gap:5px!important;margin:0 0 7px!important;padding:2px 0 7px!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;background:transparent!important;scroll-snap-type:x proximity}
   #c5go .c5-group-tabs button{min-height:42px!important;padding:8px 11px!important;font-size:11px!important;scroll-snap-align:start}
   #c5go .c5section{min-width:0;max-width:100%;box-sizing:border-box;border-radius:14px!important;margin-top:5px!important;padding:10px!important}
-  #c5go #c5chatSection{display:flex!important;flex:1;flex-direction:column;min-height:0;overflow:hidden}
+  #c5go #c5chatSection{display:flex;flex:1;flex-direction:column;min-height:0;overflow:hidden}
   #c5go .c5chat-head{flex:0 0 auto;gap:8px;margin-bottom:5px}
   #c5go .c5chat-head h4{font-size:14px}
   #c5go .c5chat-head .c5mut{font-size:10px}
