@@ -58,9 +58,9 @@ jobs:
           threading.Thread(target=server.serve_forever, daemon=True).start()
           base = f"http://127.0.0.1:{server.server_port}"
 
-          def call(method, route, payload=None, token=None):
+          def call(method, route, payload=None, token=None, mount="/api/cime", request_base=None):
               parsed = urllib.parse.urlsplit(route)
-              target = "/api/cime?__cime_path=" + urllib.parse.quote(parsed.path, safe="")
+              target = mount + "?__cime_path=" + urllib.parse.quote(parsed.path, safe="")
               if parsed.query:
                   target += "&" + parsed.query
               headers = {"Accept": "application/json"}
@@ -70,7 +70,7 @@ jobs:
                   headers["Content-Type"] = "application/json"
               if token:
                   headers["Authorization"] = "Bearer " + token
-              req = urllib.request.Request(base + target, data=body, headers=headers, method=method)
+              req = urllib.request.Request((request_base or base) + target, data=body, headers=headers, method=method)
               try:
                   response = urllib.request.urlopen(req, timeout=12)
               except urllib.error.HTTPError as exc:
@@ -92,6 +92,7 @@ jobs:
               )
               return body, ctype, raw
 
+          index_server = None
           try:
               # Repeated requests catch wrappers that accidentally replace their own route methods.
               for _ in range(2):
@@ -157,8 +158,45 @@ jobs:
               expect("DELETE", f"/api/titles/{title_id}", 200, token=creator_token)
               titles, _, _ = expect("GET", "/api/titles", 200, token=creator_token)
               assert not any(int(row["id"]) == title_id for row in titles), titles
-              print("Serverless gateway smoke test: repeated routes, signup, session, bootstrap, title CRUD, groups, account isolation and ZIP backup all passed.")
+
+              # Exercise the secondary api/index wrapper too; both wrappers must restore
+              # their route on every invocation and support legacy PUT/DELETE.
+              import api.index
+              index_server = ThreadingHTTPServer(("127.0.0.1", 0), api.index.handler)
+              threading.Thread(target=index_server.serve_forever, daemon=True).start()
+              index_base = f"http://127.0.0.1:{index_server.server_port}"
+
+              def expect_index(method, route, expected, payload=None, token=None):
+                  status, body, ctype, raw = call(
+                      method, route, payload, token,
+                      mount="/api/index", request_base=index_base
+                  )
+                  assert status == expected, (
+                      f"api.index {method} {route}: expected HTTP {expected}, got {status}; "
+                      f"response={raw[:450]!r}"
+                  )
+                  return body, ctype, raw
+
+              for _ in range(2):
+                  index_status, _, _ = expect_index("GET", "/api/auth/status", 200, token=creator_token)
+                  assert index_status["authenticated"] is True
+              index_title, _, _ = expect_index(
+                  "POST", "/api/titles", 201,
+                  {"name": "Cime CI Index Wrapper Title", "category": "Anime", "status": "Quero assistir"},
+                  creator_token
+              )
+              index_title_id = int(index_title["id"])
+              expect_index(
+                  "PUT", f"/api/titles/{index_title_id}", 200,
+                  {"name": "Cime CI Index Wrapper Updated", "category": "Anime", "status": "Assistindo"},
+                  creator_token
+              )
+              expect_index("DELETE", f"/api/titles/{index_title_id}", 200, token=creator_token)
+              print("Serverless gateway smoke test: repeated routes, auth, bootstrap, title CRUD through both Vercel wrappers, groups, account isolation and ZIP backup all passed.")
           finally:
+              if index_server is not None:
+                  index_server.shutdown()
+                  index_server.server_close()
               server.shutdown()
               server.server_close()
           PY
@@ -170,6 +208,8 @@ jobs:
           from pathlib import Path
           html = Path("index.html").read_text(encoding="utf-8")
           config = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
+          cime_wrapper = Path("api/cime.py").read_text(encoding="utf-8")
+          index_wrapper = Path("api/index.py").read_text(encoding="utf-8")
           assert "https://accounts.google.com/gsi/client" in html
           assert "/api/auth/google/credential" in html
           assert "/api/auth/status?ts=" in html
@@ -179,5 +219,9 @@ jobs:
           rewrites = config.get("rewrites", [])
           assert any(r.get("source") == "/api" and r.get("destination") == "/api/cime" for r in rewrites)
           assert any(r.get("source") == "/api/:path*" and r.get("destination") == "/api/cime?__cime_path=/api/:path*" for r in rewrites)
-          print("Frontend auth wiring and Vercel API routes: OK")
+          assert 'return getattr(cls,method)(self)' in cime_wrapper
+          assert 'return getattr(gateway, method)(self)' in index_wrapper
+          assert 'def do_PUT(self):' in cime_wrapper and 'def do_DELETE(self):' in cime_wrapper
+          assert 'def do_PUT(self):' in index_wrapper and 'def do_DELETE(self):' in index_wrapper
+          print("Frontend auth wiring, stable Vercel dispatch and API routes: OK")
           PY
