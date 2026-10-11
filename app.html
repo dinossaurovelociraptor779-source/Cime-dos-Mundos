@@ -1750,5 +1750,43 @@ img{max-width:100%}
   else if(typeof media.addListener==='function')media.addListener(syncMode);
 })();
 </script>
+
+<style id="cime-groups-desktop-usability-v1">
+/* Desktop: sidebar única para criar/selecionar grupos e painel principal limpo. */
+@media (min-width:761px){
+  #c5go{align-items:center!important;padding:22px!important;overflow:auto!important}
+  #c5go .c5gm{
+    width:min(1440px,96vw)!important;
+    max-height:calc(100vh - 44px)!important;
+    height:min(900px,calc(100vh - 44px))!important;
+    display:flex!important;flex-direction:column!important;
+  }
+  #c5go .c5gm>div:first-child{flex:0 0 auto!important;padding:18px 24px!important}
+  #c5go .c5ggrid{
+    flex:1 1 auto!important;min-height:0!important;height:auto!important;
+    grid-template-columns:300px minmax(0,1fr)!important;
+    overflow:hidden!important;
+  }
+  #c5go .c5ggrid>.c5gc:first-child{
+    padding:20px!important;overflow-y:auto!important;min-height:0!important;
+  }
+  #c5go .c5ggrid>.c5gc:last-child{
+    padding:22px 26px!important;overflow-y:auto!important;min-height:0!important;
+  }
+  #c5go #c5quickWrap{display:none!important}
+  #c5go #c5createBox{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+  #c5go #c5createBox>b{display:block;font-size:18px!important;margin-bottom:8px!important}
+  #c5go #c5createBox .c5gi{width:100%!important;min-height:44px!important;margin:7px 0!important;box-sizing:border-box!important}
+  #c5go #c5createBox>button{width:100%!important;min-height:44px!important;margin-top:5px!important}
+  #c5go #c5createBox .c5section{margin-top:22px!important;padding:14px!important}
+  #c5go #c5createBox .c5section h4{margin:0 0 12px!important;font-size:13px!important}
+  #c5go .c5-group-tabs{flex-wrap:wrap!important;gap:8px!important;padding:8px 0 14px!important}
+  #c5go .c5-group-tabs button{padding:10px 15px!important;min-height:42px!important}
+  #c5go #c5gvempty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;min-height:280px!important;border:1px dashed rgba(148,163,184,.22);border-radius:20px;background:rgba(15,23,42,.28);color:#a7b3c7!important}
+  #c5go .c5gm button,#c5go .c5gm input,#c5go .c5gm select,#c5go .c5gm textarea{font-size:13px}
+  #c5go .c5quick-group{transition:background .15s ease,border-color .15s ease,transform .15s ease!important}
+  #c5go .c5quick-group:hover{transform:translateY(-1px);border-color:rgba(167,139,250,.5)!important}
+}
+</style>
 </body></html>
 
