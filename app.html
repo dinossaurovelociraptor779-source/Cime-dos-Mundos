@@ -726,10 +726,11 @@ function saveLibraryCache(){try{if(!Array.isArray(titles)||titles.length>600)ret
 async function loadWatchRate(){try{const r=await api('/api/watch-rate');autoWatchRate=Number(r.rate||2);localStorage.setItem('cime_auto_rate',String(autoWatchRate));if($("autoRateValue"))$("autoRateValue").textContent=autoWatchRate+' episódio(s)/dia';if($("autoRateInfo"))$("autoRateInfo").textContent=r.episodes?('Calculada a partir de '+r.episodes+' episódios em '+r.days+' dia(s).'):'Ainda não há histórico suficiente; usando 2 episódios/dia como base.';render();}catch(e){}}
 const cimeGetCache=new Map(),cimeGetInflight=new Map();
 function cimeApiUrl(url){
-  const raw=String(url||'');
-  if(!raw.startsWith('/api/') || raw.startsWith('/api/cime')) return raw;
-  const parts=raw.split('?');
-  return '/api/cime?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
+  // Use the public API path directly. vercel.json rewrites /api/* to the
+  // cime gateway and attaches __cime_path. Rewriting it here as well caused
+  // the gateway rewrite to match /api/cime again and could lose the original
+  // route (for example /api/bootstrap), returning "Rota não encontrada".
+  return String(url||'');
 }
 function cimeInvalidateApiCache(){cimeGetCache.clear();}
 async function api(url,opt={}){
