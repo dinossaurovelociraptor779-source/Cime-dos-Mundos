@@ -38,6 +38,131 @@ jobs:
           print("Google client: OK")
           PY
 
+      - name: Smoke-test serverless gateway, auth, library CRUD, groups and backup
+        env:
+          CIME_DATA_DIR: /tmp/cime5-smoke
+          CIME_PORT: "8790"
+          CIME_BIND: "127.0.0.1"
+        run: |
+          rm -rf /tmp/cime5-smoke
+          python - <<'PY'
+          import json
+          import threading
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from http.server import ThreadingHTTPServer
+          import api.cime
+
+          server = ThreadingHTTPServer(("127.0.0.1", 0), api.cime.handler)
+          threading.Thread(target=server.serve_forever, daemon=True).start()
+          base = f"http://127.0.0.1:{server.server_port}"
+
+          def call(method, route, payload=None, token=None):
+              parsed = urllib.parse.urlsplit(route)
+              target = "/api/cime?__cime_path=" + urllib.parse.quote(parsed.path, safe="")
+              if parsed.query:
+                  target += "&" + parsed.query
+              headers = {"Accept": "application/json"}
+              body = None
+              if payload is not None:
+                  body = json.dumps(payload).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              if token:
+                  headers["Authorization"] = "Bearer " + token
+              req = urllib.request.Request(base + target, data=body, headers=headers, method=method)
+              try:
+                  response = urllib.request.urlopen(req, timeout=12)
+              except urllib.error.HTTPError as exc:
+                  response = exc
+              raw = response.read()
+              ctype = response.headers.get("Content-Type", "")
+              parsed_body = raw
+              if "application/json" in ctype:
+                  parsed_body = json.loads(raw.decode("utf-8")) if raw else None
+              elif ctype.startswith("text/") or "javascript" in ctype:
+                  parsed_body = raw.decode("utf-8", "replace")
+              return response.status, parsed_body, ctype, raw
+
+          def expect(method, route, expected, payload=None, token=None):
+              status, body, ctype, raw = call(method, route, payload, token)
+              assert status == expected, (
+                  f"{method} {route}: expected HTTP {expected}, got {status}; "
+                  f"response={raw[:450]!r}"
+              )
+              return body, ctype, raw
+
+          try:
+              # Repeated requests catch wrappers that accidentally replace their own route methods.
+              for _ in range(2):
+                  status, body, _, raw = call("GET", "/api/auth/status")
+                  assert status == 200 and body.get("authenticated") is False, (status, raw[:400])
+              page, ctype, _ = expect("GET", "/app.html", 200)
+              assert "text/html" in ctype and "Cime dos Mundos" in page
+              expect("GET", "/app.html", 200)
+              expect("GET", "/api/bootstrap", 401)
+
+              first, _, _ = expect(
+                  "POST", "/api/auth/register", 201,
+                  {"display_name": "Smoke Creator", "email": "smoke-creator@example.invalid", "password": "SmokeTest123!"}
+              )
+              creator_token = first["token"]
+              assert first["user"]["role"] == "creator", first
+              status_data, _, _ = expect("GET", "/api/auth/status", 200, token=creator_token)
+              assert status_data["authenticated"] is True
+              bootstrap, _, _ = expect("GET", "/api/bootstrap", 200, token=creator_token)
+              assert bootstrap["user"]["email"] == "smoke-creator@example.invalid"
+              assert isinstance(bootstrap.get("titles"), list)
+
+              title, _, _ = expect(
+                  "POST", "/api/titles", 201,
+                  {"name": "Cime CI Smoke Title", "category": "Anime", "status": "Quero assistir", "episodes": 12},
+                  creator_token
+              )
+              title_id = int(title["id"])
+              titles, _, _ = expect("GET", "/api/titles", 200, token=creator_token)
+              assert any(int(row["id"]) == title_id for row in titles), titles
+              expect(
+                  "PUT", f"/api/titles/{title_id}", 200,
+                  {"name": "Cime CI Smoke Title Updated", "category": "Anime", "status": "Assistindo", "episodes": 12, "current_episode": 2},
+                  creator_token
+              )
+              titles, _, _ = expect("GET", "/api/titles", 200, token=creator_token)
+              assert any(row["name"] == "Cime CI Smoke Title Updated" for row in titles), titles
+
+              group, _, _ = expect(
+                  "POST", "/api/groups", 201,
+                  {"name": "Cime CI Smoke Group", "description": "Isolated automated test", "group_type": "both"},
+                  creator_token
+              )
+              group_id = int(group["group_id"])
+              groups, _, _ = expect("GET", "/api/groups", 200, token=creator_token)
+              assert any(int(row["id"]) == group_id for row in groups), groups
+              details, _, _ = expect("GET", f"/api/groups/{group_id}", 200, token=creator_token)
+              assert int(details["group"]["id"]) == group_id
+
+              second, _, _ = expect(
+                  "POST", "/api/auth/register", 201,
+                  {"display_name": "Smoke Beta", "email": "smoke-beta@example.invalid", "password": "SmokeTest123!"}
+              )
+              beta_token = second["token"]
+              assert second["user"]["role"] == "beta", second
+              beta_titles, _, _ = expect("GET", "/api/titles", 200, token=beta_token)
+              assert not any(row["name"] == "Cime CI Smoke Title Updated" for row in beta_titles), beta_titles
+              beta_groups, _, _ = expect("GET", "/api/groups", 200, token=beta_token)
+              assert not any(int(row["id"]) == group_id for row in beta_groups), beta_groups
+
+              _, backup_type, backup = expect("GET", "/api/backup", 200, token=creator_token)
+              assert "application/zip" in backup_type and backup[:2] == b"PK", (backup_type, backup[:10])
+              expect("DELETE", f"/api/titles/{title_id}", 200, token=creator_token)
+              titles, _, _ = expect("GET", "/api/titles", 200, token=creator_token)
+              assert not any(int(row["id"]) == title_id for row in titles), titles
+              print("Serverless gateway smoke test: repeated routes, signup, session, bootstrap, title CRUD, groups, account isolation and ZIP backup all passed.")
+          finally:
+              server.shutdown()
+              server.server_close()
+          PY
+
       - name: Verify frontend auth wiring and API routes
         run: |
           python - <<'PY'
