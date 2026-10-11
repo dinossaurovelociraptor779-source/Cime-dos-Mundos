@@ -189,7 +189,7 @@ async function health(){
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),5000);
     try{
-      const r=await fetch('/api/auth/status?ts='+Date.now(),{
+      const r=await fetch(cimeBackendPath('/api/auth/status?ts='+Date.now()),{
         credentials:'same-origin',
         cache:'no-store',
         headers:{'Accept':'application/json'},
@@ -212,10 +212,18 @@ async function health(){
   })();
   return healthInFlight;
 }
+function cimeBackendPath(path){
+  const raw=String(path||'');
+  if(!raw.startsWith('/api/')||raw.startsWith('/api/cime'))return raw;
+  const split=raw.indexOf('?');
+  const pathname=split<0?raw:raw.slice(0,split);
+  const query=split<0?'':raw.slice(split+1);
+  return '/api/cime?__cime_path='+encodeURIComponent(pathname)+(query?'&'+query:'');
+}
 async function api(path,init={}){
   let r;
   try{
-    r=await fetch(path,{credentials:'same-origin',cache:'no-store',...init});
+    r=await fetch(cimeBackendPath(path),{credentials:'same-origin',cache:'no-store',...init});
   }catch(e){
     throw Error('Não foi possível conectar ao Cime 5.0.');
   }
