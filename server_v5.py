@@ -813,8 +813,10 @@ class Gateway(BaseHTTPRequestHandler):
             raw_probe=self.body()
             probe=json.loads(raw_probe.decode('utf-8') or '{}') if raw_probe else {}
             if isinstance(probe,dict) and str(probe.get('credential') or '').strip():
-                path='/api/auth/login'
-                self.path='/api/auth/login'
+                # Keep Google ID-token requests on the dedicated Google handler;
+                # routing them to the email/password handler loses the credential.
+                path='/api/auth/google/credential'
+                self.path='/api/auth/google/credential'
         except Exception:
             probe={}
         # Não invalide a cache para login, QR, grupos, feedback ou outras rotas que
