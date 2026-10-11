@@ -779,7 +779,7 @@ async function load(){
     saveLibraryCache();
     libraryVisible=36;
     render();
-  }catch(e){console.error(e);showToast('Não foi possível carregar a biblioteca.');}
+  }catch(e){console.error('[Cime] Falha ao carregar biblioteca:',e);const detalhe=String(e&&e.message||e||'Erro desconhecido').slice(0,180);showToast('Não foi possível carregar a biblioteca: '+detalhe);const root=$('grid');if(root&&!root.children.length)root.innerHTML='<div class="empty"><b>Não foi possível carregar a biblioteca.</b><p style="color:#9aa8bd">'+(typeof esc==='function'?esc(detalhe):detalhe)+'</p><button class="btn" type="button" onclick="load()">Tentar novamente</button></div>';}
 }
 
 function showToast(msg){let t=document.getElementById('cimeToast');if(!t){t=document.createElement('div');t.id='cimeToast';t.style='position:fixed;right:18px;bottom:18px;z-index:9999;max-width:360px;padding:12px 15px;border-radius:12px;background:#171f32;border:1px solid #34445f;color:#fff;box-shadow:0 15px 40px #0008';document.body.appendChild(t)}t.textContent=msg;t.style.opacity='1';clearTimeout(window.__cimeToast);window.__cimeToast=setTimeout(()=>t.style.opacity='0',3200)}
