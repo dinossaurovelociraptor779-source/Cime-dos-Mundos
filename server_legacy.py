@@ -1199,16 +1199,21 @@ def import_external_history(source, entries):
     for _,group in grouped.items():
         representative=group[0]['canonical_title']
         c=db()
-        unseen=False
+        # Only aggregate rows that have not already been imported. Otherwise re-importing
+        # a file with one new row can inflate watched_count/current_episode using old rows.
+        new_group=[]
         for e0 in group:
             seen_row=c.execute('SELECT 1 FROM imported_history WHERE source=? AND source_title=? AND watched_at=? AND profile=?',(source,e0['title'],e0['watched_at'],e0['profile'])).fetchone()
             if not seen_row:
-                unseen=True; break
+                new_group.append(e0)
         tid=_find_import_title_id(c,representative)
         row=dict(c.execute('SELECT * FROM titles WHERE id=?',(tid,)).fetchone()) if tid else None
         c.close()
-        if not unseen:
+        if not new_group:
             continue
+        group=new_group
+        if tid:
+            linked+=1
 
         category=_infer_import_category(representative,group)
         # Fast metadata lookup: one cached Jikan request at most per imported franchise.
