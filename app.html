@@ -1121,17 +1121,45 @@ function c5closePhoto(){const viewer=c5x('c5PhotoViewer'),img=c5x('c5PhotoViewer
 function c5downloadOpenPhoto(){const img=c5x('c5PhotoViewerImg');if(!img?.src)return;const a=document.createElement('a');a.href=img.src;a.download='cime-memoria.jpg';document.body.appendChild(a);a.click();a.remove();}
 async function c5shareOpenPhoto(){const img=c5x('c5PhotoViewerImg');if(!img?.src)return;if(navigator.share){try{const r=await fetch(img.src);const b=await r.blob();const f=new File([b],'cime-memoria.jpg',{type:b.type||'image/jpeg'});if(!navigator.canShare||navigator.canShare({files:[f]})){await navigator.share({title:'Memória do Cime dos Mundos',files:[f]});return;}}catch(e){if(e?.name==='AbortError')return;}}showToast('📋 Use o botão salvar para guardar a foto no celular.');}
 
+let c5creatingGroup = false;
 async function c5createGroup(){
+  const nameInput=c5x('c5gn'), descInput=c5x('c5gd'), typeInput=c5x('c5gtp');
+  const button=c5x('c5createBox')?.querySelector('button[onclick*="c5createGroup"]');
+  const name=String(nameInput?.value||'').trim();
+  if(!name){
+    showToast('Digite um nome para o grupo.');
+    nameInput?.focus();
+    return;
+  }
+  if(c5creatingGroup)return;
+  c5creatingGroup=true;
+  if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent='Criando grupo…';}
   try{
-    const d = await api('/api/groups', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:c5x('c5gn').value,description:c5x('c5gd').value,group_type:c5x('c5gtp').value})
+    const d=await api('/api/groups',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      credentials:'same-origin',
+      body:JSON.stringify({name,description:String(descInput?.value||'').trim(),group_type:typeInput?.value||'both'})
     });
-    c5x('c5gn').value=''; c5x('c5gd').value=''; c5x('c5gtp').value='both';
+    if(!d || d.success!==true || !Number(d.group_id)){
+      throw new Error(d?.error||'O servidor não confirmou a criação do grupo.');
+    }
+    if(nameInput)nameInput.value='';
+    if(descInput)descInput.value='';
+    if(typeInput)typeInput.value='both';
+    cimeInvalidateApiCache();
     await c5groups();
     await c5select(d.group_id);
-    showToast('✅ Grupo criado.');
-  }catch(e){ showToast('❌ '+e.message); }
+    showToast('✅ Grupo criado com sucesso.');
+  }catch(e){
+    const message=e?.name==='AbortError'?'O servidor demorou para responder. Tente novamente.':(e?.message||'Erro desconhecido ao criar o grupo.');
+    showToast('❌ Não foi possível criar: '+message);
+    const list=c5x('c5gl');
+    if(list)list.innerHTML='<div class="c5mut" role="alert">Não foi possível criar o grupo. '+esc(message)+'</div>';
+  }finally{
+    c5creatingGroup=false;
+    if(button){button.disabled=false;button.textContent=button.dataset.originalText||'Criar grupo';}
+  }
 }
 
 async function c5select(id){
