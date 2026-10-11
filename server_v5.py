@@ -803,7 +803,7 @@ class Gateway(BaseHTTPRequestHandler):
         if path.startswith('/api/') or path.startswith('/media/'):
             if not require(self): return
             return legacy.Handler.do_GET(self)
-        self.send_json({'error':'Rota não encontrada.'},404)
+        self.send_json({'error':'Rota não encontrada.','route':path,'method':'GET'},404)
     def do_POST(self):
         _tls.__dict__.pop('user_id',None); p=urlparse(self.path); path=p.path.rstrip('/') or '/'
         # Fallback absoluto para o login Google: mesmo se um rewrite encaminhar
