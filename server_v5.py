@@ -320,6 +320,28 @@ def require(handler):
     if not u:
         handler.send_json({'error':'Faça login para continuar.','code':'AUTH_REQUIRED'},401)
         return None
+    # Vercel pode encaminhar requisições para outra instância sem o SQLite
+    # temporário que criou a sessão. Recria o registro mínimo do usuário a
+    # partir do token assinado, para que FKs como groups.owner_id não falhem.
+    try:
+        c=auth_db()
+        exists=c.execute('SELECT id FROM users WHERE id=?',(int(u['id']),)).fetchone()
+        if not exists:
+            email=normalize_email(str(u.get('email') or ''))
+            if email:
+                by_email=c.execute('SELECT id FROM users WHERE email=?',(email,)).fetchone()
+                if by_email:
+                    # Reuse the existing account ID to avoid duplicate-email conflicts.
+                    u=dict(u); u['id']=int(by_email['id'])
+                else:
+                    now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
+                    c.execute('INSERT INTO users(id,email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,NULL,?,?,?,?,?,?,?)',
+                        (int(u['id']),email,str(u.get('display_name') or email.split('@')[0]),str(u.get('role') or 'beta'),str(u.get('provider') or 'local'),'','',now,now))
+                    c.commit()
+        c.close()
+    except Exception:
+        try: c.close()
+        except Exception: pass
     _tls.user_id=u['id']
     try: ensure_library(u['id'])
     except Exception: pass
