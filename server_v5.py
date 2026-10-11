@@ -580,7 +580,7 @@ class Gateway(BaseHTTPRequestHandler):
             return self.send_file(str(BASE/'index.html'),'text/html; charset=utf-8')
         if path in ('/','/login','/cadastro','/register'):
             return self.send_html('index.html')
-        if path in ('/app','/app/'):
+        if path in ('/app','/app/','/app.html'):
             # Serve the app shell first. Authentication is performed by app.html
             # through /api/bootstrap using the token saved from ?token=...
             # This avoids Vercel trying to authenticate the static page itself.
