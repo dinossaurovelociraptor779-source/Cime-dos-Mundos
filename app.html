@@ -537,6 +537,8 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
 <div class="field"><label>Ordenação</label><select id="advSort"><option value="recent">Mais recentes</option><option value="name">Nome A–Z</option><option value="progress">Maior progresso</option><option value="rating">Maior nota</option><option value="episodes">Mais episódios</option></select></div>
 </div><div class="actions"><button class="btn" id="resetFilters">↩️ Limpar filtros</button><button class="btn" id="cancelFilters">Cancelar</button><button class="btn primary" id="applyFilters">Aplicar filtros</button></div></div></dialog>
 <dialog id="funnelDlg"><div class="modal" style="max-width:760px"><div class="history-head"><div><div class="eyebrow">⏷ FUNIL DA BIBLIOTECA</div><h2>Organizar o que veio do histórico</h2><p class="muted">Filtre rapidamente títulos importados da Netflix ou do Tomato por situação, capa e origem. Isso não altera seus dados.</p></div><button class="icon-close" id="closeFunnel" aria-label="Fechar">✕</button></div>
+<div class="c5-funnel-flow" aria-label="Etapas do funil"><div><span>1</span><b>Origem</b><small>Netflix / Tomato</small></div><i>›</i><div><span>2</span><b>Situação</b><small>Assistir / assistindo / concluído</small></div><i>›</i><div><span>3</span><b>Revisão</b><small>Capas e tipo</small></div></div>
+<div class="c5-funnel-summary" id="c5FunnelSummary" aria-live="polite">Calculando os títulos da sua biblioteca…</div>
 <div class="panel-box"><div class="form-grid">
 <div class="field"><label>Origem</label><select id="funnelSource"><option value="all">Todos</option><option value="netflix">🎬 Netflix</option><option value="tomato">🍅 Tomato</option><option value="none">Sem histórico importado</option></select></div>
 <div class="field"><label>Situação</label><select id="funnelStatus"><option value="all">Todas</option><option value="Quero assistir">▶️ Vou assistir</option><option value="Assistindo">👀 Estou assistindo</option><option value="Concluído">✅ Já assisti / concluído</option></select></div>
@@ -1400,6 +1402,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 
 <style id="cime-responsive-ux-v4">
 /* Cime dos Mundos 5.0 — responsive UX pass: phone, tablet and notebook */
+.c5-funnel-flow{display:grid;grid-template-columns:minmax(0,1fr) 20px minmax(0,1fr) 20px minmax(0,1fr);gap:7px;align-items:center;margin:14px 0}.c5-funnel-flow>div{display:flex;flex-direction:column;gap:4px;min-width:0;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface2,#101624)}.c5-funnel-flow span{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:rgba(139,92,246,.18);color:#c4b5fd;font-weight:900;font-size:12px}.c5-funnel-flow b{font-size:12px}.c5-funnel-flow small{font-size:10px;line-height:1.35;color:var(--muted)}.c5-funnel-flow i{text-align:center;color:var(--muted);font-size:23px;font-style:normal}.c5-funnel-summary{padding:11px 13px;border:1px solid rgba(139,92,246,.22);border-radius:13px;background:rgba(109,40,217,.08);font-size:12px;line-height:1.6;margin-bottom:13px}.c5-funnel-summary strong{color:var(--text)}@media(max-width:760px){.c5-funnel-flow{grid-template-columns:1fr;gap:6px;margin:12px 0}.c5-funnel-flow>div{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:2px 8px;padding:8px 10px}.c5-funnel-flow span{grid-row:span 2}.c5-funnel-flow small{grid-column:2}.c5-funnel-flow i{display:none}.c5-funnel-summary{margin-bottom:10px}}
 :root{--c5-touch:44px;--c5-radius:16px}
 button,select,input,textarea{font:inherit}
 button,select{touch-action:manipulation}
@@ -1548,5 +1551,29 @@ img{max-width:100%}
 }
 @media(prefers-reduced-motion:reduce){#c5go *,#funnelDlg *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style>
+<script id="c5-funnel-summary-js">
+(function(){
+  function updateSummary(){
+    const el=document.getElementById('c5FunnelSummary');
+    if(!el||!Array.isArray(window.titles))return;
+    const all=window.titles;
+    const imported=all.filter(x=>{try{return typeof importedSources==='function'&&importedSources(x).length>0}catch(_){return false}});
+    const noCover=all.filter(x=>{try{return !(typeof coverOf==='function'&&coverOf(x))}catch(_){return true}});
+    const netflix=imported.filter(x=>{try{return importedSources(x).includes('netflix')}catch(_){return false}}).length;
+    const tomato=imported.filter(x=>{try{return importedSources(x).includes('tomato')}catch(_){return false}}).length;
+    const wanted=all.filter(x=>x.status==='Quero assistir').length;
+    const watching=all.filter(x=>x.status==='Assistindo').length;
+    const done=all.filter(x=>x.status==='Concluído').length;
+    el.innerHTML='<strong>'+all.length+'</strong> títulos na biblioteca · <strong>'+imported.length+'</strong> relacionados a histórico ('+netflix+' Netflix / '+tomato+' Tomato) · <strong>'+noCover.length+'</strong> sem capa.<br>Por situação: <strong>'+wanted+'</strong> quero assistir · <strong>'+watching+'</strong> assistindo · <strong>'+done+'</strong> concluídos.';
+  }
+  document.addEventListener('click',function(e){
+    if(e.target.closest('#openFunnel'))setTimeout(updateSummary,60);
+    if(e.target.closest('#resetFunnel'))setTimeout(updateSummary,60);
+    if(e.target.closest('#applyFunnel'))setTimeout(updateSummary,120);
+  });
+  window.addEventListener('load',()=>setTimeout(updateSummary,350),{once:true});
+  window.addEventListener('cime:library-updated',updateSummary);
+})();
+</script>
 </body></html>
 
