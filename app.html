@@ -1721,7 +1721,9 @@ img{max-width:100%}
     else if(b.dataset.view==='favorites')openLibrary('favorite');
   }));
   q('#c5MobileHeaderSearch')&&q('#c5MobileHeaderSearch').addEventListener('click',showDiscover);
-  q('#c5MobileLibrary')&&q('#c5MobileLibrary').addEventListener('click',function(){if(q('#c5MobileMoreSheet'))q('#c5MobileMoreSheet').hidden=true;openLibrary('all');});
+  q('#c5MobileLibrary')&&q('#c5MobileLibrary').addEventListener('click',function(){if(q('#c5MobileMoreSheet'))q('#c5MobileMoreSheet').hidden=true;if(q('#c5MobileMore'))q('#c5MobileMore').classList.remove('active');openLibrary('all');});
+  q('#c5MobileGroups')&&q('#c5MobileGroups').addEventListener('click',function(){const sheet=q('#c5MobileMoreSheet');if(sheet)sheet.hidden=true;const more=q('#c5MobileMore');if(more)more.classList.remove('active');});
+  ['#c5MobileStats','#c5MobileSettings','#c5MobileHistory','#c5MobileCovers'].forEach(function(sel){const btn=q(sel);if(btn)btn.addEventListener('click',function(){const more=q('#c5MobileMore');if(more)more.classList.remove('active');});});
   q('#c5HomeLibrary')&&q('#c5HomeLibrary').addEventListener('click',function(){openLibrary('all');});
   q('#c5HomeHistory')&&q('#c5HomeHistory').addEventListener('click',function(){if(typeof openDialog==='function')openDialog('historyImportDlg');else q('#openHistoryImport')&&q('#openHistoryImport').click();});
   q('#c5HomeEmptyAdd')&&q('#c5HomeEmptyAdd').addEventListener('click',function(){if(typeof openDialog==='function')openDialog('dlg');});
