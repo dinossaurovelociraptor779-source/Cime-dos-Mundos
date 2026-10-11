@@ -77,6 +77,10 @@
   ],
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/auth/complete",
       "destination": "/api/auth_complete.py"
     },
