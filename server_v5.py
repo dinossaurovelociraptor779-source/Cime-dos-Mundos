@@ -961,11 +961,21 @@ class Gateway(BaseHTTPRequestHandler):
                 if not u:return
                 gid=int(m.group(1))
                 if not group_member(u['id'],gid): return self.send_json({'error':'Sem acesso ao grupo.'},403)
-                d=json.loads(self.body().decode() or '{}'); text=str(d.get('body','')).strip()
-                if not text:return self.send_json({'error':'Escreva uma mensagem antes de enviar.'},400)
-                if len(text)>4000:return self.send_json({'error':'A mensagem ficou muito longa.'},400)
+                d=json.loads(self.body().decode() or '{}'); kind=str(d.get('kind','text') or 'text').strip().lower()
+                if kind=='anime':
+                    anime=d.get('anime') if isinstance(d.get('anime'),dict) else {}
+                    title=str(anime.get('title','')).strip()[:160]
+                    note=str(anime.get('note','')).strip()[:600]
+                    try: rating=max(1,min(10,int(anime.get('rating',10))))
+                    except Exception: rating=10
+                    if not title:return self.send_json({'error':'Informe o nome do anime.'},400)
+                    text=json.dumps({'title':title,'rating':rating,'note':note},ensure_ascii=False,separators=(',',':'))
+                else:
+                    kind='text'; text=str(d.get('body','')).strip()
+                    if not text:return self.send_json({'error':'Escreva uma mensagem antes de enviar.'},400)
+                    if len(text)>4000:return self.send_json({'error':'A mensagem ficou muito longa.'},400)
                 now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
-                c=auth_db(); cur=c.execute('INSERT INTO group_messages(group_id,user_id,kind,body,created_at) VALUES(?,?,?,?,?)',(gid,u['id'],'text',text,now)); c.execute('UPDATE groups SET updated_at=? WHERE id=?',(now,gid)); c.commit(); mid=cur.lastrowid; c.close()
+                c=auth_db(); cur=c.execute('INSERT INTO group_messages(group_id,user_id,kind,body,created_at) VALUES(?,?,?,?,?)',(gid,u['id'],kind,text,now)); c.execute('UPDATE groups SET updated_at=? WHERE id=?',(now,gid)); c.commit(); mid=cur.lastrowid; c.close()
                 return self.send_json({'success':True,'message_id':mid,'messages':group_message_rows(gid,mid-1,1)},201)
             m=re.fullmatch(r'/api/groups/(\d+)/recommendations',path)
             if m:
