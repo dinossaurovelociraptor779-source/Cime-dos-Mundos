@@ -2026,3 +2026,88 @@ img{max-width:100%}
   #c5go #c5GroupTabs.c5-group-tabs button:last-child{grid-column:1 / -1}
 }
 </style>
+
+
+<style id="cime-group-all-sections-readable-v8">
+/* Mantém todas as áreas do grupo com o mesmo espaçamento e cartão do Compartilhar. */
+#c5go #c5chatSection,
+#c5go #c5gmembers,
+#c5go #c5recSection,
+#c5go #c5memSection,
+#c5go #c5inviteSection{
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  min-height:220px!important;
+  padding:24px!important;
+  margin:12px 0 18px!important;
+  border:1px solid rgba(132,153,190,.22)!important;
+  border-radius:20px!important;
+  background:linear-gradient(145deg,rgba(19,31,49,.98),rgba(13,22,37,.98))!important;
+  overflow:visible!important;
+}
+#c5go #c5chatSection h4,
+#c5go #c5gmembers h4,
+#c5go #c5recSection h4,
+#c5go #c5memSection h4,
+#c5go #c5inviteSection h4{
+  display:flex!important;align-items:center!important;gap:10px!important;
+  margin:0 0 14px!important;font-size:20px!important;line-height:1.4!important;
+  font-weight:750!important;color:#f1f5ff!important;letter-spacing:-.02em!important;
+}
+#c5go #c5chatSection .c5mut,
+#c5go #c5gmembers .c5mut,
+#c5go #c5recSection .c5mut,
+#c5go #c5memSection .c5mut,
+#c5go #c5inviteSection .c5mut{
+  color:#b6c3d8!important;line-height:1.7!important;
+}
+#c5go #c5chatSection input,
+#c5go #c5chatSection textarea,
+#c5go #c5gmembers input,
+#c5go #c5gmembers textarea,
+#c5go #c5recSection input,
+#c5go #c5recSection textarea,
+#c5go #c5memSection input,
+#c5go #c5memSection textarea,
+#c5go #c5inviteSection input,
+#c5go #c5inviteSection textarea{
+  box-sizing:border-box!important;max-width:100%!important;
+  min-height:44px!important;font-size:14px!important;
+  padding:11px 13px!important;border-radius:11px!important;
+}
+#c5go #c5chatSection .c5actionrow,
+#c5go #c5recSection .c5actionrow,
+#c5go #c5memSection .c5actionrow,
+#c5go #c5inviteSection .c5actionrow{
+  display:flex!important;align-items:center!important;gap:12px!important;
+  flex-wrap:wrap!important;margin:14px 0!important;
+}
+#c5go #c5chatSection .c5actionrow button,
+#c5go #c5recSection .c5actionrow button,
+#c5go #c5memSection .c5actionrow button,
+#c5go #c5inviteSection .c5actionrow button{
+  min-height:46px!important;padding:11px 17px!important;
+  border-radius:13px!important;font-size:14px!important;font-weight:700!important;
+}
+@media(min-width:761px){
+  #c5go #c5GroupTabs.c5-group-tabs{position:sticky!important;top:0!important;z-index:8!important}
+}
+@media(max-width:760px){
+  #c5go #c5chatSection,
+  #c5go #c5gmembers,
+  #c5go #c5recSection,
+  #c5go #c5memSection,
+  #c5go #c5inviteSection{
+    min-height:0!important;padding:18px!important;margin:10px 0 16px!important;
+    border-radius:17px!important;
+  }
+  #c5go #c5chatSection h4,
+  #c5go #c5gmembers h4,
+  #c5go #c5recSection h4,
+  #c5go #c5memSection h4,
+  #c5go #c5inviteSection h4{font-size:18px!important}
+  #c5go #c5GroupTabs.c5-group-tabs{top:0!important}
+}
+</style>
