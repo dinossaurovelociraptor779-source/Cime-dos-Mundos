@@ -101,6 +101,14 @@
       "destination": "/api/google_oauth_callback.py"
     },
     {
+      "source": "/api",
+      "destination": "/api/cime"
+    },
+    {
+      "source": "/api/",
+      "destination": "/api/cime"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/cime?__cime_path=/api/:path*"
     }
