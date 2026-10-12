@@ -1,0 +1,18 @@
+name: Cime regression checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [integracao-neon-blob-segura]
+jobs:
+  python-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax-check backend modules
+        run: python -m compileall -q server_legacy.py server_v5.py api
+      - name: Run safe static regression checks
+        run: python -m unittest discover -s tests -v
