@@ -5,3 +5,4 @@ requests>=2.31,<3
 pytesseract>=0.3.10,<0.4
 rapidfuzz>=3.9,<4
 google-auth>=2.35,<3
+psycopg[binary]>=3.2,<4

@@ -3957,6 +3957,7 @@ class Handler(
                 results = []
                 best = None
                 research = None
+                combined_verify = None  # Sempre definido, inclusive quando OCR/visão não encontra título.
                 offline_identity = False
 
                 if canonical:
