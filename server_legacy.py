@@ -3957,6 +3957,7 @@ class Handler(
                 results = []
                 best = None
                 research = None
+                combined_verify = None  # Evita variável não inicializada quando não há título detectado.
                 offline_identity = False
 
                 if canonical:
