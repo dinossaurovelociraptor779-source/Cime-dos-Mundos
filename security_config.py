@@ -22,16 +22,14 @@ def load_session_secret():
     return secrets.token_urlsafe(48)
 
 
-def new_account_role(email, first_user=False):
-    """Never grant creator automatically to the first production account."""
+def new_account_role(email, provider="", email_verified=False, first_user=False):
+    """Only verified Google identities on the explicit allowlist can be creators."""
     normalized = str(email or "").strip().lower()
     creators = {
         item.strip().lower()
         for item in os.getenv("CIME_CREATOR_EMAILS", "").split(",")
         if item.strip()
     }
-    if normalized and normalized in creators:
-        return "creator"
-    if not is_production() and first_user:
+    if str(provider or "").lower() == "google" and email_verified and normalized and normalized in creators:
         return "creator"
     return "beta"

@@ -106,7 +106,7 @@ def finish_login(handler,code,state,as_json=False):
         u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
 
     if not u:
-        role=new_account_role(email, first_user=c.execute("SELECT 1 FROM users").fetchone() is None)
+        role=new_account_role(email, provider="google", email_verified=True)
         cur=c.execute(
             'INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',
             (email,None,name,role,"google",sub,now,now,now)

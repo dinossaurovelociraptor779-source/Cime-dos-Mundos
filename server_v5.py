@@ -204,44 +204,51 @@ def maybe_send_invite_email(email,group_name,inviter_name,link):
     return True,'sent'
 
 def ensure_library(uid):
-    # Preserve the authenticated request context when initializing a user's DB.
-    # require() calls this while the same user is already active on the request.
     previous_uid=getattr(_tls,'user_id',None)
     _tls.user_id=uid
     try:
         legacy.init_db()
-        # Migrate legacy cime.db once into first creator library, preserving data.
-        target=user_db_path(uid); old=DATA/'cime.db'
-        c=sqlite3.connect(target); n=c.execute('SELECT COUNT(*) FROM titles').fetchone()[0] if target.exists() else 0; c.close()
-        if uid==1 and (DATA/'media').exists():
-            dest=USERS_MEDIA/'1'; dest.mkdir(parents=True,exist_ok=True)
-            for f in (DATA/'media').iterdir():
-                if f.is_file() and not (dest/f.name).exists(): shutil.copy2(f,dest/f.name)
-        if n==0 and old.exists() and uid==1:
-            # legacy already initialized target; attach and copy matching columns by full row.
-            legacy_conn=sqlite3.connect(old); legacy_conn.row_factory=sqlite3.Row
-            rows=legacy_conn.execute('SELECT * FROM titles').fetchall()
-            if rows:
-                tgt=legacy.db(); cols=[r[1] for r in tgt.execute('PRAGMA table_info(titles)').fetchall()];
-                for r in rows:
-                    keys=[k for k in r.keys() if k in cols and k!='id'];
-                    if not keys: continue
-                    qs=','.join('?' for _ in keys); tgt.execute(f"INSERT INTO titles ({','.join(keys)}) VALUES ({qs})",[r[k] for k in keys])
-                tgt.commit(); tgt.close()
-            legacy_conn.close()
+        target=user_db_path(uid)
+        old=DATA/'cime.db'
+        marker=DATA/'.cime_legacy_migration_done'
+        auth=auth_db()
+        creator=auth.execute('SELECT role FROM users WHERE id=?',(int(uid),)).fetchone()
+        auth.close()
+        if creator and str(creator['role']).lower()=='creator' and old.exists() and not marker.exists():
+            target_conn=sqlite3.connect(target); target_conn.row_factory=sqlite3.Row
+            target_count=target_conn.execute('SELECT COUNT(*) FROM titles').fetchone()[0]
+            target_conn.close()
+            if target_count==0:
+                legacy_conn=sqlite3.connect(old); legacy_conn.row_factory=sqlite3.Row
+                try:
+                    rows=legacy_conn.execute('SELECT * FROM titles').fetchall()
+                    if rows:
+                        tgt=sqlite3.connect(target); tgt.row_factory=sqlite3.Row
+                        cols=[r[1] for r in tgt.execute('PRAGMA table_info(titles)').fetchall()]
+                        for row in rows:
+                            keys=[k for k in row.keys() if k in cols]
+                            if not keys:continue
+                            qs=','.join('?' for _ in keys)
+                            tgt.execute('INSERT OR IGNORE INTO titles ('+','.join(keys)+') VALUES ('+qs+')',[row[k] for k in keys])
+                        tgt.commit();tgt.close()
+                finally:legacy_conn.close()
+            media=DATA/'media'
+            if media.exists():
+                dest=USERS_MEDIA/str(uid);dest.mkdir(parents=True,exist_ok=True)
+                for f in media.iterdir():
+                    if f.is_file() and not (dest/f.name).exists():shutil.copy2(f,dest/f.name)
+            marker.write_text('completed\n',encoding='utf-8')
     finally:
         if previous_uid is None:
-            if hasattr(_tls,'user_id'):
-                delattr(_tls,'user_id')
-        else:
-            _tls.user_id=previous_uid
+            if hasattr(_tls,'user_id'):delattr(_tls,'user_id')
+        else:_tls.user_id=previous_uid
 
 SESSION_TOKEN_SECRET = load_session_secret()
 
 def _stateless_token(uid, email='', name='', role='beta', provider='local'):
     now=datetime.now(timezone.utc).replace(tzinfo=None)
     exp=now+timedelta(days=SESSION_DAYS)
-    payload={'uid':int(uid),'email':str(email or ''),'name':str(name or ''),'role':str(role or 'beta'),'provider':str(provider or 'local'),'exp':int(exp.timestamp())}
+    payload={'uid':int(uid),'email':str(email or ''),'name':str(name or ''),'role':str(role or 'beta'),'provider':str(provider or 'local'),'email_verified':str(provider or 'local')=='google','exp':int(exp.timestamp())}
     body=json.dumps(payload,ensure_ascii=False,separators=(',',':')).encode()
     enc=base64.urlsafe_b64encode(body).decode().rstrip('=')
     sig=hmac.new(SESSION_TOKEN_SECRET.encode(),enc.encode(),hashlib.sha256).hexdigest()
@@ -257,7 +264,7 @@ def _stateless_user(raw):
         body=base64.urlsafe_b64decode(enc+'='*((4-len(enc)%4)%4))
         p=json.loads(body.decode())
         if int(p.get('exp',0)) <= int(datetime.now(timezone.utc).timestamp()): return None
-        return {'id':int(p.get('uid')),'email':str(p.get('email') or ''),'display_name':str(p.get('name') or ''),'role':str(p.get('role') or 'beta'),'provider':str(p.get('provider') or 'local')}
+        return {'id':int(p.get('uid')),'email':str(p.get('email') or ''),'display_name':str(p.get('name') or ''),'role':'beta','provider':str(p.get('provider') or 'local'),'email_verified':bool(p.get('email_verified',False))}
     except Exception:
         return None
 
@@ -314,9 +321,7 @@ def get_user(handler):
             c.execute('UPDATE sessions SET expires_at=? WHERE token_hash=?',((now+timedelta(days=SESSION_DAYS)).isoformat(timespec='seconds'),token_hash)); c.commit()
         c.close(); return dict(row)
     c.close()
-    # Vercel Functions can serve consecutive requests on different instances.
-    # In that case /tmp SQLite sessions may not be present in the new instance.
-    # Accept the signed token itself so a successful login is not immediately lost.
+    # A signed token preserves identity across Vercel instances, but never its role.
     return _stateless_user(raw)
 
 def require(handler):
@@ -324,31 +329,36 @@ def require(handler):
     if not u:
         handler.send_json({'error':'Faça login para continuar.','code':'AUTH_REQUIRED'},401)
         return None
-    # Vercel pode encaminhar requisições para outra instância sem o SQLite
-    # temporário que criou a sessão. Recria o registro mínimo do usuário a
-    # partir do token assinado, para que FKs como groups.owner_id não falhem.
     try:
         c=auth_db()
-        exists=c.execute('SELECT id FROM users WHERE id=?',(int(u['id']),)).fetchone()
-        if not exists:
+        row=c.execute('SELECT * FROM users WHERE id=?',(int(u['id']),)).fetchone()
+        if row: u=dict(row)
+        else:
             email=normalize_email(str(u.get('email') or ''))
-            if email:
-                by_email=c.execute('SELECT id FROM users WHERE email=?',(email,)).fetchone()
-                if by_email:
-                    # Reuse the existing account ID to avoid duplicate-email conflicts.
-                    u=dict(u); u['id']=int(by_email['id'])
-                else:
-                    now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
-                    c.execute('INSERT INTO users(id,email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,NULL,?,?,?,?,?,?,?)',
-                        (int(u['id']),email,str(u.get('display_name') or email.split('@')[0]),str(u.get('role') or 'beta'),str(u.get('provider') or 'local'),'','',now,now))
-                    c.commit()
+            if not email:
+                c.close()
+                handler.send_json({'error':'Sessão sem identidade válida.','code':'AUTH_REQUIRED'},401)
+                return None
+            by_email=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
+            if by_email: u=dict(by_email)
+            else:
+                provider='google' if str(u.get('provider') or '').lower()=='google' else 'local'
+                verified=provider=='google' and bool(u.get('email_verified'))
+                role=new_account_role(email,provider=provider,email_verified=verified)
+                now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
+                c.execute('INSERT INTO users(id,email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,NULL,?,?,?,?,?,?,?)',
+                    (int(u['id']),email,str(u.get('display_name') or email.split('@')[0]),role,provider,'','',now,now))
+                c.commit()
+                u=dict(c.execute('SELECT * FROM users WHERE id=?',(int(u['id']),)).fetchone())
         c.close()
     except Exception:
-        try: c.close()
-        except Exception: pass
+        try:c.close()
+        except Exception:pass
+        handler.send_json({'error':'Não foi possível recuperar a sessão.','code':'AUTH_REQUIRED'},401)
+        return None
     _tls.user_id=u['id']
-    try: ensure_library(u['id'])
-    except Exception: pass
+    try:ensure_library(u['id'])
+    except Exception:pass
     return u
 
 # Google Identity Services uses a public OAuth Client ID in the browser.
@@ -696,7 +706,7 @@ class Gateway(BaseHTTPRequestHandler):
             email=str(info.get('email','')).lower().strip(); sub=str(info.get('sub','')); name=str(info.get('name') or email.split('@')[0]); now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'); c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
             if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
             if not u:
-                role=new_account_role(email, first_user=c.execute('SELECT 1 FROM users').fetchone() is None); cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
+                role=new_account_role(email,provider='google',email_verified=True); cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
             else:
                 uid=u['id']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
             c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
@@ -876,7 +886,7 @@ class Gateway(BaseHTTPRequestHandler):
                 c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
                 if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
                 if not u:
-                    role=new_account_role(email, first_user=c.execute('SELECT 1 FROM users').fetchone() is None)
+                    role=new_account_role(email,provider='google',email_verified=True)
                     cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
                 else:
                     uid=u['id']; role=u['role']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
@@ -886,9 +896,9 @@ class Gateway(BaseHTTPRequestHandler):
                 if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$',email): return self.send_json({'error':'Informe um e-mail válido.'},400)
                 if len(pw)<8: return self.send_json({'error':'A senha precisa ter pelo menos 8 caracteres.'},400)
                 c=auth_db(); first=c.execute('SELECT 1 FROM users LIMIT 1').fetchone() is None; now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
-                try: cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?)',(email,pw_hash(pw),name,new_account_role(email, first_user=first),'local',now,now,now)); uid=cur.lastrowid; c.commit()
+                try: cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?)',(email,pw_hash(pw),name,'beta','local',now,now,now)); uid=cur.lastrowid; c.commit()
                 except sqlite3.IntegrityError: c.close(); return self.send_json({'error':'Este e-mail já está cadastrado.'},409)
-                c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(201); set_session_cookie(self,tok); raw=json.dumps({'token':tok,'user':{'id':uid,'email':email,'display_name':name,'role':new_account_role(email, first_user=first)}},ensure_ascii=False).encode(); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
+                c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(201); set_session_cookie(self,tok); raw=json.dumps({'token':tok,'user':{'id':uid,'email':email,'display_name':name,'role':'beta'}},ensure_ascii=False).encode(); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
             if path in ('/api/auth/login','/api/login','/login'):
                 d=json.loads(self.body().decode() or '{}')
                 # Google também usa a rota de login principal para evitar qualquer
@@ -907,7 +917,7 @@ class Gateway(BaseHTTPRequestHandler):
                     if not u:
                         u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
                     if not u:
-                        role=new_account_role(email, first_user=c.execute('SELECT 1 FROM users').fetchone() is None)
+                        role=new_account_role(email,provider='google',email_verified=True)
                         cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now))
                         uid=cur.lastrowid
                     else:

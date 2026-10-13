@@ -1,10 +1,14 @@
-import os, json, base64, hashlib, hmac
+import os, json, base64, hashlib, hmac, sys
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
+from security_config import load_session_secret
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 SESSION_DAYS=30
-SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0"
+SECRET=load_session_secret()
 
 def stateless_user(raw):
     try:
