@@ -1,4 +1,5 @@
 import ast
+import re
 import unittest
 from pathlib import Path
 
@@ -12,9 +13,12 @@ class SmartVisionRegressionTests(unittest.TestCase):
 
     def test_combined_verify_is_initialized_before_conditional_pipeline(self):
         # Prevents UnboundLocalError when the image yields no canonical title.
-        marker = 'combined_verify = None  # Sempre definido, inclusive quando OCR/visão não encontra título.'
-        self.assertIn(marker, self.source)
-        self.assertLess(self.source.index(marker), self.source.index("if canonical:", self.source.index(marker) - 500))
+        initialization = re.search(r"^\s*combined_verify\s*=\s*None\b", self.source, re.MULTILINE)
+        conditional = re.search(r"^\s*if canonical\s*:", self.source, re.MULTILINE)
+        self.assertIsNotNone(initialization, "combined_verify deve ser inicializado com None")
+        self.assertIsNotNone(conditional, "pipeline deve conter a condição if canonical")
+        self.assertLess(initialization.start(), conditional.start(),
+                        "combined_verify deve ser inicializado antes do pipeline condicional")
 
     def test_backend_parses_as_python(self):
         ast.parse((ROOT / "server_v5.py").read_text(encoding="utf-8"))
