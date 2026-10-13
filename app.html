@@ -419,6 +419,52 @@ html,body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
   #c5go .c5chat-composer{position:sticky!important;bottom:0!important;z-index:32!important;}
 }
 </style>
+<style id="cime-mobile-layout-polish">
+/* Ajustes mobile do app: menos altura desperdiçada no cabeçalho e áreas de toque mais confortáveis. */
+@media(max-width:760px){
+  header{padding:14px 12px 0!important}
+  header .brand{align-items:flex-start!important;gap:10px!important}
+  header .brand h1{font-size:18px!important;line-height:1.22!important;letter-spacing:-.025em!important}
+  header .brand p{font-size:11px!important;line-height:1.45!important;margin-top:4px!important}
+  header .nav{
+    display:flex!important;flex-wrap:nowrap!important;align-items:center!important;
+    gap:7px!important;overflow-x:auto!important;overflow-y:hidden!important;
+    margin:10px -12px 0!important;padding:2px 12px 9px!important;
+    scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-x:contain!important;
+  }
+  header .nav::-webkit-scrollbar{display:none!important}
+  header .nav .btn{
+    flex:0 0 auto!important;min-height:42px!important;height:auto!important;
+    padding:9px 12px!important;border-radius:12px!important;
+    font-size:11px!important;line-height:1.25!important;white-space:nowrap!important;
+  }
+  main{padding:14px 12px calc(112px + var(--c5-safe-bottom,12px))!important}
+  .library-heading{align-items:flex-start!important;gap:8px!important}
+  .library-heading h2{font-size:21px!important;line-height:1.2!important}
+  .toolbar.compact-toolbar{max-width:100%!important}
+  .search,.filter,input,select,textarea{font-size:16px!important;max-width:100%}
+  .c5-mobile-home-actions button{min-height:46px!important;font-size:12px!important;line-height:1.3!important}
+  .c5-mobile-home-empty{padding:22px 14px!important}
+  .c5-mobile-home-empty p{font-size:13px!important;line-height:1.6!important}
+  .c5mnav{min-width:0!important;min-height:52px!important}
+  .c5mnav small{font-size:10px!important;line-height:1.2!important}
+  .c5-mobile-more-grid button{min-height:76px!important;overflow-wrap:anywhere!important}
+  .c5-mobile-more-card{padding-bottom:calc(14px + var(--c5-safe-bottom,12px))!important}
+  .modal,.dialog,dialog{max-width:calc(100vw - 16px)!important}
+  .grid>.card,.discover-result{min-width:0!important}
+}
+@media(max-width:390px){
+  header .brand h1{font-size:16px!important}
+  header .nav .btn{padding:9px 10px!important;font-size:10px!important}
+  .library-heading h2{font-size:19px!important}
+  .c5-mobile-home-actions{gap:6px!important}
+  .c5-mobile-home-actions button{padding:9px 8px!important;font-size:11px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  header .nav{scroll-behavior:auto!important}
+}
+</style>
 </head>
 <body style="padding-top:48px"><div id="c5bar" style="position:fixed;top:0;left:0;right:0;z-index:20000;display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 12px;background:#0b1019eb;border-bottom:1px solid #ffffff12;font:13px system-ui"><span id="c5user">Conta</span><button onclick="c5openGroups()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">👥 Grupos</button><button onclick="c5feedback()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">🐞 Feedback</button><button onclick="cimeLogout()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">Sair</button></div><script>let lastUploadAsset=null;
 async function cimeLogout(){try{await api('/api/auth/logout',{method:'POST'});}catch(e){}try{localStorage.removeItem('cime5Token');}catch(e){}window.cimeSessionUser=null;location.replace('/');}
