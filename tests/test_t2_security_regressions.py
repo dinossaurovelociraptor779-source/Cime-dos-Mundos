@@ -30,6 +30,10 @@ class T2SecurityRegressions(unittest.TestCase):
         return "c5."+enc+"."+sig
     def test_token_signed_with_wrong_key_is_rejected(self):
         self.assertIsNone(self.token_user(self.token("wrong-signing-key")))
+        # This test also prevents regressions to the old hard-coded signing fallbacks.
+        for path in ("api/auth_complete.py", "api/google_oauth_start.py"):
+            source = (ROOT / path).read_text(encoding="utf-8").lower()
+            self.assertNotIn("fallback", source)
     def test_creator_role_inside_signed_token_is_ignored(self):
         user=self.token_user(self.token(self.secret,role="creator",provider="local"))
         self.assertIsNotNone(user)
