@@ -23,6 +23,7 @@ def load_dotenv_file():
             os.environ[k]=v
 
 load_dotenv_file()
+from security_config import load_session_secret, new_account_role
 DATA=Path(os.getenv('CIME_DATA_DIR', str(BASE/'CimeDados')))
 DATA.mkdir(parents=True, exist_ok=True)
 PORT=int(os.getenv('CIME_PORT','8790'))
@@ -235,7 +236,7 @@ def ensure_library(uid):
         else:
             _tls.user_id=previous_uid
 
-SESSION_TOKEN_SECRET = os.getenv('CIME_SESSION_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET') or 'CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0'
+SESSION_TOKEN_SECRET = load_session_secret()
 
 def _stateless_token(uid, email='', name='', role='beta', provider='local'):
     now=datetime.now(timezone.utc).replace(tzinfo=None)
@@ -695,7 +696,7 @@ class Gateway(BaseHTTPRequestHandler):
             email=str(info.get('email','')).lower().strip(); sub=str(info.get('sub','')); name=str(info.get('name') or email.split('@')[0]); now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'); c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
             if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
             if not u:
-                role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'; cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
+                role=new_account_role(email, first_user=c.execute('SELECT 1 FROM users').fetchone() is None); cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
             else:
                 uid=u['id']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
             c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
@@ -875,7 +876,7 @@ class Gateway(BaseHTTPRequestHandler):
                 c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
                 if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
                 if not u:
-                    role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'
+                    role=new_account_role(email, first_user=c.execute('SELECT 1 FROM users').fetchone() is None)
                     cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
                 else:
                     uid=u['id']; role=u['role']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
@@ -885,9 +886,9 @@ class Gateway(BaseHTTPRequestHandler):
                 if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$',email): return self.send_json({'error':'Informe um e-mail válido.'},400)
                 if len(pw)<8: return self.send_json({'error':'A senha precisa ter pelo menos 8 caracteres.'},400)
                 c=auth_db(); first=c.execute('SELECT 1 FROM users LIMIT 1').fetchone() is None; now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
-                try: cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?)',(email,pw_hash(pw),name,'creator' if first else 'beta','local',now,now,now)); uid=cur.lastrowid; c.commit()
+                try: cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?)',(email,pw_hash(pw),name,new_account_role(email, first_user=first),'local',now,now,now)); uid=cur.lastrowid; c.commit()
                 except sqlite3.IntegrityError: c.close(); return self.send_json({'error':'Este e-mail já está cadastrado.'},409)
-                c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(201); set_session_cookie(self,tok); raw=json.dumps({'token':tok,'user':{'id':uid,'email':email,'display_name':name,'role':'creator' if first else 'beta'}},ensure_ascii=False).encode(); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
+                c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(201); set_session_cookie(self,tok); raw=json.dumps({'token':tok,'user':{'id':uid,'email':email,'display_name':name,'role':new_account_role(email, first_user=first)}},ensure_ascii=False).encode(); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
             if path in ('/api/auth/login','/api/login','/login'):
                 d=json.loads(self.body().decode() or '{}')
                 # Google também usa a rota de login principal para evitar qualquer
@@ -906,7 +907,7 @@ class Gateway(BaseHTTPRequestHandler):
                     if not u:
                         u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
                     if not u:
-                        role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'
+                        role=new_account_role(email, first_user=c.execute('SELECT 1 FROM users').fetchone() is None)
                         cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now))
                         uid=cur.lastrowid
                     else:
