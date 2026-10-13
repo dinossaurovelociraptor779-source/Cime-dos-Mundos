@@ -9,9 +9,11 @@ ROOT=Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0,str(ROOT))
 
+from security_config import load_session_secret, new_account_role
+
 CLIENT_ID="826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com"
 REDIRECT_URI="https://cime-dos-mundos.vercel.app/oauth/google/callback"
-SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_oauth_state_fallback"
+SECRET=load_session_secret()
 
 def verify_state(state,cookie):
     try:
@@ -104,7 +106,7 @@ def finish_login(handler,code,state,as_json=False):
         u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
 
     if not u:
-        role="creator" if c.execute("SELECT 1 FROM users").fetchone() is None else "beta"
+        role=new_account_role(email, first_user=c.execute("SELECT 1 FROM users").fetchone() is None)
         cur=c.execute(
             'INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',
             (email,None,name,role,"google",sub,now,now,now)
