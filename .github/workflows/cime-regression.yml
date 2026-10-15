@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [integracao-neon-blob-segura]
+    branches: [main, integracao-neon-blob-segura]
 jobs:
   python-checks:
     runs-on: ubuntu-latest
