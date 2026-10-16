@@ -876,7 +876,7 @@ class Gateway(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self.send_json({'error':'Não foi possível validar o login do Google.','detail':str(e),'code':'GOOGLE_INVALID_CREDENTIAL'},401)
                 email=normalize_email(claims.get('email')); sub=str(claims.get('sub','')); name=str(claims.get('name') or email.split('@')[0]); now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
-                c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
+                c=auth_db(); c.execute('BEGIN IMMEDIATE'); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
                 if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
                 if not u:
                     role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'
@@ -906,6 +906,7 @@ class Gateway(BaseHTTPRequestHandler):
                     name=str(claims.get('name') or email.split('@')[0])
                     now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
                     c=auth_db()
+                    c.execute('BEGIN IMMEDIATE')
                     u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
                     if not u:
                         u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
