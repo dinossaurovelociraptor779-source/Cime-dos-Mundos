@@ -12,9 +12,13 @@ class SmartVisionRegressionTests(unittest.TestCase):
 
     def test_combined_verify_is_initialized_before_conditional_pipeline(self):
         # Prevents UnboundLocalError when the image yields no canonical title.
-        marker = 'combined_verify = None  # Sempre definido, inclusive quando OCR/visão não encontra título.'
+        # Check the executable assignment, not a specific Portuguese comment.
+        marker = "combined_verify = None"
         self.assertIn(marker, self.source)
-        self.assertLess(self.source.index(marker), self.source.index("if canonical:", self.source.index(marker) - 500))
+        marker_pos = self.source.index(marker)
+        conditional_pos = self.source.find("if canonical:", marker_pos)
+        self.assertGreaterEqual(conditional_pos, 0, "Expected canonical pipeline after initialization")
+        self.assertLess(marker_pos, conditional_pos)
 
     def test_backend_parses_as_python(self):
         ast.parse((ROOT / "server_v5.py").read_text(encoding="utf-8"))
