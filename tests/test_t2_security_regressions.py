@@ -20,7 +20,9 @@ class T2SecurityRegressions(unittest.TestCase):
         self.secret="ci-test-secret-"+"x"*48
         self.token_user=extracted_function("_stateless_user",{
             "SESSION_TOKEN_SECRET":self.secret,"base64":base64,"hashlib":hashlib,
-            "hmac":hmac,"json":json,"datetime":datetime,"timezone":timezone
+            "hmac":hmac,"json":json,"datetime":datetime,"timezone":timezone,
+            "normalize_email":lambda value:str(value or "").strip().lower(),
+            "valid_email":lambda value:bool(__import__("re").match(r"^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",value))
         })
     def token(self,key,role="beta",provider="local",email="owner@example.com",verified=False):
         payload={"uid":7,"email":email,"name":"Owner","role":role,"provider":provider,
@@ -38,6 +40,19 @@ class T2SecurityRegressions(unittest.TestCase):
         user=self.token_user(self.token(self.secret,role="creator",provider="local"))
         self.assertIsNotNone(user)
         self.assertEqual(user["role"],"beta")
+    def test_stateless_token_rejects_invalid_identity_claims(self):
+        self.assertIsNone(self.token_user(self.token(self.secret,email="not-an-email")))
+        payload={"uid":0,"email":"owner@example.com","name":"Owner","role":"beta","provider":"local",
+                 "exp":int((datetime.now(timezone.utc)+timedelta(hours=1)).timestamp())}
+        enc=base64.urlsafe_b64encode(json.dumps(payload,separators=(",",":")).encode()).decode().rstrip("=")
+        sig=hmac.new(self.secret.encode(),enc.encode(),hashlib.sha256).hexdigest()
+        self.assertIsNone(self.token_user("c5."+enc+"."+sig))
+    def test_stateless_token_does_not_accept_unknown_provider(self):
+        payload={"uid":7,"email":"owner@example.com","name":"Owner","role":"creator","provider":"admin",
+                 "exp":int((datetime.now(timezone.utc)+timedelta(hours=1)).timestamp())}
+        enc=base64.urlsafe_b64encode(json.dumps(payload,separators=(",",":")).encode()).decode().rstrip("=")
+        sig=hmac.new(self.secret.encode(),enc.encode(),hashlib.sha256).hexdigest()
+        self.assertIsNone(self.token_user("c5."+enc+"."+sig))
     def test_allowlisted_local_registration_is_always_beta(self):
         with patch.dict(os.environ,{"VERCEL":"1","CIME_CREATOR_EMAILS":"owner@example.com"},clear=False):
             self.assertEqual(security_config.new_account_role("owner@example.com",provider="local",email_verified=True),"beta")
