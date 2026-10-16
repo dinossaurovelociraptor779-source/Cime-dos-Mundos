@@ -22,7 +22,7 @@ class T2SecurityRegressions(unittest.TestCase):
             "SESSION_TOKEN_SECRET":self.secret,"base64":base64,"hashlib":hashlib,
             "hmac":hmac,"json":json,"datetime":datetime,"timezone":timezone,
             "normalize_email":lambda value:str(value or "").strip().lower(),
-            "valid_email":lambda value:bool(__import__("re").match(r"^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",value))
+            "valid_email":lambda value:bool(__import__("re").match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$",value))
         })
     def token(self,key,role="beta",provider="local",email="owner@example.com",verified=False):
         payload={"uid":7,"email":email,"name":"Owner","role":role,"provider":provider,
