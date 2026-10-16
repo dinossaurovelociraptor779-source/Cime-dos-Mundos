@@ -255,16 +255,40 @@ def _stateless_token(uid, email='', name='', role='beta', provider='local'):
     return 'c5.'+enc+'.'+sig
 
 def _stateless_user(raw):
+    """Validate a signed cross-instance session; never trust its authorization role."""
     try:
-        a=str(raw or '').split('.')
-        if len(a)!=3 or a[0]!='c5': return None
-        enc,sig=a[1],a[2]
-        exp_sig=hmac.new(SESSION_TOKEN_SECRET.encode(),enc.encode(),hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(sig,exp_sig): return None
+        parts=str(raw or '').split('.')
+        if len(parts)!=3 or parts[0]!='c5' or not parts[1] or not parts[2]:
+            return None
+        enc,sig=parts[1],parts[2]
+        expected=hmac.new(SESSION_TOKEN_SECRET.encode(),enc.encode(),hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig,expected):
+            return None
         body=base64.urlsafe_b64decode(enc+'='*((4-len(enc)%4)%4))
-        p=json.loads(body.decode())
-        if int(p.get('exp',0)) <= int(datetime.now(timezone.utc).timestamp()): return None
-        return {'id':int(p.get('uid')),'email':str(p.get('email') or ''),'display_name':str(p.get('name') or ''),'role':'beta','provider':str(p.get('provider') or 'local'),'email_verified':bool(p.get('email_verified',False))}
+        payload=json.loads(body.decode('utf-8'))
+        if not isinstance(payload,dict):
+            return None
+        uid=int(payload.get('uid',0))
+        expires=int(payload.get('exp',0))
+        now=int(datetime.now(timezone.utc).timestamp())
+        if uid<=0 or expires<=now:
+            return None
+        email=normalize_email(payload.get('email'))
+        if not email or not valid_email(email):
+            return None
+        provider=str(payload.get('provider') or 'local').strip().lower()
+        if provider not in ('local','google'):
+            return None
+        # A signed token proves continuity only. require() reloads the account
+        # from the auth database and is the source of truth for creator privileges.
+        return {
+            'id':uid,
+            'email':email,
+            'display_name':str(payload.get('name') or email.split('@')[0])[:120],
+            'role':'beta',
+            'provider':provider,
+            'email_verified':provider=='google' and payload.get('email_verified') is True
+        }
     except Exception:
         return None
 
