@@ -312,20 +312,19 @@ async function goReg(){
     $('regBtn').disabled=false;
   }
 }
-$('tl').onclick=()=>{
-  $('login').classList.remove('hidden');
-  $('reg').classList.add('hidden');
-  $('tl').classList.add('active');
-  $('tr').classList.remove('active');
-  setMsg($('lm'),'');
-};
-$('tr').onclick=()=>{
-  $('reg').classList.remove('hidden');
-  $('login').classList.add('hidden');
-  $('tr').classList.add('active');
-  $('tl').classList.remove('active');
-  setMsg($('rm'),'');
-};
+function showAuthForm(mode){
+  const login=$('login'),reg=$('reg'),isRegister=mode==='register';
+  // Use explicit display so both forms occupy the exact same flow slot on desktop and mobile.
+  login.classList.toggle('hidden',isRegister);
+  reg.classList.toggle('hidden',!isRegister);
+  login.style.cssText=isRegister?'display:none!important;':'display:block!important;position:static!important;inset:auto!important;height:auto!important;min-height:0!important;transform:none!important;';
+  reg.style.cssText=isRegister?'display:block!important;position:static!important;inset:auto!important;height:auto!important;min-height:0!important;transform:none!important;':'display:none!important;';
+  $('tl').classList.toggle('active',!isRegister);
+  $('tr').classList.toggle('active',isRegister);
+  if(isRegister)setMsg($('rm'),'');else setMsg($('lm'),'');
+}
+$('tl').onclick=()=>showAuthForm('login');
+$('tr').onclick=()=>showAuthForm('register');
 $('loginBtn').onclick=goLogin;
 $('regBtn').onclick=goReg;
 ['le','lp'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')goLogin();}));
