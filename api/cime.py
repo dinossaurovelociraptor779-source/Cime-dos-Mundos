@@ -38,7 +38,12 @@ class handler(BaseHTTPRequestHandler):
     def _restore_route(self):
         try:
             q=parse_qs(urlparse(self.path).query,keep_blank_values=True)
-            original=str((q.get("__cime_path") or [""])[0] or "").strip()
+            # Vercel can append its own rewrite parameter when a request was
+            # already sent through /api/cime. Prefer the real public API path,
+            # never the gateway's own /api/cime sentinel.
+            candidates=[str(value or "").strip() for value in q.get("__cime_path",[])]
+            original=next((value for value in reversed(candidates)
+                           if value.startswith("/") and (value.rstrip("/") or "/")!="/api/cime"),"")
             if original:
                 clean=[]
                 for key,vals in q.items():
@@ -165,8 +170,29 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(raw)
             return True
 
+    def _qr_fallback_get(self):
+        # Defensive fallback for deployments where Vercel's exact /api/qr
+        # rewrite is shadowed by the catch-all /api/:path* gateway rewrite.
+        if (urlparse(self.path).path.rstrip("/") or "/") != "/api/qr":
+            return False
+        try:
+            from api.qr import handler as QRHandler
+            QRHandler.do_GET(self)
+        except Exception as exc:
+            raw=json.dumps({"error":"QR indisponível.","detail":str(exc)[:300]},
+                           ensure_ascii=False,separators=(",",":")).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type","application/json; charset=utf-8")
+            self.send_header("Cache-Control","no-store")
+            self.send_header("Content-Length",str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+        return True
+
     def do_GET(self):
         self._restore_route()
+        if self._qr_fallback_get():
+            return
         if self._google_fallback_get():
             return
         return self._run("do_GET")
