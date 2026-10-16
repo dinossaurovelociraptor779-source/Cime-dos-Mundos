@@ -235,9 +235,11 @@ def ensure_library(uid):
         else:
             _tls.user_id=previous_uid
 
-SESSION_TOKEN_SECRET = os.getenv('CIME_SESSION_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET') or 'CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0'
+SESSION_TOKEN_SECRET = (os.getenv('CIME_SESSION_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET') or (None if os.getenv('CIME_DEPLOYMENT') == 'vercel' else secrets.token_hex(32)))
 
 def _stateless_token(uid, email='', name='', role='beta', provider='local'):
+    if not SESSION_TOKEN_SECRET:
+        raise RuntimeError('CIME_SESSION_SECRET precisa estar configurado na Vercel; tokens inseguros não serão emitidos.')
     now=datetime.now(timezone.utc).replace(tzinfo=None)
     exp=now+timedelta(days=SESSION_DAYS)
     payload={'uid':int(uid),'email':str(email or ''),'name':str(name or ''),'role':str(role or 'beta'),'provider':str(provider or 'local'),'exp':int(exp.timestamp())}
@@ -247,6 +249,8 @@ def _stateless_token(uid, email='', name='', role='beta', provider='local'):
     return 'c5.'+enc+'.'+sig
 
 def _stateless_user(raw):
+    if not SESSION_TOKEN_SECRET:
+        return None
     try:
         a=str(raw or '').split('.')
         if len(a)!=3 or a[0]!='c5': return None
@@ -692,7 +696,7 @@ class Gateway(BaseHTTPRequestHandler):
                     'error':'Não foi possível validar a conta Google.',
                     'detail':str(e)
                 },502)
-            email=str(info.get('email','')).lower().strip(); sub=str(info.get('sub','')); name=str(info.get('name') or email.split('@')[0]); now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'); c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
+            email=str(info.get('email','')).lower().strip(); sub=str(info.get('sub','')); name=str(info.get('name') or email.split('@')[0]); now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'); c=auth_db(); c.execute('BEGIN IMMEDIATE'); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
             if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
             if not u:
                 role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'; cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)',(email,None,name,role,'google',sub,now,now,now)); uid=cur.lastrowid
@@ -872,7 +876,7 @@ class Gateway(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self.send_json({'error':'Não foi possível validar o login do Google.','detail':str(e),'code':'GOOGLE_INVALID_CREDENTIAL'},401)
                 email=normalize_email(claims.get('email')); sub=str(claims.get('sub','')); name=str(claims.get('name') or email.split('@')[0]); now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
-                c=auth_db(); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
+                c=auth_db(); c.execute('BEGIN IMMEDIATE'); u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
                 if not u: u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
                 if not u:
                     role='creator' if c.execute('SELECT 1 FROM users').fetchone() is None else 'beta'
@@ -884,7 +888,7 @@ class Gateway(BaseHTTPRequestHandler):
                 d=json.loads(self.body().decode() or '{}'); email=str(d.get('email','')).strip().lower(); pw=str(d.get('password','')); name=str(d.get('display_name','')).strip() or email.split('@')[0]
                 if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$',email): return self.send_json({'error':'Informe um e-mail válido.'},400)
                 if len(pw)<8: return self.send_json({'error':'A senha precisa ter pelo menos 8 caracteres.'},400)
-                c=auth_db(); first=c.execute('SELECT 1 FROM users LIMIT 1').fetchone() is None; now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
+                c=auth_db(); c.execute('BEGIN IMMEDIATE'); first=c.execute('SELECT 1 FROM users LIMIT 1').fetchone() is None; now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
                 try: cur=c.execute('INSERT INTO users(email,password_hash,display_name,role,provider,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?)',(email,pw_hash(pw),name,'creator' if first else 'beta','local',now,now,now)); uid=cur.lastrowid; c.commit()
                 except sqlite3.IntegrityError: c.close(); return self.send_json({'error':'Este e-mail já está cadastrado.'},409)
                 c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(201); set_session_cookie(self,tok); raw=json.dumps({'token':tok,'user':{'id':uid,'email':email,'display_name':name,'role':'creator' if first else 'beta'}},ensure_ascii=False).encode(); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(raw))); self.end_headers(); self.wfile.write(raw); return
@@ -902,6 +906,7 @@ class Gateway(BaseHTTPRequestHandler):
                     name=str(claims.get('name') or email.split('@')[0])
                     now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
                     c=auth_db()
+                    c.execute('BEGIN IMMEDIATE')
                     u=c.execute('SELECT * FROM users WHERE provider="google" AND provider_subject=?',(sub,)).fetchone()
                     if not u:
                         u=c.execute('SELECT * FROM users WHERE email=?',(email,)).fetchone()
