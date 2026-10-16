@@ -69,6 +69,34 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 }
 </style>
 
+
+<style id="cime-auth-form-position-fix">
+/* Login/Criar conta: o painel acompanha o formulário ativo, sem herdar a altura do hero. */
+@media (min-width:901px){
+  .portal{align-items:start!important}
+  .auth-card{
+    align-self:start!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  .auth-card #login,
+  .auth-card #reg{
+    position:relative!important;
+    inset:auto!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    overflow:visible!important;
+  }
+  .auth-card #reg.hidden,
+  .auth-card #login.hidden{display:none!important}
+  .auth-card .field:first-child{margin-top:12px!important}
+}
+</style>
+
 </head>
 <body>
 <header><div class="topbar"><div class="brand"><div class="brand-mark">🌌</div><div><h1>Cime dos Mundos <span class="badge">5.0 BETA</span></h1><p>Anime · séries · filmes · memórias</p></div></div><div class="top-actions"><span class="top-chip">🔐 Dados separados por conta</span><span class="top-chip">⚡ Smart Vision</span></div></div></header>
