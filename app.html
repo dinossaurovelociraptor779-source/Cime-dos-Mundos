@@ -706,9 +706,15 @@ async function importHistoryFiles(){
     const count=batches.reduce((n,b)=>n+b.entries.length,0);
     msg.innerHTML=`✅ Etapa 1/3 · ${batches.map(b=>`${b.source==='netflix'?'Netflix':'Tomato'}: <b>${b.entries.length}</b>`).join(' · ')} registro(s) prontos. Nenhum arquivo foi enviado até a validação terminar.`;
     const results=[];
-    for(let i=0;i<batches.length;i++){
-      const batch=batches[i];
-      msg.innerHTML+=`<br>🧠 Etapa 2/3 · Analisando nomes, temporadas, capas e progresso (${i+1}/${batches.length})…`;
+    const chunks=[];
+    for(const batch of batches){
+      for(let offset=0;offset<batch.entries.length;offset+=25){
+        chunks.push({source:batch.source,entries:batch.entries.slice(offset,offset+25)});
+      }
+    }
+    for(let i=0;i<chunks.length;i++){
+      const batch=chunks[i];
+      msg.innerHTML+=`<br>🧠 Etapa 2/3 · Importando lote ${i+1}/${chunks.length} (${batch.entries.length} registros)…`;
       results.push(await api('/api/import/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(batch)}));
     }
     const total=results.reduce((a,r)=>a+Number(r.imported||0),0),created=results.reduce((a,r)=>a+Number(r.created||0),0),linked=results.reduce((a,r)=>a+Number(r.linked||0),0),skipped=results.reduce((a,r)=>a+Number(r.skipped||0),0),errors=results.reduce((a,r)=>a+Number(r.errors||0),0);
@@ -744,7 +750,8 @@ async function api(url,opt={}){
     if(cimeGetInflight.has(key)) return cimeGetInflight.get(key);
   }
   const controller=opt.signal?null:new AbortController();
-  const timer=controller?setTimeout(()=>controller.abort(),20000):null;
+  const timeoutMs=/\/api\/import\/history(?:\?|$)/.test(url)&&method==='POST'?55000:20000;
+  const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
   const request={...opt}; if(controller) request.signal=controller.signal;
   const p=fetch(cimeApiUrl(url),request).then(async r=>{
     let d={}; try{d=await r.json();}catch{}
