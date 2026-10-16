@@ -1216,18 +1216,11 @@ def import_external_history(source, entries):
             linked+=1
 
         category=_infer_import_category(representative,group)
-        # Fast metadata lookup: one cached Jikan request at most per imported franchise.
-        # It supplies episode/season totals and a cover when available, without blocking
-        # the import on deeper research providers.
-        meta=metadata_cache.get(normalizar_texto(representative))
-        if meta is None and (not row or not row.get('episodes') or not row.get('cover')):
-            try:
-                _diag=[]
-                _res,_best=smart_search_title(representative, category_hint=category, diagnostics=_diag, fast_mode=True)
-                meta=_best or {}
-            except Exception:
-                meta={}
-            metadata_cache[normalizar_texto(representative)]=meta
+        # Keep history import independent from external metadata providers.
+        # Network lookups for every title can exceed serverless execution limits and
+        # cause the browser request to abort. Import first; users can enrich covers
+        # and metadata afterward with the library's dedicated update tools.
+        meta=metadata_cache.get(normalizar_texto(representative), {})
 
         if not tid:
             try:
