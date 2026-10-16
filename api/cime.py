@@ -14,6 +14,8 @@ os.environ["CIME_DEPLOYMENT"]="vercel"
 os.environ["CIME_PUBLIC_URL"]="https://cime-dos-mundos.vercel.app"
 os.environ["GOOGLE_REDIRECT_URI"]=os.environ["CIME_PUBLIC_URL"]+"/oauth/google/callback"
 
+from security_config import load_session_secret
+
 _gateway=None
 _boot=False
 
@@ -102,7 +104,7 @@ class handler(BaseHTTPRequestHandler):
                 from urllib.parse import urlencode
                 client_id="826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com"
                 redirect_uri="https://cime-dos-mundos.vercel.app/oauth/google/callback"
-                secret=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_oauth_state_fallback"
+                secret=load_session_secret()
                 state=secrets.token_urlsafe(32)
                 signed=state+"."+hmac.new(secret.encode(),state.encode(),hashlib.sha256).hexdigest()
                 query=urlencode({

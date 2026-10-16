@@ -1,10 +1,14 @@
-import os,secrets,hmac,hashlib
+import os,secrets,hmac,hashlib,sys
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
+from security_config import load_session_secret
 from urllib.parse import urlencode
 from http.server import BaseHTTPRequestHandler
 
 CLIENT_ID="826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com"
 REDIRECT_URI="https://cime-dos-mundos.vercel.app/oauth/google/callback"
-SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_oauth_state_fallback"
+SECRET=load_session_secret()
 
 def sign(value):
     return hmac.new(SECRET.encode(),value.encode(),hashlib.sha256).hexdigest()
