@@ -2118,4 +2118,28 @@ img{max-width:100%}
   #c5go #c5inviteSection h4{font-size:18px!important}
   #c5go #c5GroupTabs.c5-group-tabs{top:0!important}
 }
+
+/* Cime dos Mundos 5.0 — acabamento visual seguro (sem alterar a estrutura) */
+:root{--cime-motion:180ms;--cime-glass:rgba(16,22,36,.78)}
+@supports (backdrop-filter:blur(1px)){
+  .topbar,.modal,.panel-box,.c5gm,.c5gc{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+}
+.btn,.bulk-btn,.c5gb,.nav button,.tab,button,a,.card,.discover-result{
+  transition:background-color var(--cime-motion) ease,border-color var(--cime-motion) ease,box-shadow var(--cime-motion) ease,filter var(--cime-motion) ease,transform var(--cime-motion) ease;
+}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid var(--accent,#8b5cf6);outline-offset:3px;
+}
+button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
+@media(hover:hover) and (pointer:fine){
+  .btn:hover,.bulk-btn:hover,.c5gb:hover,.nav button:hover,.tab:hover{filter:brightness(1.08)}
+  .card:hover,.discover-result:hover{border-color:rgba(139,92,246,.48);box-shadow:0 12px 32px rgba(0,0,0,.18)}
+}
+@media(max-width:760px){
+  button,.btn,.bulk-btn,.c5gb,.nav button,.tab{min-height:42px}
+  input,select,textarea{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
 </style>
