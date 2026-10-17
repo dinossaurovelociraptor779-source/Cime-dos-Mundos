@@ -4,9 +4,11 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 SESSION_DAYS=30
-SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0"
+SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET")
 
 def stateless_user(raw):
+    if not SECRET:
+        return None
     try:
         parts=str(raw or "").split(".")
         if len(parts)!=3 or parts[0]!="c5":
