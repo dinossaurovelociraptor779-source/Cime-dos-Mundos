@@ -12,6 +12,7 @@ import io
 import zipfile
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+from image_upload_validation import validated_image_extension
 from io import BytesIO
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
