@@ -1,5 +1,6 @@
 import unittest
 from io import BytesIO
+from pathlib import Path
 
 from PIL import Image
 
@@ -28,6 +29,12 @@ class ImageUploadValidationTests(unittest.TestCase):
     def test_corrupt_or_empty_content_is_rejected(self):
         self.assertIsNone(validated_image_extension(b"not an image"))
         self.assertIsNone(validated_image_extension(b""))
+
+    def test_upload_route_uses_validated_content_extension(self):
+        source = (Path(__file__).resolve().parents[1] / "server_legacy.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("ext = validated_image_extension(body)", source)
 
 
 if __name__ == "__main__":
