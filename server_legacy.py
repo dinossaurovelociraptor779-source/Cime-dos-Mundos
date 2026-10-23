@@ -12,6 +12,7 @@ import io
 import zipfile
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+from image_upload_validation import validated_image_extension
 from io import BytesIO
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -3793,44 +3794,12 @@ class Handler(
                         400
                     )
 
-                filename = self.headers.get(
-                    "X-Filename",
-                    "imagem.jpg"
-                )
-
-                ext = os.path.splitext(
-                    filename
-                )[1].lower()
-
-                extensoes = {
-                    ".jpg",
-                    ".jpeg",
-                    ".png",
-                    ".webp"
-                }
-
-                if ext not in extensoes:
-
-                    ext = ".jpg"
-
-                # ------------------------------------------------
-                # Verificar se realmente é imagem
-                # ------------------------------------------------
-
-                try:
-
-                    teste = Image.open(
-                        BytesIO(body)
-                    )
-
-                    teste.verify()
-
-                except Exception:
-
+                # Derive the extension from validated image bytes, not the client filename.
+                ext = validated_image_extension(body)
+                if ext is None:
                     return self.send_json(
                         {
-                            "error":
-                                "O arquivo enviado não é uma imagem válida."
+                            "error": "Envie uma imagem PNG, JPG/JPEG ou WEBP válida."
                         },
                         400
                     )
