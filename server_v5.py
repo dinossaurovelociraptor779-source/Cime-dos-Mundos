@@ -594,7 +594,10 @@ class Gateway(BaseHTTPRequestHandler):
                 return self.send_json({'error':f'Não foi possível gerar o QR Code: {e}'},500)
 
         if path=='/api/connection-info':
-            return self.send_json({'version':'5.0','port':PORT,'bind':BIND,'local_url':f'http://localhost:{PORT}','lan_ip':lan_ip(),'lan_ips':lan_ips(),'lan_url':f'http://{lan_ip()}:{PORT}','google_js_origin':f'http://localhost:{PORT}','mobile_hint':'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP 8790 no Windows e teste a URL LAN exibida pelo modo celular.'})
+            is_vercel=os.getenv('CIME_DEPLOYMENT')=='vercel'
+            public_origin=str(os.getenv('CIME_PUBLIC_URL','')).strip().rstrip('/')
+            local_url=f'http://localhost:{PORT}'
+            return self.send_json({'version':'5.0','deployment':'vercel' if is_vercel else 'local','port':PORT,'bind':BIND,'local_url':public_origin or local_url,'lan_ip':None if is_vercel else lan_ip(),'lan_ips':[] if is_vercel else lan_ips(),'lan_url':public_origin or f'http://{lan_ip()}:{PORT}','google_js_origin':public_origin or local_url,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':not is_vercel,'mobile_hint':'Acesse esta mesma URL HTTPS no computador e no celular.' if is_vercel else 'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP da porta configurada no Windows.'})
         if path in ('/manifest.json','/service-worker.js','/icon-192.png','/icon-512.png'):
             types={
                 '/manifest.json':'application/manifest+json; charset=utf-8',
@@ -694,7 +697,10 @@ class Gateway(BaseHTTPRequestHandler):
                 uid=u['id']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
             c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
         if path=='/api/auth/status':
-            u=get_user(self); return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':f'http://localhost:{PORT}','google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
+            u=get_user(self)
+            public_origin=str(os.getenv('CIME_PUBLIC_URL','')).strip().rstrip('/')
+            google_origin=public_origin or f'http://localhost:{PORT}'
+            return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':google_origin,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':os.getenv('CIME_DEPLOYMENT')!='vercel' and BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
         if path=='/api/bootstrap':
             u=require(self)
             if not u: return
