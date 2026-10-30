@@ -101,7 +101,8 @@ class DiagnosticsTests(unittest.TestCase):
     def test_auth_diagnostics_use_public_origin_in_production(self):
         source = (ROOT / "server_v5.py").read_text(encoding="utf-8")
         self.assertIn("google_origin=public_origin or f'http://localhost:{PORT}'", source)
-        self.assertIn("def is_public_host()", source)\n        self.assertIn("'lan_enabled':not is_public_host()", source)
+        self.assertIn("def is_public_host()", source)
+        self.assertIn("'lan_enabled':not is_public_host()", source)
 
     def test_health_routes_identify_their_liveness_only_contract(self):
         for path in ("api/health.py", "api/cime_health.py"):
