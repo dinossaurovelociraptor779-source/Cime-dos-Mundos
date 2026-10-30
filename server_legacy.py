@@ -3878,7 +3878,7 @@ class Handler(
                 # a visão inicial não alcança confiança suficiente.
                 # ------------------------------------------------
                 t_pipeline=time.perf_counter()
-                client_ocr_hint=str(self.headers.get("X-OCR-Hint","") or "").replace("\\x00"," ").strip()[:3600]
+                client_ocr_hint=str(self.headers.get("X-OCR-Hint","") or "").replace("\x00"," ").strip()[:3600]
                 if vision_configured():
                     # Caminho turbo: visão primeiro; texto OCR do navegador é apenas uma pista auxiliar.
                     vision=openai_vision_analyze(body, client_ocr_hint, False)
