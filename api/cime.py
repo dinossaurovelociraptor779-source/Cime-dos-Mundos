@@ -73,13 +73,32 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
-    def _run(self,method):
+    PERSISTENT_GET_WRITE_PATHS = frozenset({
+    # These GET handlers perform database writes (metadata enrichment, session
+    # renewal, first-time library initialization, and OAuth state/session updates).
+    "/api/auth/status",
+    "/api/bootstrap",
+    "/api/library/enrich",
+    "/api/library/covers",
+    "/api/import/history/consolidate",
+    "/oauth/google/start",
+    "/oauth/google/callback",
+    "/api/google_oauth_callback",
+    "/api/google_oauth_callback.py",
+})
+
+
+def _is_write_request(method, path):
+    """Return True for every route that can change the durable Cime data."""
+    if method in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):
+        return True
+    return method == "do_GET" and path in PERSISTENT_GET_WRITE_PATHS
+
+
+def _run(self,method):
         self._restore_route()
         path = urlparse(self.path).path.rstrip("/") or "/"
-        write_request = (
-            method in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH")
-            or (method == "do_GET" and path in ("/oauth/google/callback", "/api/import/history/consolidate"))
-        )
+        write_request = _is_write_request(method, path)
         try:
             from cime_persistent_store import request_context, PersistentStoreError
             with request_context(write=write_request) as store:
@@ -131,54 +150,9 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(raw)
 
     def _google_fallback_get(self):
-        try:
-            parsed=urlparse(self.path)
-            path=parsed.path.rstrip("/") or "/"
-            if path in ("/oauth/google/start","/api/google_oauth_start","/api/google_oauth_start.py"):
-                import os,secrets,hmac,hashlib
-                from urllib.parse import urlencode
-                client_id="826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com"
-                redirect_uri="https://cime-dos-mundos.vercel.app/oauth/google/callback"
-                from cime_security import SESSION_SECRET
-                secret=SESSION_SECRET
-                state=secrets.token_urlsafe(32)
-                signed=state+"."+hmac.new(secret.encode(),state.encode(),hashlib.sha256).hexdigest()
-                query=urlencode({
-                    "client_id":client_id,
-                    "redirect_uri":redirect_uri,
-                    "response_type":"code",
-                    "scope":"openid email profile",
-                    "state":state,
-                    "prompt":"select_account"
-                })
-                self.send_response(302)
-                self.send_header("Location","https://accounts.google.com/o/oauth2/v2/auth?"+query)
-                self.send_header("Set-Cookie",f"cime_google_state={signed}; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax")
-                self.send_header("Cache-Control","no-store")
-                self.send_header("Content-Length","0")
-                self.end_headers()
-                return True
-
-            if path in ("/oauth/google/callback","/api/google_oauth_callback","/api/google_oauth_callback.py"):
-                from api.google_oauth_callback import finish_login
-                q=parse_qs(parsed.query,keep_blank_values=True)
-                self._legacy_google_mode=str((q.get("legacy") or [""])[0] or "")
-                finish_login(
-                    self,
-                    (q.get("code") or [""])[0],
-                    (q.get("state") or [""])[0],
-                    as_json=False
-                )
-                return True
-        except Exception as exc:
-            raw=json.dumps({"ok":False,"error":str(exc)[:500]},ensure_ascii=False,separators=(",",":")).encode("utf-8")
-            self.send_response(400)
-            self.send_header("Content-Type","application/json; charset=utf-8")
-            self.send_header("Cache-Control","no-store")
-            self.send_header("Content-Length",str(len(raw)))
-            self.end_headers()
-            self.wfile.write(raw)
-            return True
+        # Do not handle OAuth here: direct responses bypass the persistent
+        # request wrapper. Let _run() dispatch through Gateway under the
+        # PostgreSQL snapshot lock so OAuth state and sessions are durable.
         return False
 
     def _google_fallback_post(self):
@@ -190,12 +164,19 @@ class handler(BaseHTTPRequestHandler):
             n=int(self.headers.get("Content-Length","0") or 0)
             body=self.rfile.read(n)
             d=json.loads(body.decode("utf-8") or "{}")
-            from api.google_oauth_callback import finish_login
-            finish_login(self,str(d.get("code") or ""),str(d.get("state") or ""),as_json=True)
+            from cime_persistent_store import request_context, PersistentStoreError
+            with request_context(write=True) as store:
+                if store is not None:
+                    store.attach_response(self)
+                import server_v5
+                server_v5.bootstrap()
+                from api.google_oauth_callback import finish_login
+                finish_login(self,str(d.get("code") or ""),str(d.get("state") or ""),as_json=True)
             return True
         except Exception as exc:
+            status = 503 if exc.__class__.__name__ == "PersistentStoreError" else 400
             raw=json.dumps({"ok":False,"error":str(exc)[:500]},ensure_ascii=False,separators=(",",":")).encode("utf-8")
-            self.send_response(400)
+            self.send_response(status)
             self.send_header("Content-Type","application/json; charset=utf-8")
             self.send_header("Cache-Control","no-store")
             self.send_header("Content-Length",str(len(raw)))
