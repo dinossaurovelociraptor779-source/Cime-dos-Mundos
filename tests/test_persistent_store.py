@@ -64,6 +64,7 @@ class PersistentSnapshotTests(unittest.TestCase):
         events = []
         request_store = store_module.RequestStore(None, None, True, 0, False)
         handler = _FakeHandler()
+        handler.events = events
         with patch.object(request_store, "save", side_effect=lambda: events.append("save")):
             request_store.attach_response(handler)
             handler.end_headers()
