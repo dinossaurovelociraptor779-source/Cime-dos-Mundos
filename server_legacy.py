@@ -3459,19 +3459,30 @@ class Handler(
             try:
                 memory=io.BytesIO()
                 with zipfile.ZipFile(memory, "w", zipfile.ZIP_DEFLATED) as z:
-                    if os.path.exists(DB):
-                        z.write(DB, "cime.db")
+                    # Never include the shared legacy cime.db: it is not owned by
+                    # the authenticated account and may contain another user's data.
                     conn=db()
-                    export={"version":"5.0 BETA SMART VISION","created_at":datetime.now().isoformat(timespec="seconds"),"titles":all_titles(),"watch_history":[dict(r) for r in conn.execute("SELECT * FROM watch_history ORDER BY watched_at DESC").fetchall()]}
-                    conn.close()
+                    try:
+                        export={
+                            "version":"5.0 BETA SMART VISION",
+                            "created_at":datetime.now().isoformat(timespec="seconds"),
+                            "titles":all_titles(),
+                            "watch_history":[dict(r) for r in conn.execute("SELECT * FROM watch_history ORDER BY watched_at DESC").fetchall()],
+                            "imported_history":[dict(r) for r in conn.execute("SELECT * FROM imported_history ORDER BY created_at DESC").fetchall()],
+                        }
+                    finally:
+                        conn.close()
                     z.writestr("library.json", json.dumps(export,ensure_ascii=False,indent=2))
-                    if os.path.isdir(MEDIA):
-                        for root,_,files in os.walk(MEDIA):
+                    # MEDIA is account-scoped by server_v5.DynamicPath; resolve it
+                    # once so the archive cannot walk the shared legacy media folder.
+                    media_dir=os.fspath(MEDIA)
+                    if os.path.isdir(media_dir):
+                        for root,_,files in os.walk(media_dir):
                             for filename in files:
                                 full=os.path.join(root,filename)
-                                arc=os.path.join("media",os.path.relpath(full,MEDIA))
+                                arc=os.path.join("media",os.path.relpath(full,media_dir))
                                 z.write(full,arc)
-                    readme="Cime dos Mundos 5.0 BETA SMART VISION - backup\nInclui cime.db e library.json.\nO arquivo original nao deve ser sobrescrito durante testes.\n"
+                    readme="Cime dos Mundos 5.0 BETA SMART VISION - backup\nInclui somente a biblioteca, historico e midias da conta autenticada.\n"
                     z.writestr("LEIA-ME-BACKUP.txt",readme)
                 raw=memory.getvalue()
                 self.send_response(200)
