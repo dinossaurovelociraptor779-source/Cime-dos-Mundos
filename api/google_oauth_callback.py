@@ -172,7 +172,7 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def _run_persistent(self,action):
-        from api.persistent_store import request_context, PersistentStoreError
+        from cime_persistent_store import request_context, PersistentStoreError
         try:
             with request_context(write=True) as store:
                 if store is not None:
