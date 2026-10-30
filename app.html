@@ -1329,7 +1329,7 @@ async function c5photoAdd(){
 </script>
 
 <script>async function c5PendingInviteApply(){const t=localStorage.getItem('cimePendingInvite');if(!t)return;localStorage.removeItem('cimePendingInvite');try{const d=await api('/api/invites/accept',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})});if(d.success){await c5openGroups(d.group_id);showToast('👥 Você entrou no grupo.');}}catch(e){showToast('Convite: '+e.message)}}window.addEventListener('load',c5PendingInviteApply);</script>
-
+<script>window.addEventListener('load',()=>{setTimeout(async()=>{const gid=Number(localStorage.getItem('cime5AutoOpenGroup')||0);if(!gid)return;localStorage.removeItem('cime5AutoOpenGroup');try{await c5openGroups(gid);showToast('👥 Grupo aberto pelo convite.');}catch(e){showToast('⚠️ Não foi possível abrir o grupo do convite.');}},60);},{once:true});</script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js',{scope:'/'}).catch(()=>{}),{once:true});}</script>
 <style id="c5-mobile-pro-v2">
 :root{--c5-safe-bottom:max(12px,env(safe-area-inset-bottom));}
