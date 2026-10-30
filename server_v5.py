@@ -287,34 +287,43 @@ def clear_session_cookie(handler):
 
 def get_user(handler):
     route=handler.path.split('?',1)[0].rstrip('/') or '/'
-    # For the OAuth handoff, a fresh ?token=... must take priority over any
-    # stale Authorization header left in localStorage from an earlier session.
+    # O token de handoff do OAuth tem prioridade somente no bootstrap/status.
     qtok=''
     try:
         qtok=str(parse_qs(urlparse(handler.path).query).get('token',[''])[0] or '').strip()
     except Exception:
         qtok=''
-    h=handler.headers.get('Authorization',''); auth_raw=h[7:].strip() if h.startswith('Bearer ') else ''
+    h=handler.headers.get('Authorization','')
+    auth_raw=h[7:].strip() if h.startswith('Bearer ') else ''
+    cookie_raw=_cookie_token(handler)
     if route in ('/api/bootstrap','/api/auth/status') and qtok:
-        raw=qtok
+        candidates=[qtok]
     else:
-        raw=auth_raw or _cookie_token(handler)
-        if not raw and route in ('/api/bootstrap','/api/auth/status'):
-            raw=qtok
-    if not raw: return None
-    token_hash=hashlib.sha256(raw.encode()).hexdigest()
+        # Um Authorization antigo no localStorage não pode invalidar um cookie
+        # HttpOnly recém-criado pelo Google. Tente cada credencial até encontrar
+        # uma sessão ativa no banco persistente.
+        candidates=[]
+        for candidate in (auth_raw,cookie_raw,qtok if route in ('/api/bootstrap','/api/auth/status') else ''):
+            if candidate and candidate not in candidates:
+                candidates.append(candidate)
+    now=datetime.now(timezone.utc).replace(tzinfo=None)
     c=auth_db()
-    row=c.execute('SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',(token_hash,datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds'))).fetchone()
-    if row:
-        now=datetime.now(timezone.utc).replace(tzinfo=None)
-        try: exp=datetime.fromisoformat(str(row['expires_at']))
-        except Exception: exp=now
+    for raw in candidates:
+        token_hash=hashlib.sha256(raw.encode()).hexdigest()
+        row=c.execute('SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',(token_hash,now.isoformat(timespec='seconds'))).fetchone()
+        if not row:
+            continue
+        try:
+            exp=datetime.fromisoformat(str(row['expires_at']))
+        except Exception:
+            exp=now
         if (exp-now).total_seconds() < 3*86400:
-            c.execute('UPDATE sessions SET expires_at=? WHERE token_hash=?',((now+timedelta(days=SESSION_DAYS)).isoformat(timespec='seconds'),token_hash)); c.commit()
-        c.close(); return dict(row)
+            c.execute('UPDATE sessions SET expires_at=? WHERE token_hash=?',((now+timedelta(days=SESSION_DAYS)).isoformat(timespec='seconds'),token_hash))
+            c.commit()
+        c.close()
+        return dict(row)
     c.close()
-    # A sessão precisa existir no banco persistente. Tokens sem registro ativo
-    # não são aceitos, mesmo que tenham assinatura válida.
+    # Não aceite tokens apenas assinados: a sessão deve existir no banco.
     return None
 
 def require(handler):
