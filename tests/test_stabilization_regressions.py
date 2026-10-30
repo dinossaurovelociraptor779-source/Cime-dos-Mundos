@@ -76,6 +76,16 @@ class RequestBodyTests(unittest.TestCase):
         self.assertEqual(handler.read_body(), b'{"titles":[]}')
         self.assertEqual(handler.rfile.read(), b'NEXT HTTP REQUEST')
 
+    def test_new_keep_alive_request_clears_previous_body_cache(self):
+        from server_v5 import Gateway
+
+        handler = object.__new__(Gateway)
+        handler._cime_body_cache = b'previous request'
+        handler.headers = {"Content-Length": "3"}
+        handler.rfile = io.BytesIO(b'new')
+        handler._reset_body_cache()
+        self.assertEqual(handler.read_body(), b'new')
+
 
 class DiagnosticsTests(unittest.TestCase):
     def test_auth_diagnostics_use_public_origin_in_production(self):
