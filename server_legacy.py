@@ -1976,19 +1976,19 @@ def _evaluate_ocr_words(words,image_h):
 def _ocr_candidate_text(items):
     return "\n".join(x[1] for x in items[:8])
 
-def read_image_anchor_text(image_bytes):
-    """OCR rápido para a primeira identificação.
-    Primeiro lê a imagem inteira em até 1280 px; só faz recortes extras
-    quando o primeiro passe não encontrou uma pista forte.
-    """
+def read_image_anchor_text(image_bytes, client_ocr_hint=""):
+    """OCR rápido; aceita texto reconhecido no navegador quando o runtime não tem Tesseract."""
+    client_hint=str(client_ocr_hint or "").replace("\\x00"," ").strip()[:3600]
     cached=_ocr_cache_get(image_bytes,"anchor")
     if cached is not None:
-        return str(cached)
+        cached_text=str(cached)
+        return ((client_hint+"\\n"+cached_text) if client_hint and client_hint not in cached_text else cached_text)[:3600]
     try:
         image=_resize_for_ocr(ImageOps.exif_transpose(Image.open(BytesIO(image_bytes))),max_width=1280)
         text=pytesseract.image_to_string(image,lang=OCR_LANGUAGE,config='--oem 3 --psm 6 -c preserve_interword_spaces=1')
         text=str(text or '').strip()
-        low=normalizar_texto(text)
+        if client_hint:
+            text=(client_hint+"\\n"+text).strip()
         known=canonical_title_from_text(text) or ''
         season_hit=infer_season_from_title_text(text)
 
@@ -2017,8 +2017,11 @@ def read_image_anchor_text(image_bytes):
         _ocr_cache_put(image_bytes,result,"anchor")
         return result
     except Exception:
+        if client_hint:
+            try: _ocr_cache_put(image_bytes,client_hint,"anchor")
+            except Exception: pass
+            return client_hint
         return ""
-
 def read_image_candidates(image_bytes):
     """OCR multi-pass: regiões prováveis + variantes + ranking de título. Evita dezenas de passes redundantes."""
     cached=_ocr_cache_get(image_bytes,"deep")
@@ -3875,16 +3878,16 @@ class Handler(
                 # a visão inicial não alcança confiança suficiente.
                 # ------------------------------------------------
                 t_pipeline=time.perf_counter()
+                client_ocr_hint=str(self.headers.get("X-OCR-Hint","") or "").replace("\\x00"," ").strip()[:3600]
                 if vision_configured():
-                    # Caminho turbo: visão primeiro. OCR local só é executado quando a visão não entrega
-                    # uma identificação confiável, evitando trabalho e atraso desnecessários no celular.
-                    vision=openai_vision_analyze(body, "", False)
+                    # Caminho turbo: visão primeiro; texto OCR do navegador é apenas uma pista auxiliar.
+                    vision=openai_vision_analyze(body, client_ocr_hint, False)
                     anchor_text=""
                     if not (vision.get("recognized") and float(vision.get("confidence",0) or 0)>=0.86):
-                        anchor_text=read_image_anchor_text(body)
+                        anchor_text=read_image_anchor_text(body,client_ocr_hint)
                 else:
                     vision={"configured":False,"recognized":False,"title_raw":"","aliases":[],"category":"","season":None,"season_title":"","arc":"","confidence":0}
-                    anchor_text=read_image_anchor_text(body)
+                    anchor_text=read_image_anchor_text(body,client_ocr_hint)
 
                 vconf=float(vision.get("confidence",0) or 0) if isinstance(vision,dict) else 0.0
                 fast_visual=bool(vision.get("recognized")) and vconf>=0.86
@@ -3909,6 +3912,8 @@ class Handler(
                     ocr_candidates=[anchor_known, anchor_text]
                 else:
                     ocr_candidates=read_image_candidates(body)
+                    if client_ocr_hint:
+                        ocr_candidates=[client_ocr_hint,*ocr_candidates]
 
                 texto="\n".join(str(x) for x in ocr_candidates[:8])
                 ocr_blob=" ".join(str(x) for x in ocr_candidates[:12])+" "+str(anchor_text or "")
