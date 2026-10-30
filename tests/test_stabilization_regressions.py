@@ -8,6 +8,7 @@ import io
 import json
 import os
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 os.environ.setdefault("CIME_SESSION_SECRET", "test-only-session-secret-" + "x" * 64)
@@ -108,6 +109,30 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertIn('"health_type": "liveness"', source)
             self.assertIn('"/api/persistence/health"', source)
 
+
+
+class BrowserOcrFallbackTests(unittest.TestCase):
+    def test_server_uses_browser_ocr_hint_when_tesseract_is_unavailable(self):
+        import server_legacy as legacy
+
+        hint = "Demon Slayer Season 3 Episode 12"
+        with patch.object(legacy, "_ocr_cache_get", return_value=None), \\
+             patch.object(legacy, "_ocr_cache_put"), \\
+             patch.object(legacy.Image, "open", side_effect=OSError("Tesseract image unavailable")):
+            result = legacy.read_image_anchor_text(b"not-an-image", hint)
+        self.assertIn("Demon Slayer", result)
+        self.assertIn("Episode 12", result)
+
+    def test_upload_route_accepts_client_ocr_hint(self):
+        source = (ROOT / "server_legacy.py").read_text(encoding="utf-8")
+        self.assertIn('self.headers.get("X-OCR-Hint"', source)
+        self.assertIn("read_image_anchor_text(body,client_ocr_hint)", source)
+
+    def test_frontend_has_lazy_browser_ocr_fallback(self):
+        source = (ROOT / "app.html").read_text(encoding="utf-8")
+        self.assertIn("tesseract.js@5/dist/tesseract.min.js", source)
+        self.assertIn("createWorker('eng+por')", source)
+        self.assertIn("uploadHeaders['X-OCR-Hint']=ocrHint", source)
 
 if __name__ == "__main__":
     unittest.main()
