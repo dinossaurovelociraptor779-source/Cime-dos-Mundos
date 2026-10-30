@@ -139,7 +139,8 @@ class handler(BaseHTTPRequestHandler):
                 from urllib.parse import urlencode
                 client_id="826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com"
                 redirect_uri="https://cime-dos-mundos.vercel.app/oauth/google/callback"
-                secret=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_oauth_state_fallback"
+                from cime_security import SESSION_SECRET
+                secret=SESSION_SECRET
                 state=secrets.token_urlsafe(32)
                 signed=state+"."+hmac.new(secret.encode(),state.encode(),hashlib.sha256).hexdigest()
                 query=urlencode({
