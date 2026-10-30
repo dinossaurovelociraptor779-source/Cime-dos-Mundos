@@ -16,7 +16,7 @@ os.environ["CIME_DEPLOYMENT"] = "vercel"
 
 CLIENT_ID="826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com"
 REDIRECT_URI="https://cime-dos-mundos.vercel.app/oauth/google/callback"
-SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_oauth_state_fallback"
+from cime_security import SESSION_SECRET as SECRET
 
 def verify_state(state,cookie):
     try:
