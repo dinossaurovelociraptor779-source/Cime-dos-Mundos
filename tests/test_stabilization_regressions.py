@@ -134,3 +134,41 @@ class BrowserOcrFallbackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AlternateHostingTests(unittest.TestCase):
+    def test_render_entrypoint_is_valid_and_uses_platform_url(self):
+        source = (ROOT / "render_server.py").read_text(encoding="utf-8")
+        compile(source, "render_server.py", "exec")
+        self.assertIn('os.getenv("PORT")', source)
+        self.assertIn('os.getenv("RENDER_EXTERNAL_URL")', source)
+        self.assertIn('os.environ.setdefault("CIME_PERSISTENT_STORE", "1")', source)
+
+    def test_persistent_store_can_be_enabled_outside_vercel(self):
+        import cime_persistent_store as store_module
+
+        class Cursor:
+            def execute(self, *args, **kwargs):
+                return None
+            def fetchone(self):
+                return None
+            def close(self):
+                return None
+
+        class Connection:
+            def cursor(self):
+                return Cursor()
+            def close(self):
+                return None
+
+        with patch.dict(os.environ, {"CIME_DEPLOYMENT": "render", "CIME_PERSISTENT_STORE": "1"}):
+            with patch.object(store_module, "_connect", return_value=Connection()):
+                with store_module.request_context(write=False) as store:
+                    self.assertIsNotNone(store)
+                    self.assertFalse(store.snapshot_exists)
+
+    def test_render_origin_is_not_overwritten_by_vercel_defaults(self):
+        source = (ROOT / "api/cime.py").read_text(encoding="utf-8")
+        self.assertIn('os.environ.setdefault("CIME_DEPLOYMENT", "vercel")', source)
+        self.assertIn('os.environ.setdefault("CIME_PUBLIC_URL", "https://cime-dos-mundos.vercel.app")', source)
+        self.assertIn('os.environ.get("CIME_PUBLIC_URL"', source)
