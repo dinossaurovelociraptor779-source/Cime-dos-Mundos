@@ -1015,6 +1015,19 @@ const c5x = id => document.getElementById(id);
 function c5toggleCreateGroup(){
   const box=c5x('c5createBox');
   if(!box)return;
+  const mobile=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;
+  if(mobile){
+    const panel=document.querySelector('#c5go .c5ggrid>.c5gc:last-child');
+    const quick=c5x('c5quickWrap');
+    if(panel&&quick&&box.parentElement!==panel)panel.insertBefore(box,quick);
+    const show=box.style.display==='none'||getComputedStyle(box).display==='none';
+    box.style.display=show?'block':'none';
+    box.classList.toggle('c5-mobile-create-open',show);
+    const toggle=document.querySelector('#c5go .c5newgroup');
+    if(toggle)toggle.textContent=show?'✕ Fechar criação':'＋ Novo grupo';
+    if(show){box.scrollIntoView({behavior:'smooth',block:'nearest'});setTimeout(()=>c5x('c5gn')?.focus(),240);}
+    return;
+  }
   const show=getComputedStyle(box).display==='none';
   box.style.display=show?'block':'';
   if(show){box.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>c5x('c5gn')?.focus(),240);}
@@ -1024,6 +1037,17 @@ function c5closeGroups(){
   c5stopGroupPolling();
   const dlg = c5x('c5go');
   if (dlg) dlg.style.display = 'none';
+  const box=c5x('c5createBox');
+  if(box){
+    if(window.matchMedia&&window.matchMedia('(max-width:760px)').matches){
+      box.style.display='none';box.classList.remove('c5-mobile-create-open');
+    }else{
+      const first=dlg?.querySelector('.c5ggrid>.c5gc:first-child');
+      if(first&&!first.contains(box))first.insertBefore(box,first.firstChild);
+      box.style.display='';box.classList.remove('c5-mobile-create-open');
+    }
+    const toggle=dlg?.querySelector('.c5newgroup');if(toggle)toggle.textContent='＋ Novo grupo';
+  }
   c5urls.forEach(u => URL.revokeObjectURL(u));
   c5urls = [];
 }
@@ -1394,7 +1418,7 @@ async function c5photoAdd(){
   q('#c5MobileGroups')?.addEventListener('click',()=>{try{c5openGroups();q('#c5MobileGroupBadge').hidden=true}catch(e){}});
   const more=q('#c5MobileMore'), sheet=q('#c5MobileMoreSheet');
   function closeMore(){if(sheet)sheet.hidden=true}
-  more?.addEventListener('click',()=>{if(sheet)sheet.hidden=false});
+  more?.addEventListener('click',()=>{if(sheet){sheet.hidden=!sheet.hidden;more.classList.toggle('active',!sheet.hidden)}});
   q('#c5CloseMore')?.addEventListener('click',closeMore);
   sheet?.addEventListener('click',e=>{if(e.target===sheet)closeMore()});
   q('#c5MobileStats')?.addEventListener('click',()=>{closeMore();view('stats')});
@@ -1686,7 +1710,7 @@ img{max-width:100%}
   const home=document.createElement('section');
   home.id='c5MobileHomeView';
   home.setAttribute('aria-label','Início do Cime dos Mundos');
-  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">↗ Importar histórico</button></div><div class="c5-mobile-home-categories"><span>SEU UNIVERSO</span><span>ANIMES</span><span>SÉRIES</span><span>FILMES</span></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
+  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">↗ Importar histórico</button></div><div class="c5-mobile-home-categories" role="group" aria-label="Filtrar sua coleção"><button type="button" class="is-active" data-c5-home-category="all" aria-pressed="true">✦ Seu universo</button><button type="button" data-c5-home-category="Anime" aria-pressed="false">🎌 Animes</button><button type="button" data-c5-home-category="Série" aria-pressed="false">📺 Séries</button><button type="button" data-c5-home-category="Filme" aria-pressed="false">🎬 Filmes</button></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
   const main=q('main');
   if(main)main.insertBefore(home,main.firstChild);
   const header=q('header');
@@ -1712,9 +1736,25 @@ img{max-width:100%}
     const picture=cover?'<img src="'+e(cover)+'" alt="Capa de '+e(name)+'" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">':'<span class="c5-home-placeholder">'+iconFor(x)+'</span>';
     return '<button type="button" class="c5-home-card" data-c5-home-id="'+id+'" aria-label="Abrir '+e(name)+'"><span class="c5-home-poster">'+picture+rating+prog+'</span><span class="c5-home-card-title">'+e(name)+'</span><span class="c5-home-card-sub">'+e(subtitle)+'</span></button>';
   }
-  function renderHero(){
+  let selectedHomeCategory='all';
+  function matchesHomeCategory(item){
+    if(selectedHomeCategory==='all')return true;
+    const category=String(item&&item.category||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(selectedHomeCategory==='Anime')return category.includes('anime');
+    if(selectedHomeCategory==='Série')return category.includes('serie');
+    if(selectedHomeCategory==='Filme')return category.includes('filme');
+    return true;
+  }
+  function renderCategoryButtons(){
+    qa('#c5MobileHomeView [data-c5-home-category]').forEach(function(button){
+      const active=button.dataset.c5HomeCategory===selectedHomeCategory;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-pressed',active?'true':'false');
+    });
+  }
+  function renderHero(items){
     const root=q('#c5MobileHero');if(!root)return;
-    const all=getTitles();
+    const all=Array.isArray(items)?items:getTitles();
     const item=all.find(x=>x.status==='Assistindo')||all.find(x=>x.favorite)||all[0];
     if(!item){root.innerHTML='<div class="c5-mobile-hero-empty"><span class="c5-mobile-hero-mark">C</span><div><b>Seu universo começa aqui</b><small>Adicione um título para montar sua coleção.</small></div></div>';return;}
     const name=item.name||item.title||'Sua próxima história';
@@ -1726,21 +1766,29 @@ img{max-width:100%}
   function renderShelves(){
     const root=q('#c5MobileShelves');if(!root)return;
     const all=getTitles();
-    renderHero();
+    const visible=selectedHomeCategory==='all'?all:all.filter(matchesHomeCategory);
+    renderCategoryButtons();
+    renderHero(visible);
     const shelves=[
-      {title:'Continue assistindo',sub:'Retome de onde você parou',filter:'Assistindo',items:all.filter(x=>x.status==='Assistindo')},
-      {title:'Sua lista de favoritos',sub:'Histórias que você guardou',filter:'favorite',items:all.filter(x=>!!x.favorite)},
-      {title:'Para assistir depois',sub:'Sua próxima maratona pode estar aqui',filter:'Quero assistir',items:all.filter(x=>x.status==='Quero assistir')},
-      {title:'Sua jornada concluída',sub:'Tudo o que você já terminou',filter:'Concluído',items:all.filter(x=>x.status==='Concluído')},
-      {title:'Explore sua coleção',sub:all.length+' título(s) na sua biblioteca',filter:'all',items:all}
+      {title:'Continue assistindo',sub:'Retome de onde você parou',filter:'Assistindo',items:visible.filter(x=>x.status==='Assistindo')},
+      {title:'Sua lista de favoritos',sub:'Histórias que você guardou',filter:'favorite',items:visible.filter(x=>!!x.favorite)},
+      {title:'Para assistir depois',sub:'Sua próxima maratona pode estar aqui',filter:'Quero assistir',items:visible.filter(x=>x.status==='Quero assistir')},
+      {title:'Sua jornada concluída',sub:'Tudo o que você já terminou',filter:'Concluído',items:visible.filter(x=>x.status==='Concluído')},
+      {title:'Explore sua coleção',sub:visible.length+' título(s) nesta categoria',filter:'all',items:visible}
     ];
     const active=shelves.filter(x=>x.items.length).map(function(shelf){
       const items=shelf.items.slice(0,12);
       return '<section class="c5-home-shelf"><div class="c5-home-shelf-head"><div><h3>'+e(shelf.title)+'</h3><p>'+e(shelf.sub)+'</p></div><button type="button" data-c5-home-filter="'+e(shelf.filter)+'">Ver tudo ›</button></div><div class="c5-home-rail" aria-label="'+e(shelf.title)+'">'+items.map(shelfCard).join('')+'</div></section>';
     });
     root.innerHTML=active.join('');
-    const empty=q('#c5MobileHomeEmpty');if(empty)empty.hidden=all.length>0;
-    if(all.length===0)root.innerHTML='';
+    const empty=q('#c5MobileHomeEmpty');
+    if(empty){
+      empty.hidden=visible.length>0;
+      if(!visible.length){
+        const categoryName=selectedHomeCategory==='all'?'sua coleção':selectedHomeCategory==='Anime'?'animes':selectedHomeCategory==='Série'?'séries':'filmes';
+        empty.innerHTML='<h3>'+(all.length?'Ainda não há '+categoryName+' aqui':'Sua coleção começa aqui')+'</h3><p>'+(all.length?'Escolha outra categoria ou adicione um título para começar.':'Adicione seus primeiros títulos ou importe seu histórico para organizar tudo.')+'</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar título</button>';
+      }
+    }
   }
   function setActive(page){qa('#c5MobileNav .c5mnav[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===page));}
   function showHome(){
@@ -1754,12 +1802,16 @@ img{max-width:100%}
     if(typeof showView==='function')showView('discover');
     setActive('discover');
   }
-  function openLibrary(filterValue){
+  function openLibrary(filterValue,categoryValue){
     document.body.classList.remove('c5-mobile-home');
     try{q('#resetFilters')&&q('#resetFilters').click();}catch(_){}
     const search=q('#librarySearch');if(search)search.value='';
     const genre=q('#genreFilter');if(genre)genre.value='all';
     const filter=q('#filter');if(filter)filter.value=filterValue||'all';
+    if(typeof advancedFilters!=='undefined'&&categoryValue&&categoryValue!=='all'){
+      advancedFilters.category=categoryValue;
+      if(typeof writeFilterState==='function')writeFilterState();
+    }
     if(typeof showView==='function')showView('library');
     if(typeof render==='function')render();
     setActive(filterValue==='favorite'?'favorites':'library');
@@ -1773,9 +1825,18 @@ img{max-width:100%}
   q('#c5MobileLibrary')&&q('#c5MobileLibrary').addEventListener('click',function(){if(q('#c5MobileMoreSheet'))q('#c5MobileMoreSheet').hidden=true;if(q('#c5MobileMore'))q('#c5MobileMore').classList.remove('active');openLibrary('all');});
   q('#c5MobileGroups')&&q('#c5MobileGroups').addEventListener('click',function(){const sheet=q('#c5MobileMoreSheet');if(sheet)sheet.hidden=true;const more=q('#c5MobileMore');if(more)more.classList.remove('active');});
   ['#c5MobileStats','#c5MobileSettings','#c5MobileHistory','#c5MobileCovers'].forEach(function(sel){const btn=q(sel);if(btn)btn.addEventListener('click',function(){const more=q('#c5MobileMore');if(more)more.classList.remove('active');});});
-  q('#c5HomeLibrary')&&q('#c5HomeLibrary').addEventListener('click',function(){openLibrary('all');});
-  q('#c5HomeHistory')&&q('#c5HomeHistory').addEventListener('click',function(){if(typeof openDialog==='function')openDialog('historyImportDlg');else q('#openHistoryImport')&&q('#openHistoryImport').click();});
-  q('#c5HomeEmptyAdd')&&q('#c5HomeEmptyAdd').addEventListener('click',function(){if(typeof openDialog==='function')openDialog('dlg');});
+  home.addEventListener('click',function(ev){
+    const categoryButton=ev.target.closest('[data-c5-home-category]');
+    if(categoryButton){selectedHomeCategory=categoryButton.dataset.c5HomeCategory||'all';renderShelves();return;}
+    if(ev.target.closest('#c5HomeLibrary')){openLibrary('all');return;}
+    if(ev.target.closest('#c5HomeHistory')){
+      const importButton=q('#openHistoryImport');
+      if(importButton)importButton.click();
+      else if(typeof openDialog==='function')openDialog('historyImportDlg');
+      return;
+    }
+    if(ev.target.closest('#c5HomeEmptyAdd')&&typeof openDialog==='function')openDialog('dlg');
+  });
   q('#c5MobileStats')&&q('#c5MobileStats').addEventListener('click',function(){document.body.classList.remove('c5-mobile-home');if(typeof showView==='function')showView('stats');});
   q('#c5MobileMore')&&q('#c5MobileMore').addEventListener('click',function(){const sheet=q('#c5MobileMoreSheet');if(sheet)q('#c5MobileMore').classList.toggle('active',!sheet.hidden);});
   q('#c5MobileMoreSheet')&&q('#c5MobileMoreSheet').addEventListener('click',function(ev){if(ev.target===q('#c5MobileMoreSheet'))q('#c5MobileMore').classList.remove('active');});
@@ -1785,7 +1846,7 @@ img{max-width:100%}
     const heroBtn=ev.target.closest('[data-c5-hero-id]');
     if(heroBtn){const found=getTitles().find(x=>String(x.id)===heroBtn.dataset.c5HeroId);if(found&&typeof openPanel==='function')openPanel(found);return;}
     const filterBtn=ev.target.closest('[data-c5-home-filter]');
-    if(filterBtn){openLibrary(filterBtn.dataset.c5HomeFilter);return;}
+    if(filterBtn){openLibrary(filterBtn.dataset.c5HomeFilter,selectedHomeCategory);return;}
     const card=ev.target.closest('[data-c5-home-id]');
     if(card){const found=getTitles().find(x=>String(x.id)===card.dataset.c5HomeId);if(found&&typeof openPanel==='function')openPanel(found);}
   });
@@ -1996,7 +2057,7 @@ img{max-width:100%}
 }
 </style>
 
-</body></html>
+
 
 
 
@@ -2219,3 +2280,93 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
   #libraryView .library-heading-note{display:none!important}
 }
 </style>
+
+
+<style id="cime-mobile-touch-navigation-v2">
+@media(max-width:760px){
+ body{padding-top:0!important;padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;overflow-x:hidden!important}
+ #c5bar{display:none!important}
+ header{top:0!important;padding:10px 16px!important;min-height:60px!important}
+ header .brand{min-height:38px!important;align-items:center!important}
+ header .brand h1{font-size:18px!important;line-height:1.2!important;max-width:calc(100vw - 92px)!important}
+ header .brand p{display:none!important}
+ main{padding:10px 16px calc(104px + env(safe-area-inset-bottom,0px))!important}
+ .c5-mobile-home-actions{position:relative!important;z-index:4!important;display:flex!important;gap:9px!important;margin:1px 0 14px!important;pointer-events:auto!important}
+ .c5-mobile-home-actions button{position:relative!important;z-index:4!important;flex:1 1 0!important;min-width:0!important;min-height:48px!important;padding:10px 8px!important;font-size:clamp(11px,3.1vw,12px)!important;line-height:1.2!important;white-space:normal!important;touch-action:manipulation!important;pointer-events:auto!important}
+ .c5-mobile-home-categories{position:relative!important;z-index:3!important;display:flex!important;gap:8px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:3px 1px 10px!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-x!important}
+ .c5-mobile-home-categories::-webkit-scrollbar{display:none!important}
+ .c5-mobile-home-categories button{flex:0 0 auto!important;min-height:42px!important;padding:9px 13px!important;border-radius:999px!important;border:1px solid #2b3954!important;background:#111a2a!important;color:#b9c5d9!important;font-size:11px!important;font-weight:800!important;white-space:nowrap!important;touch-action:manipulation!important;pointer-events:auto!important}
+ .c5-mobile-home-categories button.is-active{background:linear-gradient(135deg,#3a2c76,#25204a)!important;border-color:#7763cb!important;color:#fff!important;box-shadow:0 5px 16px rgba(80,61,171,.18)!important}
+ .c5-mobile-hero-content{pointer-events:none!important}
+ .c5-mobile-hero-content button{pointer-events:auto!important;min-height:42px!important;font-size:11px!important}
+ #c5HomeLibrary:active,#c5HomeHistory:active,.c5-mobile-home-categories button:active{transform:scale(.98)!important}
+ #c5MobileNav{z-index:24000!important}
+ #c5MobileMoreSheet{z-index:24500!important}
+ .c5-mobile-more-grid button{min-height:82px!important}
+ #c5go{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;padding:0!important;align-items:stretch!important;justify-content:stretch!important;overflow:hidden!important;z-index:25000!important;touch-action:pan-y!important}
+ #c5go .c5gm{display:flex!important;flex-direction:column!important;width:100%!important;max-width:none!important;height:100dvh!important;min-height:0!important;max-height:100dvh!important;margin:0!important;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))!important;border:0!important;border-radius:0!important;overflow:hidden!important;box-sizing:border-box!important;background:#0a111e!important}
+ #c5go .c5gm>div:first-child{position:relative!important;z-index:5!important;display:flex!important;flex:0 0 auto!important;align-items:center!important;gap:8px!important;padding:3px 0 12px!important;border-bottom:1px solid rgba(148,163,184,.12)!important;background:#0a111e!important}
+ #c5go .c5gm>div:first-child>div:first-child{min-width:0!important;flex:1 1 auto!important}
+ #c5go .c5gm>div:first-child .c5group-title{font-size:17px!important;line-height:1.2!important}
+ #c5go .c5gm>div:first-child .c5group-sub{font-size:10px!important;line-height:1.4!important}
+ #c5go .c5gm>div:first-child>div:last-child{display:flex!important;flex:0 0 auto!important;gap:6px!important}
+ #c5go .c5gm>div:first-child button{min-width:0!important;min-height:42px!important;padding:8px 9px!important;font-size:11px!important;border-radius:12px!important}
+ #c5go .c5ggrid{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;min-height:0!important;height:auto!important;overflow:hidden!important;margin:0!important;gap:0!important}
+ #c5go .c5ggrid>.c5gc:first-child{display:none!important}
+ #c5go .c5ggrid>.c5gc:last-child{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;min-width:0!important;min-height:0!important;overflow:hidden!important;padding:10px 0 0!important;border:0!important;background:transparent!important}
+ #c5go #c5quickWrap{display:block!important;flex:0 0 auto!important;margin:0 0 8px!important}
+ #c5go .c5quick-label{margin:0 0 6px!important;font-size:10px!important;letter-spacing:.09em!important}
+ #c5go .c5quick-groups{display:flex!important;flex-direction:row!important;gap:8px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:2px 1px 8px!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important}
+ #c5go .c5quick-groups::-webkit-scrollbar{display:none!important}
+ #c5go .c5quick-group{flex:0 0 auto!important;width:auto!important;min-width:148px!important;max-width:72vw!important;min-height:48px!important;padding:9px 11px!important;border-radius:14px!important;white-space:normal!important}
+ #c5go #c5gvempty{display:flex!important;flex:1 1 auto!important;align-items:center!important;justify-content:center!important;min-height:130px!important;margin:4px 0 0!important;padding:20px!important;border:1px dashed rgba(148,163,184,.23)!important;border-radius:18px!important;background:rgba(15,23,42,.30)!important;text-align:center!important;line-height:1.5!important}
+ #c5go #c5gv{flex:1 1 auto!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+ #c5go .c5-group-mobile-head{position:relative!important;top:auto!important;z-index:2!important;display:flex!important;flex:0 0 auto!important;align-items:center!important;gap:8px!important;padding:4px 1px 10px!important;background:transparent!important}
+ #c5go .c5-group-mobile-head>div{min-width:0!important;flex:1 1 auto!important}
+ #c5go .c5-group-mobile-head h3{font-size:17px!important;line-height:1.2!important;overflow-wrap:anywhere!important}
+ #c5go .c5-group-mobile-head .c5group-sub{font-size:10px!important;line-height:1.4!important;overflow-wrap:anywhere!important}
+ #c5go .c5-group-mobile-head .c5pill{flex:0 0 auto!important;font-size:10px!important}
+ #c5go .c5gm #c5GroupTabs.c5-group-tabs{position:relative!important;top:auto!important;z-index:3!important;display:flex!important;flex:0 0 auto!important;flex-wrap:nowrap!important;gap:7px!important;width:100%!important;max-width:100%!important;margin:0 0 8px!important;padding:4px 1px 9px!important;border:0!important;border-bottom:1px solid rgba(148,163,184,.12)!important;border-radius:0!important;background:transparent!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-x!important}
+ #c5go .c5gm #c5GroupTabs.c5-group-tabs::-webkit-scrollbar{display:none!important}
+ #c5go .c5gm #c5GroupTabs.c5-group-tabs button{display:inline-flex!important;flex:0 0 auto!important;align-items:center!important;justify-content:center!important;min-width:fit-content!important;min-height:42px!important;height:42px!important;padding:8px 12px!important;margin:0!important;border:1px solid rgba(148,163,184,.16)!important;border-radius:13px!important;background:#121d30!important;color:#afbdd2!important;font-size:11px!important;font-weight:750!important;line-height:1!important;white-space:nowrap!important}
+ #c5go .c5gm #c5GroupTabs.c5-group-tabs button.active,#c5go .c5gm #c5GroupTabs.c5-group-tabs button[aria-selected="true"]{background:linear-gradient(135deg,#43348b,#292451)!important;border-color:#7865cc!important;color:#fff!important}
+ #c5go .c5gm .c5section{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;min-height:0!important;flex:1 1 auto!important;margin:0!important;padding:13px!important;border:1px solid rgba(148,163,184,.13)!important;border-radius:16px!important;background:#101a2a!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important}
+ #c5go .c5gm #c5chatSection{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;min-height:0!important;padding:10px!important;overflow:hidden!important}
+ #c5go .c5gm .c5chat-head{display:flex!important;flex:0 0 auto!important;align-items:center!important;gap:8px!important;margin:0 0 7px!important}
+ #c5go .c5gm .c5chat-head h4{font-size:15px!important;margin:0!important}
+ #c5go .c5gm .c5chat-head .c5mut{font-size:10px!important;line-height:1.35!important}
+ #c5go .c5gm .c5chat-feed{display:flex!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;padding:8px 3px 10px!important;gap:8px!important;overscroll-behavior:contain!important}
+ #c5go .c5gm .c5chat-composer{display:grid!important;flex:0 0 auto!important;grid-template-columns:42px minmax(0,1fr) 42px!important;gap:7px!important;align-items:end!important;margin-top:8px!important;padding:8px!important;border:1px solid rgba(148,163,184,.15)!important;border-radius:15px!important;background:#0c1524!important}
+ #c5go .c5gm .c5chat-input{width:100%!important;min-width:0!important;min-height:42px!important;max-height:100px!important;padding:10px 11px!important;font-size:16px!important}
+ #c5go .c5gm .c5chat-attach,#c5go .c5gm .c5chat-send{width:42px!important;min-width:42px!important;height:42px!important;min-height:42px!important;border-radius:12px!important}
+ #c5go .c5gm #c5gmembers,#c5go .c5gm #c5recSection,#c5go .c5gm #c5memSection,#c5go .c5gm #c5shareSection{min-height:0!important;overflow-y:auto!important}
+ #c5go .c5gm #c5inviteSection{min-height:0!important;margin-top:8px!important;padding:13px!important}
+ #c5go .c5gm #c5shareSection .c5actionrow,#c5go .c5gm #c5recSection .c5actionrow,#c5go .c5gm #c5memSection .c5actionrow{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+ #c5go .c5gm .c5actionrow .c5gb{width:100%!important;min-width:0!important;min-height:46px!important;font-size:12px!important}
+ #c5go .c5gm #c5createBox.c5-mobile-create-open{display:block!important;flex:0 0 auto!important;max-height:min(62dvh,560px)!important;overflow-y:auto!important;margin:0 0 9px!important;padding:15px!important;border:1px solid rgba(148,163,184,.17)!important;border-radius:17px!important;background:#111d30!important}
+ #c5go .c5gm #c5createBox .c5section{display:none!important}
+ #c5go .c5gm #c5createBox .c5gi{width:100%!important;min-height:46px!important;margin:6px 0!important;font-size:16px!important}
+ #c5go .c5gm #c5createBox>button{width:100%!important;min-height:46px!important;margin-top:7px!important}
+}
+</style>
+<script id="cime-mobile-account-actions">
+(function(){
+ const sheet=document.getElementById('c5MobileMoreSheet');
+ const menu=document.getElementById('c5MobileMore');
+ const grid=sheet&&sheet.querySelector('.c5-mobile-more-grid');
+ if(!grid)return;
+ function addAction(id,emoji,title,detail,action){
+  if(document.getElementById(id))return;
+  const button=document.createElement('button');button.type='button';button.id=id;
+  button.innerHTML=emoji+'<b>'+title+'</b><span>'+detail+'</span>';
+  button.addEventListener('click',function(){sheet.hidden=true;menu?.classList.remove('active');action();});
+  grid.appendChild(button);
+ }
+ addAction('c5MobileFeedback','🐞','Enviar feedback','Relatar problema ou sugestão',function(){if(typeof c5feedback==='function')c5feedback();});
+ addAction('c5MobileLogout','↪','Sair da conta','Encerrar sua sessão',function(){if(typeof cimeLogout==='function')cimeLogout();});
+ document.getElementById('c5CloseMore')?.addEventListener('click',function(){sheet.hidden=true;menu?.classList.remove('active');});
+ sheet.addEventListener('click',function(event){if(event.target===sheet){sheet.hidden=true;menu?.classList.remove('active');}});
+})();
+</script>
+
+</body></html>
