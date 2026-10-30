@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: cime-dos-mundos-5-0
+    runtime: python
+    plan: free
+    branch: audit/cime-5-0-stabilization-final-b-20261030
+    buildCommand: pip install -r requirements.txt
+    startCommand: python render_server.py
+    healthCheckPath: /api/health
+    envVars:
+      - key: CIME_DEPLOYMENT
+        value: render
+      - key: CIME_PERSISTENT_STORE
+        value: "1"
+      - key: CIME_DATA_DIR
+        value: /tmp/CimeDados
+      - key: CIME_SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
