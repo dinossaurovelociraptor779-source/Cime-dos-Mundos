@@ -2485,4 +2485,81 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
 }
 @media(min-width:761px){.c5-mobile-header-groups{display:none!important}}
 </style>
+
+<style id="cime-library-mobile-refine-v1">
+@media(max-width:760px){
+  #libraryView{padding-top:4px!important;animation:none!important}
+  #libraryView .library-heading{
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;
+    margin:2px 0 14px!important;padding:15px 15px 14px!important;gap:8px!important;
+    border:1px solid rgba(148,163,184,.14)!important;border-radius:18px!important;
+    background:linear-gradient(135deg,rgba(32,39,67,.92),rgba(13,20,34,.96))!important;
+    box-shadow:0 10px 28px rgba(0,0,0,.18)!important;
+  }
+  #libraryView .library-heading .tiny{font-size:9px!important;letter-spacing:.13em!important;color:#a99be8!important;font-weight:850!important}
+  #libraryView .library-heading h2{font-size:20px!important;line-height:1.25!important;margin:3px 0 0!important;letter-spacing:-.025em!important}
+  #libraryView .toolbar.compact-toolbar{
+    position:static!important;top:auto!important;z-index:1!important;
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;margin:0 0 12px!important;padding:10px!important;
+    border:1px solid rgba(148,163,184,.13)!important;border-radius:17px!important;
+    background:rgba(13,19,32,.82)!important;box-shadow:0 8px 22px rgba(0,0,0,.14)!important;
+    backdrop-filter:none!important;
+  }
+  #libraryView .toolbar.compact-toolbar .library-search{
+    grid-column:1/-1!important;width:100%!important;min-width:0!important;
+    min-height:48px!important;padding:0 14px!important;border-radius:13px!important;
+    background:#0a111e!important;border-color:#34415b!important;font-size:14px!important;
+  }
+  #libraryView .toolbar.compact-toolbar .filter,
+  #libraryView .toolbar.compact-toolbar .bulk-btn{
+    width:100%!important;min-width:0!important;min-height:44px!important;
+    padding:8px 9px!important;border-radius:12px!important;font-size:11px!important;
+    white-space:normal!important;text-align:center!important;line-height:1.25!important;
+    background:#151f32!important;border:1px solid rgba(148,163,184,.15)!important;
+  }
+  #libraryView .toolbar.compact-toolbar #openFilters{
+    background:rgba(91,71,165,.22)!important;border-color:rgba(139,92,246,.35)!important;
+  }
+  #libraryView .toolbar.compact-toolbar #openFunnel{background:#111a2a!important}
+  #libraryView .select-mode-toolbar{
+    margin:0 0 17px!important;padding:0!important;display:flex!important;align-items:center!important;
+  }
+  #libraryView #selectMode{
+    width:100%!important;min-height:43px!important;border-radius:12px!important;
+    background:rgba(18,27,44,.88)!important;border:1px solid rgba(148,163,184,.16)!important;
+    color:#dce5f4!important;font-weight:750!important;
+  }
+  #libraryView .selection-options{
+    padding:10px!important;border-radius:14px!important;background:#0d1524!important;
+    border-color:rgba(148,163,184,.16)!important;gap:7px!important;
+  }
+  #libraryView .selection-options .bulk-btn{min-height:42px!important;border-radius:11px!important;font-size:11px!important}
+  #libraryView .section-title{
+    margin:20px 0 10px!important;font-size:16px!important;line-height:1.3!important;
+    letter-spacing:-.01em!important;gap:8px!important;
+  }
+  #libraryView .section-title:after{opacity:.65}
+  #libraryView #grid{gap:10px!important;padding-top:2px!important}
+  #libraryView #continueGrid{gap:10px!important}
+  #libraryView .empty{padding:27px 16px!important;border-radius:16px!important;font-size:13px!important;line-height:1.5!important}
+  #libraryView .card{border-radius:15px!important;box-shadow:0 8px 22px rgba(0,0,0,.2)!important}
+  #libraryView .card-body{padding:11px!important}
+  #libraryView .card .title{font-size:13px!important;line-height:1.3!important}
+  #libraryView .card .sub{font-size:10px!important;line-height:1.4!important}
+  #libraryView .card .chips{margin:7px 0!important;gap:4px!important}
+  #libraryView .card .chip,#libraryView .card .genre{font-size:9px!important;padding:4px 6px!important}
+  #libraryView .card .card-actions{gap:5px!important;margin-top:8px!important}
+  #libraryView .card .card-actions button{min-height:39px!important;padding:7px 5px!important;font-size:10px!important;border-radius:9px!important}
+  #libraryView #libraryMore{padding-bottom:8px!important}
+  #libraryView #libraryMoreBtn{min-height:44px!important;border-radius:12px!important}
+}
+@media(max-width:380px){
+  #libraryView .toolbar.compact-toolbar{gap:6px!important;padding:8px!important}
+  #libraryView .toolbar.compact-toolbar .filter,
+  #libraryView .toolbar.compact-toolbar .bulk-btn{font-size:10px!important;padding:7px 5px!important}
+  #libraryView .card .card-actions button{font-size:9px!important}
+}
+</style>
+
 </body></html>
