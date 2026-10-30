@@ -145,6 +145,7 @@ def finish_login(handler,code,state,as_json=False):
         handler.send_response(200)
         handler.send_header("Content-Type","application/json; charset=utf-8")
         handler.send_header("Cache-Control","no-store")
+        handler.send_header("Set-Cookie",f"cime5_session={token}; Path=/; Max-Age={SESSION_DAYS*24*60*60}; HttpOnly; Secure; SameSite=Lax")
         handler.send_header("Set-Cookie","cime_google_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
         handler.send_header("Set-Cookie","cime_google_handoff=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
         handler.send_header("Content-Length",str(len(raw)))
@@ -153,8 +154,10 @@ def finish_login(handler,code,state,as_json=False):
         return
 
     handler.send_response(302)
-    handler.send_header("Location","/app?token="+urllib.parse.quote(token,safe=""))
+    server_v5.set_session_cookie(handler,token)
+    handler.send_header("Location","/app")
     handler.send_header("Set-Cookie","cime_google_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
+    handler.send_header("Set-Cookie","cime_google_handoff=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
     handler.send_header("Cache-Control","no-store")
     handler.send_header("Content-Length","0")
     handler.end_headers()
