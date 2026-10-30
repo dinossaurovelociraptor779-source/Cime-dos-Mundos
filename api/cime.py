@@ -31,6 +31,28 @@ def load_gateway():
     _gateway=Gateway
     return _gateway
 
+PERSISTENT_GET_WRITE_PATHS = frozenset({
+    # These GET handlers perform database writes (metadata enrichment, session
+    # renewal, first-time library initialization, and OAuth state/session updates).
+    "/api/auth/status",
+    "/api/bootstrap",
+    "/api/library/enrich",
+    "/api/library/covers",
+    "/api/import/history/consolidate",
+    "/oauth/google/start",
+    "/oauth/google/callback",
+    "/api/google_oauth_callback",
+    "/api/google_oauth_callback.py",
+})
+
+
+def _is_write_request(method, path):
+    """Return True for every route that can change the durable Cime data."""
+    if method in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):
+        return True
+    return method == "do_GET" and path in PERSISTENT_GET_WRITE_PATHS
+
+
 class handler(BaseHTTPRequestHandler):
     protocol_version="HTTP/1.1"
     server_version="CimeDosMundos/5.0"
@@ -73,29 +95,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
-    PERSISTENT_GET_WRITE_PATHS = frozenset({
-    # These GET handlers perform database writes (metadata enrichment, session
-    # renewal, first-time library initialization, and OAuth state/session updates).
-    "/api/auth/status",
-    "/api/bootstrap",
-    "/api/library/enrich",
-    "/api/library/covers",
-    "/api/import/history/consolidate",
-    "/oauth/google/start",
-    "/oauth/google/callback",
-    "/api/google_oauth_callback",
-    "/api/google_oauth_callback.py",
-})
-
-
-def _is_write_request(method, path):
-    """Return True for every route that can change the durable Cime data."""
-    if method in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):
-        return True
-    return method == "do_GET" and path in PERSISTENT_GET_WRITE_PATHS
-
-
-def _run(self,method):
+    def _run(self,method):
         self._restore_route()
         path = urlparse(self.path).path.rstrip("/") or "/"
         write_request = _is_write_request(method, path)
