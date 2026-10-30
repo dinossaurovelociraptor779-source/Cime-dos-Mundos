@@ -10,8 +10,8 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("CIME_DATA_DIR","/tmp/CimeDados")
 os.environ.setdefault("CIME_PORT","80")
 os.environ.setdefault("CIME_BIND","0.0.0.0")
-os.environ["CIME_DEPLOYMENT"]="vercel"
-os.environ["CIME_PUBLIC_URL"]="https://cime-dos-mundos.vercel.app"
+os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
+os.environ.setdefault("CIME_PUBLIC_URL", "https://cime-dos-mundos.vercel.app")
 os.environ["GOOGLE_REDIRECT_URI"]=os.environ["CIME_PUBLIC_URL"]+"/oauth/google/callback"
 
 _gateway=None
@@ -23,8 +23,8 @@ def load_gateway():
         return _gateway
     import server_v5 as cime
     from server_v5 import Gateway,bootstrap
-    cime.public_lan_base=lambda:"https://cime-dos-mundos.vercel.app"
-    os.environ["GOOGLE_REDIRECT_URI"]="https://cime-dos-mundos.vercel.app/oauth/google/callback"
+    cime.public_lan_base=lambda:os.environ.get("CIME_PUBLIC_URL", "https://cime-dos-mundos.vercel.app").rstrip("/")
+    os.environ["GOOGLE_REDIRECT_URI"]=os.environ["CIME_PUBLIC_URL"].rstrip("/")+"/oauth/google/callback"
     if not _boot:
         bootstrap()
         _boot=True
