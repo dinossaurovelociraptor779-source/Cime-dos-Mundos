@@ -173,3 +173,20 @@ class AlternateHostingTests(unittest.TestCase):
         self.assertIn('os.environ.setdefault("CIME_DEPLOYMENT", "vercel")', source)
         self.assertIn('os.environ.setdefault("CIME_PUBLIC_URL", "https://cime-dos-mundos.vercel.app")', source)
         self.assertIn('os.environ.get("CIME_PUBLIC_URL"', source)
+
+
+class RenderHeadProbeTests(unittest.TestCase):
+    def test_head_liveness_probe_returns_empty_200_without_database_access(self):
+        from api.cime import handler as CimeHandler
+        from unittest.mock import Mock
+
+        probe = object.__new__(CimeHandler)
+        probe.path = "/"
+        probe.send_response = Mock()
+        probe.send_header = Mock()
+        probe.end_headers = Mock()
+        probe.do_HEAD()
+
+        probe.send_response.assert_called_once_with(200)
+        self.assertIn(("Content-Length", "0"), [call.args for call in probe.send_header.call_args_list])
+        probe.end_headers.assert_called_once_with()
