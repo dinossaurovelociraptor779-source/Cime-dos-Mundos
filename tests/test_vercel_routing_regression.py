@@ -26,6 +26,18 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn('!= "/api/qr":', self.gateway)
         self.assertIn("if self._qr_fallback_get():", self.gateway)
 
+    def test_all_mutating_get_routes_are_persisted(self):
+        self.assertIn("def _is_write_request(method, path):", self.gateway)
+        self.assertIn('"/api/library/enrich"', self.gateway)
+        self.assertIn('"/api/library/covers"', self.gateway)
+        self.assertIn('"/api/auth/status"', self.gateway)
+        self.assertIn('"/api/bootstrap"', self.gateway)
+        self.assertIn('write_request = _is_write_request(method, path)', self.gateway)
+
+    def test_oauth_fallback_does_not_bypass_persistence_wrapper(self):
+        self.assertIn("Do not handle OAuth here: direct responses bypass the persistent", self.gateway)
+        self.assertIn("with request_context(write=True) as store:", self.gateway)
+
     def test_backend_routing_module_parses(self):
         import ast
         ast.parse(self.gateway)
