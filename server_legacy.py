@@ -1978,11 +1978,11 @@ def _ocr_candidate_text(items):
 
 def read_image_anchor_text(image_bytes, client_ocr_hint=""):
     """OCR rápido; aceita texto reconhecido no navegador quando o runtime não tem Tesseract."""
-    client_hint=str(client_ocr_hint or "").replace("\\x00"," ").strip()[:3600]
+    client_hint=str(client_ocr_hint or "").replace("\x00"," ").strip()[:3600]
     cached=_ocr_cache_get(image_bytes,"anchor")
     if cached is not None:
         cached_text=str(cached)
-        return ((client_hint+"\\n"+cached_text) if client_hint and client_hint not in cached_text else cached_text)[:3600]
+        return ((client_hint+"\n"+cached_text) if client_hint and client_hint not in cached_text else cached_text)[:3600]
     try:
         image=_resize_for_ocr(ImageOps.exif_transpose(Image.open(BytesIO(image_bytes))),max_width=1280)
         text=pytesseract.image_to_string(image,lang=OCR_LANGUAGE,config='--oem 3 --psm 6 -c preserve_interword_spaces=1')
