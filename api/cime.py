@@ -85,38 +85,23 @@ class handler(BaseHTTPRequestHandler):
             with request_context(write=write_request) as store:
                 if store is not None:
                     store.attach_response(self)
-                try:
-                    cls=load_gateway()
-                    # Copy only request helpers. Do not overwrite handler.do_GET/do_POST:
-                    # those wrappers must restore Vercel's __cime_path on every invocation.
-                    for name in ("send_json","send_html","body","read_body","public"):
-                        setattr(handler,name,getattr(cls,name))
-                    handler.send_file=getattr(cls,"send_file",None)
-                    handler.protocol_version=getattr(cls,"protocol_version","HTTP/1.1")
-                    handler.server_version=getattr(cls,"server_version","CimeDosMundos/5.0")
+                cls=load_gateway()
+                for name in ("send_json","send_html","body","read_body","public"):
+                    setattr(handler,name,getattr(cls,name))
+                handler.send_file=getattr(cls,"send_file",None)
+                handler.protocol_version=getattr(cls,"protocol_version","HTTP/1.1")
+                handler.server_version=getattr(cls,"server_version","CimeDosMundos/5.0")
 
-                    if method == "do_GET" and path == "/api/persistence/health":
-                        return self.send_json({
-                            "ok": True,
-                            "version": "5.0",
-                            "storage": "Neon PostgreSQL" if store is not None else "local",
-                            "persistent": bool(store is not None),
-                            "snapshot_exists": bool(store.snapshot_exists) if store is not None else False,
-                            "snapshot_version": int(store.version) if store is not None else 0
-                        })
-                    return getattr(cls,method)(self)
-                except Exception as exc:
-                    raw=json.dumps({
-                        "ok":False,
-                        "error":"Backend Python não conseguiu processar a solicitação.",
-                        "detail":str(exc)[:800]
-                    },ensure_ascii=False,separators=(",",":")).encode("utf-8")
-                    self.send_response(500)
-                    self.send_header("Content-Type","application/json; charset=utf-8")
-                    self.send_header("Cache-Control","no-store")
-                    self.send_header("Content-Length",str(len(raw)))
-                    self.end_headers()
-                    self.wfile.write(raw)
+                if method == "do_GET" and path == "/api/persistence/health":
+                    return self.send_json({
+                        "ok": True,
+                        "version": "5.0",
+                        "storage": "Neon PostgreSQL" if store is not None else "local",
+                        "persistent": bool(store is not None),
+                        "snapshot_exists": bool(store.snapshot_exists) if store is not None else False,
+                        "snapshot_version": int(store.version) if store is not None else 0
+                    })
+                return getattr(cls,method)(self)
         except PersistentStoreError as exc:
             raw=json.dumps({
                 "ok":False,
@@ -124,6 +109,18 @@ class handler(BaseHTTPRequestHandler):
                 "code":getattr(exc,"code","CIME_PERSISTENCE_UNAVAILABLE")
             },ensure_ascii=False,separators=(",",":")).encode("utf-8")
             self.send_response(503)
+            self.send_header("Content-Type","application/json; charset=utf-8")
+            self.send_header("Cache-Control","no-store")
+            self.send_header("Content-Length",str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+        except Exception as exc:
+            raw=json.dumps({
+                "ok":False,
+                "error":"Backend Python não conseguiu processar a solicitação.",
+                "detail":str(exc)[:800]
+            },ensure_ascii=False,separators=(",",":")).encode("utf-8")
+            self.send_response(500)
             self.send_header("Content-Type","application/json; charset=utf-8")
             self.send_header("Cache-Control","no-store")
             self.send_header("Content-Length",str(len(raw)))
