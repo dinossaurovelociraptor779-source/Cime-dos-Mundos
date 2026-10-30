@@ -37,18 +37,33 @@ class handler(BaseHTTPRequestHandler):
     server_version = "CimeDosMundos/5.0"
 
     def _run(self, method):
+        self.path = "/api/auth/google/credential"
         try:
-            cls = load_gateway()
-            for name in ("send_json", "send_html", "body", "public", "do_OPTIONS", "do_GET", "do_POST"):
-                setattr(handler, name, getattr(cls, name))
-            handler.send_file = getattr(cls, "send_file", None)
-            handler.protocol_version = getattr(cls, "protocol_version", "HTTP/1.1")
-            handler.server_version = getattr(cls, "server_version", "CimeDosMundos/5.0")
-
-            # GIS sends the ID-token credential here. Keep the path deterministic
-            # so the Gateway reaches its dedicated Google credential branch.
-            self.path = "/api/auth/google/credential"
-            return getattr(self, method)()
+            from cime_persistent_store import request_context, PersistentStoreError
+            with request_context(write=method in ("do_POST", "do_PUT", "do_DELETE")) as store:
+                if store is not None:
+                    store.attach_response(self)
+                cls = load_gateway()
+                # Copy helpers only; keep this wrapper installed for every invocation.
+                for name in ("send_json", "send_html", "body", "read_body", "public"):
+                    setattr(handler, name, getattr(cls, name))
+                handler.send_file = getattr(cls, "send_file", None)
+                handler.protocol_version = getattr(cls, "protocol_version", "HTTP/1.1")
+                handler.server_version = getattr(cls, "server_version", "CimeDosMundos/5.0")
+                return getattr(cls, method)(self)
+        except PersistentStoreError as exc:
+            import json
+            raw = json.dumps({
+                "ok": False,
+                "error": "O armazenamento permanente do Cime está indisponível. O login não foi concluído.",
+                "code": getattr(exc, "code", "CIME_PERSISTENCE_UNAVAILABLE")
+            }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self.send_response(503)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
         except Exception as exc:
             import json
             raw = json.dumps({
