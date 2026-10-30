@@ -4,6 +4,7 @@ These checks cover route persistence classification, account-scoped backups,
 PWA metadata and public-origin diagnostics. They do not replace live OAuth,
 OCR, Neon recovery or multi-account integration tests.
 """
+import io
 import json
 import os
 import unittest
@@ -62,6 +63,18 @@ class BackupIsolationTests(unittest.TestCase):
             if icon.get("src", "").endswith(".svg"):
                 self.assertEqual(icon.get("type"), "image/svg+xml")
                 self.assertEqual(icon.get("sizes"), "any")
+
+
+class RequestBodyTests(unittest.TestCase):
+    def test_legacy_reader_reuses_cached_body_without_consuming_next_request(self):
+        from server_v5 import Gateway
+
+        handler = object.__new__(Gateway)
+        handler._cime_body_cache = b'{"titles":[]}'
+        handler.headers = {}
+        handler.rfile = io.BytesIO(b'NEXT HTTP REQUEST')
+        self.assertEqual(handler.read_body(), b'{"titles":[]}')
+        self.assertEqual(handler.rfile.read(), b'NEXT HTTP REQUEST')
 
 
 class DiagnosticsTests(unittest.TestCase):
