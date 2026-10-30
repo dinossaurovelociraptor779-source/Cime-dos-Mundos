@@ -46,6 +46,9 @@ class _DiscardWriter:
     def flush(self):
         return None
 
+    def close(self):
+        return None
+
 
 class RequestStore:
     def __init__(self, conn, cursor, write: bool, version: int, snapshot_exists: bool):
@@ -204,12 +207,19 @@ def _pack_data_dir() -> bytes:
     _checkpoint_sqlite_files()
     buffer = io.BytesIO()
     try:
+        files = [
+            path for path in sorted(DATA_DIR.rglob("*"))
+            if path.is_file() and not path.is_symlink()
+            and not path.name.endswith((".db-wal", ".db-shm", ".db-journal"))
+        ]
+        unpacked_size = sum(path.stat().st_size for path in files)
+        if unpacked_size > MAX_UNPACKED_BYTES:
+            raise PersistentStoreError("Os dados locais excedem o limite seguro de restauração.")
         with zipfile.ZipFile(
             buffer, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=5
         ) as archive:
-            for path in sorted(DATA_DIR.rglob("*")):
-                if path.is_file() and not path.is_symlink():
-                    archive.write(path, path.relative_to(DATA_DIR).as_posix())
+            for path in files:
+                archive.write(path, path.relative_to(DATA_DIR).as_posix())
         return buffer.getvalue()
     except PersistentStoreError:
         raise
