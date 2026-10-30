@@ -1020,7 +1020,7 @@ function c5toggleCreateGroup(){
     const panel=document.querySelector('#c5go .c5ggrid>.c5gc:last-child');
     const quick=c5x('c5quickWrap');
     if(panel&&quick&&box.parentElement!==panel)panel.insertBefore(box,quick);
-    const show=box.style.display==='none'||getComputedStyle(box).display==='none';
+    const show=!box.classList.contains('c5-mobile-create-open');
     box.style.display=show?'block':'none';
     box.classList.toggle('c5-mobile-create-open',show);
     const toggle=document.querySelector('#c5go .c5newgroup');
