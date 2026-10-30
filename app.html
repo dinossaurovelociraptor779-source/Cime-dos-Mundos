@@ -439,7 +439,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   </div>
 </header>
 <nav id="c5MobileNav" class="c5-mobile-nav" aria-label="Navegação principal no celular">
-  <button type="button" class="c5mnav active" data-view="library" aria-label="Animes"><span>🎌</span><small>Animes</small></button>
+  <button type="button" class="c5mnav active" data-view="home" aria-label="Início"><span>⌂</span><small>Início</small></button>
   <button type="button" class="c5mnav" data-view="discover" aria-label="Buscar"><span>🔎</span><small>Buscar</small></button>
   <button type="button" class="c5mnav c5mnav-plus" id="c5MobileAdd" aria-label="Adicionar"><span>＋</span><small>Adicionar</small></button>
   <button type="button" class="c5mnav" data-view="favorites" id="c5MobileFavorites" aria-label="Favoritos"><span>♡</span><small>Favoritos</small></button>
@@ -1686,7 +1686,7 @@ img{max-width:100%}
   const home=document.createElement('section');
   home.id='c5MobileHomeView';
   home.setAttribute('aria-label','Início do Cime dos Mundos');
-  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu universo</h2><p>Animes, séries e filmes para continuar, rever e descobrir.</p></div></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeLibrary">📚 Biblioteca completa</button><button type="button" id="c5HomeHistory">📥 Importar histórico</button></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe o histórico da Netflix ou do Tomato para organizar o que você já assistiu.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
+  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">↗ Importar histórico</button></div><div class="c5-mobile-home-categories"><span>SEU UNIVERSO</span><span>ANIMES</span><span>SÉRIES</span><span>FILMES</span></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
   const main=q('main');
   if(main)main.insertBefore(home,main.firstChild);
   const header=q('header');
@@ -1712,14 +1712,26 @@ img{max-width:100%}
     const picture=cover?'<img src="'+e(cover)+'" alt="Capa de '+e(name)+'" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">':'<span class="c5-home-placeholder">'+iconFor(x)+'</span>';
     return '<button type="button" class="c5-home-card" data-c5-home-id="'+id+'" aria-label="Abrir '+e(name)+'"><span class="c5-home-poster">'+picture+rating+prog+'</span><span class="c5-home-card-title">'+e(name)+'</span><span class="c5-home-card-sub">'+e(subtitle)+'</span></button>';
   }
+  function renderHero(){
+    const root=q('#c5MobileHero');if(!root)return;
+    const all=getTitles();
+    const item=all.find(x=>x.status==='Assistindo')||all.find(x=>x.favorite)||all[0];
+    if(!item){root.innerHTML='<div class="c5-mobile-hero-empty"><span class="c5-mobile-hero-mark">C</span><div><b>Seu universo começa aqui</b><small>Adicione um título para montar sua coleção.</small></div></div>';return;}
+    const name=item.name||item.title||'Sua próxima história';
+    let cover='';try{if(typeof coverOf==='function')cover=coverOf(item)||'';}catch(_){}
+    const image=cover?'<img class="c5-mobile-hero-image" src="'+e(cover)+'" alt="" loading="lazy">':'';
+    const state=item.status==='Assistindo'?'CONTINUE DE ONDE PAROU':item.favorite?'DA SUA LISTA DE FAVORITOS':'EM SUA COLEÇÃO';
+    root.innerHTML='<div class="c5-mobile-hero-art">'+image+'<div class="c5-mobile-hero-shade"></div></div><div class="c5-mobile-hero-content"><span class="c5-mobile-hero-kicker">✦ '+e(state)+'</span><b>'+e(name)+'</b><small>'+(item.status==='Assistindo'?'Sua jornada continua.':'Uma história da sua coleção.')+'</small><button type="button" data-c5-hero-id="'+e(item.id)+'">Ver detalhes <span>↗</span></button></div>';
+  }
   function renderShelves(){
     const root=q('#c5MobileShelves');if(!root)return;
     const all=getTitles();
+    renderHero();
     const shelves=[
-      {title:'▶ Continuar assistindo',sub:'Retome de onde você parou',filter:'Assistindo',items:all.filter(x=>x.status==='Assistindo')},
-      {title:'♡ Seus favoritos',sub:'Os títulos que você marcou',filter:'favorite',items:all.filter(x=>!!x.favorite)},
-      {title:'＋ Para assistir depois',sub:'Sua lista de próximos títulos',filter:'Quero assistir',items:all.filter(x=>x.status==='Quero assistir')},
-      {title:'✓ Já concluídos',sub:'Sua jornada até aqui',filter:'Concluído',items:all.filter(x=>x.status==='Concluído')},
+      {title:'Continue assistindo',sub:'Retome de onde você parou',filter:'Assistindo',items:all.filter(x=>x.status==='Assistindo')},
+      {title:'Sua lista de favoritos',sub:'Histórias que você guardou',filter:'favorite',items:all.filter(x=>!!x.favorite)},
+      {title:'Para assistir depois',sub:'Sua próxima maratona pode estar aqui',filter:'Quero assistir',items:all.filter(x=>x.status==='Quero assistir')},
+      {title:'Sua jornada concluída',sub:'Tudo o que você já terminou',filter:'Concluído',items:all.filter(x=>x.status==='Concluído')},
       {title:'Explore sua coleção',sub:all.length+' título(s) na sua biblioteca',filter:'all',items:all}
     ];
     const active=shelves.filter(x=>x.items.length).map(function(shelf){
@@ -1753,7 +1765,7 @@ img{max-width:100%}
     setActive(filterValue==='favorite'?'favorites':'library');
   }
   qa('#c5MobileNav .c5mnav[data-view]').forEach(b=>b.addEventListener('click',function(){
-    if(b.dataset.view==='library')openLibrary('all');
+    if(b.dataset.view==='home')showHome();
     else if(b.dataset.view==='discover')showDiscover();
     else if(b.dataset.view==='favorites')openLibrary('favorite');
   }));
@@ -1768,7 +1780,10 @@ img{max-width:100%}
   q('#c5MobileMore')&&q('#c5MobileMore').addEventListener('click',function(){const sheet=q('#c5MobileMoreSheet');if(sheet)q('#c5MobileMore').classList.toggle('active',!sheet.hidden);});
   q('#c5MobileMoreSheet')&&q('#c5MobileMoreSheet').addEventListener('click',function(ev){if(ev.target===q('#c5MobileMoreSheet'))q('#c5MobileMore').classList.remove('active');});
   q('#c5CloseMore')&&q('#c5CloseMore').addEventListener('click',function(){q('#c5MobileMore')&&q('#c5MobileMore').classList.remove('active');});
+  q('#c5MobileHero')&&q('#c5MobileHero').addEventListener('click',function(ev){const btn=ev.target.closest('[data-c5-hero-id]');if(btn){const found=getTitles().find(x=>String(x.id)===btn.dataset.c5HeroId);if(found&&typeof openPanel==='function')openPanel(found);}});
   q('#c5MobileShelves')&&q('#c5MobileShelves').addEventListener('click',function(ev){
+    const heroBtn=ev.target.closest('[data-c5-hero-id]');
+    if(heroBtn){const found=getTitles().find(x=>String(x.id)===heroBtn.dataset.c5HeroId);if(found&&typeof openPanel==='function')openPanel(found);return;}
     const filterBtn=ev.target.closest('[data-c5-home-filter]');
     if(filterBtn){openLibrary(filterBtn.dataset.c5HomeFilter);return;}
     const card=ev.target.closest('[data-c5-home-id]');
@@ -1780,8 +1795,8 @@ img{max-width:100%}
   setTimeout(renderShelves,100);
   setTimeout(renderShelves,900);
   const media=window.matchMedia('(max-width:760px)');
-  function syncMode(){if(media.matches){openLibrary('all');}else{document.body.classList.remove('c5-mobile-home');home.style.display='none';if(typeof showView==='function')showView('library');}}
-  if(media.matches)openLibrary('all');
+  function syncMode(){if(media.matches){showHome();}else{document.body.classList.remove('c5-mobile-home');home.style.display='none';if(typeof showView==='function')showView('library');}}
+  if(media.matches)showHome();
   if(typeof media.addEventListener==='function')media.addEventListener('change',syncMode);
   else if(typeof media.addListener==='function')media.addListener(syncMode);
 })();
@@ -2141,5 +2156,66 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+
+<style id="cime-mobile-redesign-v1">
+@media(max-width:760px){
+  :root{--c5-mobile-gutter:16px}
+  body{background:#070b14!important}
+  header{padding:10px 16px!important;min-height:62px!important;background:rgba(8,13,24,.96)!important;border-bottom:1px solid rgba(151,166,197,.10)!important;backdrop-filter:blur(18px)!important}
+  header .brand{gap:9px!important}
+  header .brand h1{font-size:16px!important;letter-spacing:-.04em!important}
+  header .brand .tiny,header .brand small{font-size:9px!important}
+  .c5-mobile-header-search{top:10px!important;right:14px!important;width:40px!important;height:40px!important;border-radius:50%!important;background:#121b2c!important;border-color:#26344c!important}
+  main{padding:10px 16px calc(104px + env(safe-area-inset-bottom,0px))!important;max-width:100%!important}
+  #c5MobileHomeView{padding:0 0 10px!important}
+  .c5-mobile-home-top{padding:13px 0 15px!important}
+  .c5-mobile-home-eyebrow{font-size:9px!important;letter-spacing:.22em!important;color:#9b8aff!important}
+  .c5-mobile-home-top h2{max-width:310px!important;font-size:27px!important;line-height:1.12!important;letter-spacing:-.055em!important;margin:7px 0 7px!important}
+  .c5-mobile-home-top p{max-width:300px!important;font-size:12px!important;color:#93a2bb!important;line-height:1.55!important}
+  .c5-mobile-hero{height:205px!important;position:relative!important;overflow:hidden!important;border-radius:22px!important;margin:1px 0 14px!important;background:linear-gradient(125deg,#1a2140,#10172a 58%,#21174a)!important;border:1px solid rgba(161,145,255,.22)!important;box-shadow:0 14px 38px rgba(0,0,0,.28)!important;isolation:isolate!important}
+  .c5-mobile-hero-art,.c5-mobile-hero-image,.c5-mobile-hero-shade{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+  .c5-mobile-hero-image{object-fit:cover!important;object-position:center 28%!important;opacity:.66!important}
+  .c5-mobile-hero-shade{background:linear-gradient(90deg,rgba(7,11,22,.98) 0%,rgba(7,11,22,.82) 46%,rgba(7,11,22,.16) 100%),linear-gradient(0deg,rgba(7,11,22,.75),transparent 65%)!important}
+  .c5-mobile-hero-content{position:absolute!important;inset:0!important;z-index:2!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-end!important;padding:17px!important;max-width:82%!important;pointer-events:none!important}
+  .c5-mobile-hero-kicker{font-size:9px!important;letter-spacing:.14em!important;color:#c4b5fd!important;font-weight:900!important;margin-bottom:7px!important}
+  .c5-mobile-hero-content>b{font-size:21px!important;line-height:1.12!important;letter-spacing:-.04em!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important}
+  .c5-mobile-hero-content>small{font-size:10px!important;color:#c1cbe0!important;margin-top:5px!important}
+  .c5-mobile-hero-content>button{pointer-events:auto!important;margin-top:11px!important;min-height:34px!important;padding:7px 12px!important;border-radius:10px!important;background:linear-gradient(135deg,#8b72ff,#5c4bd8)!important;color:white!important;font-size:10px!important;font-weight:900!important}
+  .c5-mobile-hero-empty{height:100%!important;display:flex!important;align-items:center!important;gap:13px!important;padding:20px!important}
+  .c5-mobile-hero-mark{width:48px!important;height:48px!important;display:grid!important;place-items:center!important;border-radius:16px!important;background:linear-gradient(145deg,#8b72ff,#4432a3)!important;font-size:25px!important;font-weight:950!important}
+  .c5-mobile-hero-empty b,.c5-mobile-hero-empty small{display:block!important}
+  .c5-mobile-hero-empty b{font-size:15px!important}
+  .c5-mobile-hero-empty small{font-size:10px!important;color:#a8b5cc!important;margin-top:5px!important}
+  .c5-mobile-home-actions{gap:9px!important;margin:0 0 12px!important}
+  .c5-mobile-home-actions button{min-height:42px!important;border-radius:12px!important;font-size:10px!important;background:#111a2b!important;border-color:#293752!important}
+  .c5-mobile-home-actions button:first-child{background:linear-gradient(135deg,#29234f,#171c32)!important;border-color:#51468a!important}
+  .c5-mobile-home-categories{display:flex!important;gap:7px!important;overflow-x:auto!important;padding:2px 0 9px!important;scrollbar-width:none!important}
+  .c5-mobile-home-categories span{white-space:nowrap!important;padding:7px 11px!important;border-radius:999px!important;background:#111a2a!important;border:1px solid #26344d!important;color:#b8c4d8!important;font-size:9px!important;font-weight:850!important;letter-spacing:.05em!important}
+  .c5-mobile-home-categories span:first-child{background:#27204a!important;border-color:#5c4ba0!important;color:#e4ddff!important}
+  .c5-home-shelf{margin:15px -16px 0!important;padding:0 16px!important}
+  .c5-home-shelf-head{margin-bottom:8px!important}
+  .c5-home-shelf-head h3{font-size:15px!important;letter-spacing:-.025em!important}
+  .c5-home-shelf-head p{font-size:9px!important;color:#8190a9!important}
+  .c5-home-shelf-head button{font-size:10px!important;color:#b8aaff!important}
+  .c5-home-rail{grid-auto-columns:clamp(105px,31vw,126px)!important;gap:10px!important;padding-bottom:8px!important}
+  .c5-home-poster{border-radius:13px!important;border-color:#26334a!important;box-shadow:0 8px 22px rgba(0,0,0,.24)!important}
+  .c5-home-card-title{font-size:11px!important;line-height:1.35!important;min-height:29px!important}
+  .c5-home-card-sub{font-size:9px!important}
+  .c5-mobile-home-empty{border:1px dashed #394766!important;background:linear-gradient(145deg,#111a2b,#0b1220)!important;border-radius:20px!important}
+  #c5MobileNav{grid-template-columns:repeat(5,minmax(0,1fr))!important;left:10px!important;right:10px!important;bottom:calc(7px + env(safe-area-inset-bottom,0px))!important;padding:7px 8px!important;border:1px solid rgba(140,158,193,.17)!important;border-radius:22px!important;background:rgba(10,15,27,.94)!important;backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important;box-shadow:0 10px 35px rgba(0,0,0,.42)!important}
+  #c5MobileNav .c5mnav{min-height:48px!important;border-radius:15px!important;gap:3px!important}
+  #c5MobileNav .c5mnav>span{font-size:19px!important;line-height:1!important}
+  #c5MobileNav .c5mnav small{font-size:8px!important;letter-spacing:.01em!important}
+  #c5MobileNav .c5mnav.active{background:linear-gradient(145deg,rgba(124,103,255,.22),rgba(74,88,190,.10))!important;box-shadow:inset 0 0 0 1px rgba(155,139,255,.24)!important;color:#e6e1ff!important}
+  #c5MobileNav .c5mnav-plus{margin-top:-13px!important}
+  #c5MobileNav .c5mnav-plus>span{width:43px!important;height:43px!important;border-radius:15px!important;background:linear-gradient(145deg,#9a83ff,#5a48d5)!important;box-shadow:0 8px 22px rgba(93,73,220,.38)!important;font-size:25px!important}
+  .c5-mobile-more{padding:0 10px calc(78px + env(safe-area-inset-bottom,0px))!important}
+  .c5-mobile-more-card{border-radius:23px 23px 18px 18px!important;background:#0d1525!important;border-color:#2a3853!important}
+  .c5-mobile-more-grid button{background:#121e31!important;border-color:#293a55!important;border-radius:15px!important}
+  #libraryView .library-heading{align-items:flex-start!important;gap:8px!important}
+  #libraryView .library-heading h2{font-size:19px!important}
+  #libraryView .library-heading-note{display:none!important}
 }
 </style>
