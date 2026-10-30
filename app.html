@@ -409,7 +409,7 @@ html,body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 <style id="cime-group-scroll-final-v5">
 @media (max-width:760px){
   html,body{overflow-y:auto!important;overflow-x:hidden!important;}
-  #c5go{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;display:block!important;overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:auto!important;padding:0!important;}
+  #c5go{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:auto!important;padding:0!important;}
   #c5go .c5gm{width:100%!important;max-width:none!important;height:auto!important;min-height:100dvh!important;max-height:none!important;margin:0!important;border-radius:0!important;overflow:visible!important;touch-action:auto!important;padding:12px 10px calc(84px + env(safe-area-inset-bottom,0px))!important;box-sizing:border-box!important;}
   #c5go .c5ggrid,#c5go .c5ggrid>.c5gc:last-child,#c5go #c5gv,#c5go #c5chatSection{height:auto!important;min-height:0!important;overflow:visible!important;}
   #c5go .c5ggrid{display:block!important;margin-top:8px!important;}
@@ -439,7 +439,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   </div>
 </header>
 <nav id="c5MobileNav" class="c5-mobile-nav" aria-label="Navegação principal no celular">
-  <button type="button" class="c5mnav active" data-view="home" aria-label="Início"><span>⌂</span><small>Início</small></button>
+  <button type="button" class="c5mnav active" data-view="library" aria-label="Animes"><span>🎌</span><small>Animes</small></button>
   <button type="button" class="c5mnav" data-view="discover" aria-label="Buscar"><span>🔎</span><small>Buscar</small></button>
   <button type="button" class="c5mnav c5mnav-plus" id="c5MobileAdd" aria-label="Adicionar"><span>＋</span><small>Adicionar</small></button>
   <button type="button" class="c5mnav" data-view="favorites" id="c5MobileFavorites" aria-label="Favoritos"><span>♡</span><small>Favoritos</small></button>
@@ -1328,8 +1328,8 @@ async function c5photoAdd(){
 }
 </script>
 
-<script>async function c5PendingInviteApply(){const t=localStorage.getItem('cimePendingInvite');if(!t)return;localStorage.removeItem('cimePendingInvite');try{const d=await api('/api/invites/accept',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})});if(d.success){localStorage.setItem('cime5AutoOpenGroup',String(d.group_id));await c5openGroups(d.group_id);showToast('👥 Você entrou no grupo.');}}catch(e){showToast('Convite: '+e.message)}}window.addEventListener('load',c5PendingInviteApply);</script>
-<script>window.addEventListener('load',()=>{setTimeout(async()=>{const gid=Number(localStorage.getItem('cime5AutoOpenGroup')||0);if(!gid)return;localStorage.removeItem('cime5AutoOpenGroup');try{await c5openGroups(gid);showToast('👥 Grupo aberto automaticamente.');}catch(e){showToast('⚠️ Não foi possível abrir o grupo automaticamente.');}},60);},{once:true});</script>
+<script>async function c5PendingInviteApply(){const t=localStorage.getItem('cimePendingInvite');if(!t)return;localStorage.removeItem('cimePendingInvite');try{const d=await api('/api/invites/accept',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})});if(d.success){await c5openGroups(d.group_id);showToast('👥 Você entrou no grupo.');}}catch(e){showToast('Convite: '+e.message)}}window.addEventListener('load',c5PendingInviteApply);</script>
+
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js',{scope:'/'}).catch(()=>{}),{once:true});}</script>
 <style id="c5-mobile-pro-v2">
 :root{--c5-safe-bottom:max(12px,env(safe-area-inset-bottom));}
@@ -1750,10 +1750,10 @@ img{max-width:100%}
     const filter=q('#filter');if(filter)filter.value=filterValue||'all';
     if(typeof showView==='function')showView('library');
     if(typeof render==='function')render();
-    setActive(filterValue==='favorite'?'favorites':'');
+    setActive(filterValue==='favorite'?'favorites':'library');
   }
   qa('#c5MobileNav .c5mnav[data-view]').forEach(b=>b.addEventListener('click',function(){
-    if(b.dataset.view==='home')showHome();
+    if(b.dataset.view==='library')openLibrary('all');
     else if(b.dataset.view==='discover')showDiscover();
     else if(b.dataset.view==='favorites')openLibrary('favorite');
   }));
@@ -1780,8 +1780,8 @@ img{max-width:100%}
   setTimeout(renderShelves,100);
   setTimeout(renderShelves,900);
   const media=window.matchMedia('(max-width:760px)');
-  function syncMode(){if(media.matches){showHome();}else{document.body.classList.remove('c5-mobile-home');home.style.display='none';if(typeof showView==='function')showView('library');}}
-  if(media.matches)showHome();
+  function syncMode(){if(media.matches){openLibrary('all');}else{document.body.classList.remove('c5-mobile-home');home.style.display='none';if(typeof showView==='function')showView('library');}}
+  if(media.matches)openLibrary('all');
   if(typeof media.addEventListener==='function')media.addEventListener('change',syncMode);
   else if(typeof media.addListener==='function')media.addListener(syncMode);
 })();
