@@ -893,15 +893,16 @@ async function importReviewRecords(file){
   if(!Array.isArray(records)||!records.length)throw new Error('O arquivo não contém uma lista de avaliações.');
   if(records.length>30)throw new Error('Importe no máximo 30 avaliações por arquivo.');
   const normalizeTitle=value=>String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-  const seen=new Set((Array.isArray(titles)?titles:[]).map(item=>normalizeTitle(item.name)).filter(Boolean));
+  const existingByTitle=new Map((Array.isArray(titles)?titles:[]).map(item=>[normalizeTitle(item.name),item]).filter(entry=>entry[0]));
   const categories=['Anime','Série','Filme','Desenho'];
   const statuses=['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando'];
-  let created=0,duplicates=0,failed=0;
+  let created=0,updated=0,duplicates=0,failed=0;
   for(const item of records){
     const name=String(item?.name||'').trim();
     if(!name){failed++;continue;}
     const key=normalizeTitle(name);
-    if(!key||seen.has(key)){duplicates++;continue;}
+    if(!key){failed++;continue;}
+    const existing=existingByTitle.get(key)||null;
     const category=categories.includes(String(item.category||''))?String(item.category):'Anime';
     const status=statuses.includes(String(item.status||''))?String(item.status):'Concluído';
     let rating='';
@@ -950,13 +951,56 @@ async function importReviewRecords(file){
       seasons_json:JSON.stringify(seasons)
     };
     try{
-      await api('/api/titles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      created++;seen.add(key);
-    }catch(error){failed++;console.error('Falha ao importar '+name,error);}
+      if(existing){
+        const update={
+          ...existing,
+          ...payload,
+          id:existing.id,
+          notes:payload.notes||existing.notes||'',
+          cover:payload.cover||existing.cover||'',
+          rating:payload.rating!==''?payload.rating:(existing.rating??''),
+          status:payload.status||existing.status||'Concluído',
+          current_episode:existing.current_episode??0,
+          current_season:payload.current_season||existing.current_season||1,
+          total_seasons:Math.max(Number(existing.total_seasons)||1,totalSeasons),
+          start_date:existing.start_date||'',
+          end_date:existing.end_date||'',
+          favorite:existing.favorite??payload.favorite,
+          source_id:payload.source_id||existing.source_id||'',
+          title_english:payload.title_english||existing.title_english||'',
+          title_japanese:payload.title_japanese||existing.title_japanese||'',
+          synopsis:payload.synopsis||existing.synopsis||'',
+          synopsis_pt:payload.synopsis_pt||existing.synopsis_pt||'',
+          year:payload.year||existing.year||'',
+          season:payload.season||existing.season||'',
+          duration:payload.duration||existing.duration||'',
+          genres:payload.genres||existing.genres||'',
+          local_cover_photos:Array.isArray(existing.local_cover_photos)?existing.local_cover_photos:[],
+          seasons_json:incomingSeasons.length?JSON.stringify(seasons):(existing.seasons_json||'[]')
+        };
+        await api('/api/titles/'+encodeURIComponent(existing.id),{
+          method:'PUT',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(update)
+        });
+        updated++;
+      }else{
+        await api('/api/titles',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        });
+        created++;
+      }
+    }catch(error){
+      failed++;
+      console.error('Falha ao importar '+name,error);
+    }
   }
   await load();
-  showToast('✅ Importação: '+created+' adicionada(s), '+duplicates+' duplicada(s) ignorada(s), '+failed+' com erro.');
+  showToast('✅ Importação: '+created+' adicionada(s), '+updated+' atualizada(s) com os dados/capas, '+duplicates+' duplicada(s) ignorada(s), '+failed+' com erro.');
 }
+
 if($('importReviewsBtn')&&$('reviewsJsonFile')){
   $('importReviewsBtn').onclick=()=>$('reviewsJsonFile').click();
   $('reviewsJsonFile').onchange=async event=>{
