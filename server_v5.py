@@ -513,6 +513,11 @@ class Gateway(BaseHTTPRequestHandler):
         raw=self.rfile.read(n)
         self._cime_body_cache=raw
         return raw
+    def read_body(self):
+        # server_legacy.Handler uses read_body(); delegate to the cached reader
+        # because do_POST probes the body first to detect Google credentials.
+        # This prevents a second read from consuming the next keep-alive request.
+        return self.body()
     def public(self,path): return path in ('/','/app','/oauth/google/start','/oauth/google/callback','/api/auth/status','/api/auth/register','/api/auth/login','/api/auth/logout','/api/vision/status','/api/qr','/api/auth/google/credential')
 
     def do_OPTIONS(self):
