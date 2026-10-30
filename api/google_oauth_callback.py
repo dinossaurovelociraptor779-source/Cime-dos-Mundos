@@ -9,6 +9,11 @@ ROOT=Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0,str(ROOT))
 
+os.environ.setdefault("CIME_DATA_DIR", "/tmp/CimeDados")
+os.environ.setdefault("CIME_PORT", "80")
+os.environ.setdefault("CIME_BIND", "0.0.0.0")
+os.environ["CIME_DEPLOYMENT"] = "vercel"
+
 CLIENT_ID="826707020754-58ogodcs5h007tt3nqqlhig5k9tlgsvb.apps.googleusercontent.com"
 REDIRECT_URI="https://cime-dos-mundos.vercel.app/oauth/google/callback"
 SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_oauth_state_fallback"
@@ -166,18 +171,36 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
-    def do_GET(self):
+    def _run_persistent(self,action):
+        from cime_persistent_store import request_context, PersistentStoreError
         try:
-            q=parse_qs(urlparse(self.path).query,keep_blank_values=True)
-            self._legacy_google_mode=str(q.get("legacy",[""])[0] or "")
-            finish_login(
-                self,
-                q.get("code",[""])[0],
-                q.get("state",[""])[0],
-                as_json=self._legacy_google_mode=="1"
-            )
-        except Exception as exc:
-            self._reply(400,{"ok":False,"error":str(exc)[:500]})
+            with request_context(write=True) as store:
+                if store is not None:
+                    store.attach_response(self)
+                import server_v5
+                server_v5.bootstrap()
+                try:
+                    action()
+                except Exception as exc:
+                    self._reply(400,{"ok":False,"error":str(exc)[:500]})
+        except PersistentStoreError as exc:
+            self._reply(503,{
+                "ok":False,
+                "error":"O armazenamento permanente do Cime está indisponível. O login não foi concluído.",
+                "code":getattr(exc,"code","CIME_PERSISTENCE_UNAVAILABLE")
+            })
+        except Exception:
+            self._reply(500,{"ok":False,"error":"Backend Google do Cime não conseguiu inicializar."})
+
+    def do_GET(self):
+        q=parse_qs(urlparse(self.path).query,keep_blank_values=True)
+        self._legacy_google_mode=str(q.get("legacy",[""])[0] or "")
+        self._run_persistent(lambda: finish_login(
+            self,
+            q.get("code",[""])[0],
+            q.get("state",[""])[0],
+            as_json=self._legacy_google_mode=="1"
+        ))
 
     def do_POST(self):
         try:
@@ -186,8 +209,6 @@ class handler(BaseHTTPRequestHandler):
             d=json.loads(body.decode("utf-8") or "{}")
             code=str(d.get("code") or "").strip()
             state=str(d.get("state") or "").strip()
-            # Old callback.html used fetch(POST). Hand it off to the same native GET
-            # flow, preserving the short-lived authorization code in a signed cookie.
             if code and state:
                 self.send_response(303)
                 self.send_header("Location","/oauth/google/callback?"+__import__("urllib.parse").parse.urlencode({"state":state,"legacy":"1"}))
@@ -196,6 +217,6 @@ class handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length","0")
                 self.end_headers()
                 return
-            finish_login(self,code,state,as_json=True)
+            self._run_persistent(lambda: finish_login(self,code,state,as_json=True))
         except Exception as exc:
             self._reply(400,{"ok":False,"error":str(exc)[:500]})
