@@ -46,6 +46,9 @@ class _DiscardWriter:
     def flush(self):
         return None
 
+    def close(self):
+        return None
+
 
 class RequestStore:
     def __init__(self, conn, cursor, write: bool, version: int, snapshot_exists: bool):
