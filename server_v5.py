@@ -25,7 +25,7 @@ def load_dotenv_file():
 load_dotenv_file()
 DATA=Path(os.getenv('CIME_DATA_DIR', str(BASE/'CimeDados')))
 DATA.mkdir(parents=True, exist_ok=True)
-PORT=int(os.getenv('PORT', os.getenv('CIME_PORT','8790')))
+PORT=int(os.getenv('CIME_PORT', os.getenv('PORT','8790')))
 BIND=os.getenv('CIME_BIND','0.0.0.0')
 AUTH_DB=DATA/'cime_auth.db'
 USERS_DIR=DATA/'users_data'; USERS_MEDIA=DATA/'users_media'
