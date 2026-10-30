@@ -116,9 +116,7 @@ class BrowserOcrFallbackTests(unittest.TestCase):
         import server_legacy as legacy
 
         hint = "Demon Slayer Season 3 Episode 12"
-        with patch.object(legacy, "_ocr_cache_get", return_value=None), \\
-             patch.object(legacy, "_ocr_cache_put"), \\
-             patch.object(legacy.Image, "open", side_effect=OSError("Tesseract image unavailable")):
+        with patch.object(legacy, "_ocr_cache_get", return_value=None), patch.object(legacy, "_ocr_cache_put"), patch.object(legacy.Image, "open", side_effect=OSError("Tesseract image unavailable")):
             result = legacy.read_image_anchor_text(b"not-an-image", hint)
         self.assertIn("Demon Slayer", result)
         self.assertIn("Episode 12", result)
