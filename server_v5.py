@@ -521,7 +521,7 @@ class Gateway(BaseHTTPRequestHandler):
         # BaseHTTPRequestHandler reuses one handler instance for multiple
         # HTTP/1.1 keep-alive requests. Never reuse a previous request's body.
         self._cime_body_cache=None
-    def public(self,path): return path in ('/','/app','/oauth/google/start','/oauth/google/callback','/api/auth/status','/api/auth/register','/api/auth/login','/api/auth/logout','/api/vision/status','/api/qr','/api/auth/google/credential')
+    def public(self,path): return path in ('/','/app','/health','/api/health','/api/cime_health','/api/persistence/health','/oauth/google/start','/oauth/google/callback','/api/auth/status','/api/auth/register','/api/auth/login','/api/auth/logout','/api/vision/status','/api/qr','/api/auth/google/credential')
 
     def do_OPTIONS(self):
         self._reset_body_cache()
