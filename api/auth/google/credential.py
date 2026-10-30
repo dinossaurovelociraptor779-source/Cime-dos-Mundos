@@ -39,7 +39,7 @@ class handler(BaseHTTPRequestHandler):
     def _run(self, method):
         self.path = "/api/auth/google/credential"
         try:
-            from api.persistent_store import request_context, PersistentStoreError
+            from cime_persistent_store import request_context, PersistentStoreError
             with request_context(write=method in ("do_POST", "do_PUT", "do_DELETE")) as store:
                 if store is not None:
                     store.attach_response(self)
