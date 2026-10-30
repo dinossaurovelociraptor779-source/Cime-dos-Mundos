@@ -27,6 +27,9 @@ DATA=Path(os.getenv('CIME_DATA_DIR', str(BASE/'CimeDados')))
 DATA.mkdir(parents=True, exist_ok=True)
 PORT=int(os.getenv('CIME_PORT', os.getenv('PORT','8790')))
 BIND=os.getenv('CIME_BIND','0.0.0.0')
+
+def is_public_host():
+    return str(os.getenv('CIME_DEPLOYMENT', '')).lower() in ('vercel', 'render')
 AUTH_DB=DATA/'cime_auth.db'
 USERS_DIR=DATA/'users_data'; USERS_MEDIA=DATA/'users_media'
 SESSION_DAYS=30
@@ -605,9 +608,10 @@ class Gateway(BaseHTTPRequestHandler):
 
         if path=='/api/connection-info':
             is_vercel=os.getenv('CIME_DEPLOYMENT')=='vercel'
+            public_host=is_public_host()
             public_origin=str(os.getenv('CIME_PUBLIC_URL','')).strip().rstrip('/')
             local_url=f'http://localhost:{PORT}'
-            return self.send_json({'version':'5.0','deployment':'vercel' if is_vercel else 'local','port':PORT,'bind':BIND,'local_url':public_origin or local_url,'lan_ip':None if is_vercel else lan_ip(),'lan_ips':[] if is_vercel else lan_ips(),'lan_url':public_origin or f'http://{lan_ip()}:{PORT}','google_js_origin':public_origin or local_url,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':not is_vercel,'mobile_hint':'Acesse esta mesma URL HTTPS no computador e no celular.' if is_vercel else 'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP da porta configurada no Windows.'})
+            return self.send_json({'version':'5.0','deployment':os.getenv('CIME_DEPLOYMENT') or 'local','port':PORT,'bind':BIND,'local_url':public_origin or local_url,'lan_ip':None if public_host else lan_ip(),'lan_ips':[] if public_host else lan_ips(),'lan_url':public_origin or f'http://{lan_ip()}:{PORT}','google_js_origin':public_origin or local_url,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':not public_host,'mobile_hint':'Acesse esta mesma URL HTTPS no computador e no celular.' if public_host else 'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP da porta configurada no Windows.'})
         if path in ('/manifest.json','/service-worker.js','/icon-192.png','/icon-512.png'):
             types={
                 '/manifest.json':'application/manifest+json; charset=utf-8',
@@ -710,7 +714,7 @@ class Gateway(BaseHTTPRequestHandler):
             u=get_user(self)
             public_origin=str(os.getenv('CIME_PUBLIC_URL','')).strip().rstrip('/')
             google_origin=public_origin or f'http://localhost:{PORT}'
-            return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':google_origin,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':os.getenv('CIME_DEPLOYMENT')!='vercel' and BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
+            return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':google_origin,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':not is_public_host() and BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
         if path=='/api/bootstrap':
             u=require(self)
             if not u: return
