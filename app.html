@@ -440,21 +440,21 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
 </header>
 <nav id="c5MobileNav" class="c5-mobile-nav" aria-label="Navegação principal no celular">
   <button type="button" class="c5mnav active" data-view="home" aria-label="Início"><span>⌂</span><small>Início</small></button>
-  <button type="button" class="c5mnav" data-view="discover" aria-label="Buscar"><span>🔎</span><small>Buscar</small></button>
-  <button type="button" class="c5mnav c5mnav-plus" id="c5MobileAdd" aria-label="Adicionar"><span>＋</span><small>Adicionar</small></button>
-  <button type="button" class="c5mnav" data-view="favorites" id="c5MobileFavorites" aria-label="Favoritos"><span>♡</span><small>Favoritos</small></button>
+  <button type="button" class="c5mnav" data-view="discover" aria-label="Pesquisar"><span>🔎</span><small>Pesquisar</small></button>
   <button type="button" class="c5mnav" id="c5MobileMore" aria-label="Mais opções"><span>☰</span><small>Mais</small></button>
 </nav>
 <div id="c5MobileMoreSheet" class="c5-mobile-more" hidden>
   <div class="c5-mobile-more-card">
     <div class="c5-mobile-more-head"><div><b>Mais opções</b><span>Cime dos Mundos 5.0</span></div><button type="button" id="c5CloseMore" aria-label="Fechar">✕</button></div>
     <div class="c5-mobile-more-grid">
+      <button type="button" id="c5MobileHistory" class="c5-more-history">📥<b>Importar histórico</b><span>Trazer seus títulos da Netflix ou do Tomato para sua biblioteca</span></button>
+      <button type="button" id="c5MobileAddOption">＋<b>Adicionar título</b><span>Incluir anime, série ou filme</span></button>
+      <button type="button" id="c5MobileImageOption">📷<b>Identificar por imagem</b><span>Encontrar um título usando uma imagem</span></button>
       <button type="button" id="c5MobileLibrary">📚<b>Minha biblioteca</b><span>Todos os títulos e filtros</span></button>
       <button type="button" id="c5MobileGroups">👥<b>Grupos</b><span>Conversas e recomendações <i id="c5MobileGroupBadge" hidden>•</i></span></button>
       <button type="button" id="c5MobileStats">📊<b>Estatísticas</b><span>Seu progresso</span></button>
       <button type="button" id="c5MobileSettings">⚙️<b>Configurações</b><span>Tema e conta</span></button>
-      <button type="button" id="c5MobileHistory">📥<b>Importar histórico</b><span>Netflix / Tomato</span></button>
-      <button type="button" id="c5MobileCovers">🖼️<b>Atualizar capas</b><span>Completar sua coleção</span></button>
+      <button type="button" id="c5MobileCovers">🖼️<b>Atualizar capas</b><span>Melhorar as capas da coleção</span></button>
     </div>
     <button type="button" id="c5InstallApp" class="c5-install-app">📱 Adicionar o Cime à tela inicial</button>
   </div>
@@ -2441,4 +2441,26 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
 }
 </style>
 
+<style id="cime-mobile-bottom-nav-three-items">
+@media(max-width:760px){
+  #c5MobileNav{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;max-width:520px!important;margin:0 auto!important}
+  #c5MobileNav .c5mnav{min-height:50px!important}
+  #c5MobileNav .c5mnav small{font-size:10px!important;letter-spacing:.02em!important}
+  #c5MobileNav .c5mnav-plus{margin-top:0!important;padding-top:4px!important}
+  #c5MobileNav .c5mnav-plus>span{background:none!important;box-shadow:none!important}
+  #c5MobileMoreSheet .c5-mobile-more-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+  #c5MobileMoreSheet .c5-mobile-more-grid button{min-height:86px!important;text-align:left!important}
+  #c5MobileMoreSheet .c5-mobile-more-grid .c5-more-history{grid-column:1/-1!important;min-height:100px!important;display:grid!important;grid-template-columns:42px minmax(0,1fr)!important;grid-template-rows:auto auto!important;align-content:center!important;align-items:center!important;column-gap:10px!important;border:1px solid rgba(139,92,246,.55)!important;background:linear-gradient(120deg,rgba(89,65,173,.32),rgba(17,28,48,.96))!important;box-shadow:0 8px 24px rgba(74,54,155,.18)!important}
+  #c5MobileMoreSheet .c5-more-history>b{grid-column:2!important;font-size:14px!important}
+  #c5MobileMoreSheet .c5-more-history>span{grid-column:2!important;font-size:11px!important;line-height:1.4!important}
+}
+</style>
+<script id="cime-mobile-more-actions-v1">
+(function(){
+  const q=s=>document.querySelector(s);
+  function close(){const sheet=q('#c5MobileMoreSheet'),more=q('#c5MobileMore');if(sheet)sheet.hidden=true;if(more)more.classList.remove('active');}
+  q('#c5MobileAddOption')?.addEventListener('click',()=>{close();q('#add')?.click();});
+  q('#c5MobileImageOption')?.addEventListener('click',()=>{close();q('#addImage')?.click();});
+})();
+</script>
 </body></html>
