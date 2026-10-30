@@ -1988,7 +1988,7 @@ def read_image_anchor_text(image_bytes, client_ocr_hint=""):
         text=pytesseract.image_to_string(image,lang=OCR_LANGUAGE,config='--oem 3 --psm 6 -c preserve_interword_spaces=1')
         text=str(text or '').strip()
         if client_hint:
-            text=(client_hint+"\\n"+text).strip()
+            text=(client_hint+"\n"+text).strip()
         known=canonical_title_from_text(text) or ''
         season_hit=infer_season_from_title_text(text)
 
