@@ -707,7 +707,7 @@ async function importHistoryFiles(){
         const doc=new DOMParser().parseFromString(raw,'text/html');
         const candidates=[...doc.querySelectorAll('tr')].map(tr=>{const t=[...tr.querySelectorAll('th,td')].map(x=>x.textContent.trim()).filter(Boolean);return {title:t[0]||''}}).filter(x=>x.title);
         if(candidates.length)entries=candidates;
-        else entries=[...doc.querySelectorAll('a,title,h1,h2,h3')].map(x=>({title:x.textContent.replace(/\\s+/g,' ').trim()})).filter(x=>x.title);
+        else entries=[...doc.querySelectorAll('a,title,h1,h2,h3')].map(x=>({title:x.textContent.replace(/\s+/g,' ').trim()})).filter(x=>x.title);
       }else entries=raw.split(/\\r?\\n+/).map(x=>({title:x.trim()}));
       entries=normalizeImportedRows(entries);
       if(!entries.length)throw new Error(`Tomato: nenhum título reconhecido no arquivo .${ext}.`);
