@@ -594,7 +594,7 @@ class Gateway(BaseHTTPRequestHandler):
                 return self.send_json({'error':f'Não foi possível gerar o QR Code: {e}'},500)
 
         if path=='/api/connection-info':
-            return self.send_json({'version':'5.0','port':PORT,'bind':BIND,'local_url':f'http://localhost:{PORT}','lan_ip':lan_ip(),'lan_ips':lan_ips(),'lan_url':f'http://{lan_ip()}:{PORT}','google_js_origin':f'http://localhost:{PORT}','mobile_hint':'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP 8790 no Windows e teste a URL LAN exibida pelo modo celular.'})
+            return self.send_json({'version':'5.0','port':PORT,'bind':BIND,'local_url':f'http://localhost:{PORT}','lan_ip':lan_ip(),'lan_ips':lan_ips(),'lan_url':f'http://{lan_ip()}:{PORT}','google_js_origin':(str(os.getenv('CIME_PUBLIC_URL','https://cime-dos-mundos.vercel.app')).rstrip('/') if str(os.getenv('CIME_DEPLOYMENT','')).lower()=='vercel' else f'http://localhost:{PORT}'),'mobile_hint':'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP 8790 no Windows e teste a URL LAN exibida pelo modo celular.'})
         if path in ('/manifest.json','/service-worker.js','/icon-192.png','/icon-512.png'):
             types={
                 '/manifest.json':'application/manifest+json; charset=utf-8',
