@@ -97,9 +97,50 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def _delegate(self, method):
+        # Vercel instances have ephemeral /tmp storage. Hydrate the local SQLite
+        # directory from PostgreSQL for every request and persist every mutation
+        # before the HTTP response is sent to the browser.
+        from urllib.parse import urlparse
+        from cime_persistent_store import request_context, PersistentStoreError
+
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        get_write_paths = {
+            "/api/auth/status",
+            "/api/bootstrap",
+            "/api/library/enrich",
+            "/api/library/covers",
+            "/api/import/history/consolidate",
+            "/oauth/google/start",
+            "/oauth/google/callback",
+            "/api/google_oauth_callback",
+            "/api/google_oauth_callback.py",
+        }
+        write = method in ("do_POST", "do_PUT", "do_DELETE") or (
+            method == "do_GET" and path in get_write_paths
+        )
+
         try:
-            gateway = _load_gateway()
-            return getattr(gateway, method)(self)
+            with request_context(write=write) as store:
+                if store is not None:
+                    store.attach_response(self)
+                gateway = _load_gateway()
+                return getattr(gateway, method)(self)
+        except PersistentStoreError as exc:
+            raw = json.dumps({
+                "ok": False,
+                "version": "5.0",
+                "error": "Não foi possível acessar ou salvar os dados permanentes do Cime.",
+                "code": getattr(exc, "code", "CIME_PERSISTENCE_UNAVAILABLE"),
+            }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            try:
+                self.send_response(503)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+            except Exception:
+                pass
         except Exception as exc:
             raw = json.dumps({
                 "ok": False,
