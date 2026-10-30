@@ -231,7 +231,8 @@ def _pack_data_dir() -> bytes:
 def request_context(write: bool = False) -> Iterator[RequestStore | None]:
     """Acquire the cross-instance lock and hydrate the local SQLite directory."""
     global _LOADED_VERSION
-    persistent_enabled = str(os.getenv("CIME_PERSISTENT_STORE", "")).strip().lower() in ("1", "true", "yes", "on") or str(os.getenv("CIME_DEPLOYMENT", "")).lower() == "vercel"\n    if not persistent_enabled:
+    persistent_enabled = str(os.getenv("CIME_PERSISTENT_STORE", "")).strip().lower() in ("1", "true", "yes", "on") or str(os.getenv("CIME_DEPLOYMENT", "")).lower() == "vercel"
+    if not persistent_enabled:
         yield None
         return
 
