@@ -520,7 +520,9 @@ class Gateway(BaseHTTPRequestHandler):
             qs=parse_qs(p.query)
             limit=max(1,min(12,int(qs.get('limit',['6'])[0] or 6)))
             after_id=max(0,int(qs.get('after_id',['0'])[0] or 0))
+            target_id=max(0,int(qs.get('id',['0'])[0] or 0))
             titles=legacy.all_titles()
+            # Pode enriquecer somente o título recém-salvo ou percorrer toda a biblioteca.
             # Analisa uma vez cada registro incompleto neste passe, em ordem estável.
             # Assim a interface não fica presa repetindo os mesmos títulos que não foram encontrados.
             def incomplete(x):
@@ -537,7 +539,7 @@ class Gateway(BaseHTTPRequestHandler):
                     not x.get('episodes') and not x.get('total_episodes'),
                     not x.get('source_id'),
                 ])
-            titles=[x for x in titles if int(x.get('id') or 0)>after_id and incomplete(x)]
+            titles=[x for x in titles if (not target_id or int(x.get('id') or 0)==target_id) and int(x.get('id') or 0)>after_id and incomplete(x)]
             titles=sorted(titles,key=lambda x:int(x.get('id') or 0))[:limit]
             out=[]
             for row in titles:
