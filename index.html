@@ -167,7 +167,7 @@ async function googleCredentialLogin(response){
     if(!d.token)throw Error('O Google não devolveu a sessão do Cime.');
     localStorage.setItem('cime5Token',d.token);
     setGoogleState('✅ Login realizado. Abrindo sua biblioteca…','ok');
-    location.assign('/app?token='+encodeURIComponent(d.token));
+    location.assign('/app');
   }catch(e){
     setGoogleState('❌ '+(e?.message||'Não foi possível concluir o login com Google.'),'bad');
   }
@@ -288,7 +288,7 @@ async function goLogin(){
     if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
     localStorage.setItem('cime5Token',d.token);
     setMsg($('lm'),'✅ Login realizado. Abrindo sua biblioteca…','ok');
-    location.assign('/app?token='+encodeURIComponent(d.token));
+    location.assign('/app');
   }catch(e){
     setMsg($('lm'),'❌ '+e.message,'bad');
     $('loginBtn').disabled=false;
@@ -305,7 +305,7 @@ async function goReg(){
     if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
     localStorage.setItem('cime5Token',d.token);
     setMsg($('rm'),'✅ Conta criada. Abrindo sua biblioteca…','ok');
-    setTimeout(()=>location.assign('/app?token='+encodeURIComponent(d.token)),250);
+    setTimeout(()=>location.assign('/app'),250);
   }catch(e){
     setMsg($('rm'),'❌ '+e.message,'bad');
     $('regBtn').disabled=false;
