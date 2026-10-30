@@ -587,7 +587,15 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     return '/api/cime?__cime_path='+encodeURIComponent(parts[0])+(parts[1]?'&'+parts.slice(1).join('?'):'');
   };
   const authHeaders=()=>{const h=new Headers();const t=localStorage.getItem('cime5Token');if(t)h.set('Authorization','Bearer '+t);return h};
-  window.fetch=async function(input,init={}){const headers=new Headers(init.headers||{});const t=localStorage.getItem('cime5Token');if(t && !headers.has('Authorization'))headers.set('Authorization','Bearer '+t);let target=input;init={...init,headers};const r=await originalFetch(target,init);if(r.status===401){localStorage.removeItem('cime5Token');if(location.pathname.startsWith('/app'))location.href='/';}return r;};
+  window.fetch=async function(input,init={}){
+    const headers=new Headers(init.headers||{});
+    const t=localStorage.getItem('cime5Token');
+    if(t && !headers.has('Authorization'))headers.set('Authorization','Bearer '+t);
+    // A 401 from a feature request must be handled by that feature, not
+    // interpreted as proof that the whole user session expired.
+    // Only the initial bootstrap may redirect to the login screen.
+    return originalFetch(input,{...init,headers});
+  };
   try{
     const startupToken=localStorage.getItem('cime5Token')||'';
     const bootstrapUrl=startupToken?('/api/bootstrap?token='+encodeURIComponent(startupToken)):'/api/bootstrap';
