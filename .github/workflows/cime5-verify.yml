@@ -55,6 +55,16 @@ jobs:
           import urllib.parse
           import urllib.request
           from http.server import ThreadingHTTPServer
+          # The CI smoke test uses a disposable local SQLite directory.
+          # Replace only the persistence context here; production still uses Neon.
+          import cime_persistent_store
+          from contextlib import contextmanager
+
+          @contextmanager
+          def local_test_store(write=False):
+              yield None
+
+          cime_persistent_store.request_context = local_test_store
           import api.cime
 
           server = ThreadingHTTPServer(("127.0.0.1", 0), api.cime.handler)
