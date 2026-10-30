@@ -4,8 +4,12 @@ These tests verify route persistence classification and guard against backup
 cross-account leakage. They do not replace live OAuth, OCR, or Vercel tests.
 """
 import json
+import os
 import unittest
 from pathlib import Path
+
+os.environ.setdefault("CIME_SESSION_SECRET", "test-only-session-secret-" + "x" * 64)
+os.environ.pop("CIME_DEPLOYMENT", None)
 
 from api.cime import _is_write_request
 
