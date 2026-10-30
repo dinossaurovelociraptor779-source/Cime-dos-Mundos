@@ -516,14 +516,19 @@ class Gateway(BaseHTTPRequestHandler):
     def read_body(self):
         # server_legacy.Handler uses read_body(); delegate to the cached reader
         # because do_POST probes the body first to detect Google credentials.
-        # This prevents a second read from consuming the next keep-alive request.
         return self.body()
+    def _reset_body_cache(self):
+        # BaseHTTPRequestHandler reuses one handler instance for multiple
+        # HTTP/1.1 keep-alive requests. Never reuse a previous request's body.
+        self._cime_body_cache=None
     def public(self,path): return path in ('/','/app','/oauth/google/start','/oauth/google/callback','/api/auth/status','/api/auth/register','/api/auth/login','/api/auth/logout','/api/vision/status','/api/qr','/api/auth/google/credential')
 
     def do_OPTIONS(self):
+        self._reset_body_cache()
         self.send_response(204); self.send_header('Access-Control-Allow-Origin','*'); self.send_header('Access-Control-Allow-Methods','GET,POST,PUT,PATCH,DELETE,OPTIONS'); self.send_header('Access-Control-Allow-Headers','Content-Type, Authorization, X-Filename'); self.send_header('Content-Length','0'); self.end_headers()
 
     def do_GET(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None)
         p=urlparse(self.path); path=p.path.rstrip('/') or '/'
         if path in ('/health','/api/health'):
@@ -843,6 +848,7 @@ class Gateway(BaseHTTPRequestHandler):
             return legacy.Handler.do_GET(self)
         self.send_json({'error':'Rota não encontrada.','route':path,'method':'GET'},404)
     def do_POST(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None); p=urlparse(self.path); path=p.path.rstrip('/') or '/'
         # Fallback absoluto para o login Google: mesmo se um rewrite encaminhar
         # o POST para um endpoint genérico, a presença de "credential" identifica
@@ -1102,11 +1108,13 @@ class Gateway(BaseHTTPRequestHandler):
             self.send_json({'error':'Rota não encontrada.','route':path,'method':'POST'},404)
         except Exception as e: self.send_json({'error':str(e)},500)
     def do_PUT(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None)
         legacy.invalidate_library_cache()
         if not require(self): return
         return legacy.Handler.do_PUT(self)
     def do_DELETE(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None)
         legacy.invalidate_library_cache()
         if not require(self): return
