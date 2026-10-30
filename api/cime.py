@@ -203,6 +203,21 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(raw)
         return True
 
+    def do_HEAD(self):
+        """Cheap liveness response for platform probes; never touches user data."""
+        self._restore_route()
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        if path in ("/", "/health", "/api/health", "/api/cime_health"):
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        self.send_response(405)
+        self.send_header("Allow", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_GET(self):
         self._restore_route()
         if self._qr_fallback_get():
