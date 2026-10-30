@@ -88,6 +88,15 @@ class RequestBodyTests(unittest.TestCase):
 
 
 class DiagnosticsTests(unittest.TestCase):
+    def test_health_and_persistence_diagnostics_are_public(self):
+        source = (ROOT / "server_v5.py").read_text(encoding="utf-8")
+        start = source.index("def public(self,path):")
+        end = source.index("\n    def ", start + 5)
+        public_routes = source[start:end]
+        for route in ("/health", "/api/health", "/api/cime_health", "/api/persistence/health"):
+            with self.subTest(route=route):
+                self.assertIn(repr(route), public_routes)
+
     def test_auth_diagnostics_use_public_origin_in_production(self):
         source = (ROOT / "server_v5.py").read_text(encoding="utf-8")
         self.assertIn("google_origin=public_origin or f'http://localhost:{PORT}'", source)
