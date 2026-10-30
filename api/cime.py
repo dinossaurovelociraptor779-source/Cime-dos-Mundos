@@ -81,7 +81,7 @@ class handler(BaseHTTPRequestHandler):
             or (method == "do_GET" and path in ("/oauth/google/callback", "/api/import/history/consolidate"))
         )
         try:
-            from api.persistent_store import request_context, PersistentStoreError
+            from cime_persistent_store import request_context, PersistentStoreError
             with request_context(write=write_request) as store:
                 if store is not None:
                     store.attach_response(self)
