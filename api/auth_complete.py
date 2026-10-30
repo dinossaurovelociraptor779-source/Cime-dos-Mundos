@@ -1,10 +1,16 @@
-import os, json, base64, hashlib, hmac
+import os, sys, json, base64, hashlib, hmac
+from pathlib import Path
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
+ROOT=Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0,str(ROOT))
+os.environ["CIME_DEPLOYMENT"]="vercel"
+from cime_security import SESSION_SECRET as SECRET
+
 SESSION_DAYS=30
-SECRET=os.getenv("CIME_SESSION_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET") or "CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0"
 
 def stateless_user(raw):
     try:
