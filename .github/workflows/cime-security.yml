@@ -1,0 +1,23 @@
+name: Cime security checks
+
+on:
+  push:
+    branches:
+      - security/require-session-secret
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Python dependencies
+        run: python3.12 -m pip install -r requirements.txt
+      - name: Run security tests
+        run: python3.12 -m unittest discover -s tests -v
