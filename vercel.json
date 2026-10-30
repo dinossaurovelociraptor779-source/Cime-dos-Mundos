@@ -36,6 +36,10 @@
     "api/google_oauth_callback.py": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/persistence_health.py": {
+      "memory": 256,
+      "maxDuration": 20
     }
   },
   "redirects": [
@@ -113,6 +117,10 @@
     {
       "source": "/api/:path*",
       "destination": "/api/cime?__cime_path=/api/:path*"
+    },
+    {
+      "source": "/api/persistence/health",
+      "destination": "/api/persistence_health.py"
     }
   ]
 }
