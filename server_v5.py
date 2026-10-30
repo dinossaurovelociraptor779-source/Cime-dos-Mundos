@@ -25,8 +25,11 @@ def load_dotenv_file():
 load_dotenv_file()
 DATA=Path(os.getenv('CIME_DATA_DIR', str(BASE/'CimeDados')))
 DATA.mkdir(parents=True, exist_ok=True)
-PORT=int(os.getenv('CIME_PORT','8790'))
+PORT=int(os.getenv('CIME_PORT', os.getenv('PORT','8790')))
 BIND=os.getenv('CIME_BIND','0.0.0.0')
+
+def is_public_host():
+    return str(os.getenv('CIME_DEPLOYMENT', '')).lower() in ('vercel', 'render')
 AUTH_DB=DATA/'cime_auth.db'
 USERS_DIR=DATA/'users_data'; USERS_MEDIA=DATA/'users_media'
 SESSION_DAYS=30
@@ -513,12 +516,22 @@ class Gateway(BaseHTTPRequestHandler):
         raw=self.rfile.read(n)
         self._cime_body_cache=raw
         return raw
-    def public(self,path): return path in ('/','/app','/oauth/google/start','/oauth/google/callback','/api/auth/status','/api/auth/register','/api/auth/login','/api/auth/logout','/api/vision/status','/api/qr','/api/auth/google/credential')
+    def read_body(self):
+        # server_legacy.Handler uses read_body(); delegate to the cached reader
+        # because do_POST probes the body first to detect Google credentials.
+        return self.body()
+    def _reset_body_cache(self):
+        # BaseHTTPRequestHandler reuses one handler instance for multiple
+        # HTTP/1.1 keep-alive requests. Never reuse a previous request's body.
+        self._cime_body_cache=None
+    def public(self,path): return path in ('/','/app','/health','/api/health','/api/cime_health','/api/persistence/health','/oauth/google/start','/oauth/google/callback','/api/auth/status','/api/auth/register','/api/auth/login','/api/auth/logout','/api/vision/status','/api/qr','/api/auth/google/credential')
 
     def do_OPTIONS(self):
+        self._reset_body_cache()
         self.send_response(204); self.send_header('Access-Control-Allow-Origin','*'); self.send_header('Access-Control-Allow-Methods','GET,POST,PUT,PATCH,DELETE,OPTIONS'); self.send_header('Access-Control-Allow-Headers','Content-Type, Authorization, X-Filename'); self.send_header('Content-Length','0'); self.end_headers()
 
     def do_GET(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None)
         p=urlparse(self.path); path=p.path.rstrip('/') or '/'
         if path in ('/health','/api/health'):
@@ -594,7 +607,11 @@ class Gateway(BaseHTTPRequestHandler):
                 return self.send_json({'error':f'Não foi possível gerar o QR Code: {e}'},500)
 
         if path=='/api/connection-info':
-            return self.send_json({'version':'5.0','port':PORT,'bind':BIND,'local_url':f'http://localhost:{PORT}','lan_ip':lan_ip(),'lan_ips':lan_ips(),'lan_url':f'http://{lan_ip()}:{PORT}','google_js_origin':f'http://localhost:{PORT}','mobile_hint':'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP 8790 no Windows e teste a URL LAN exibida pelo modo celular.'})
+            is_vercel=os.getenv('CIME_DEPLOYMENT')=='vercel'
+            public_host=is_public_host()
+            public_origin=str(os.getenv('CIME_PUBLIC_URL','')).strip().rstrip('/')
+            local_url=f'http://localhost:{PORT}'
+            return self.send_json({'version':'5.0','deployment':os.getenv('CIME_DEPLOYMENT') or 'local','port':PORT,'bind':BIND,'local_url':public_origin or local_url,'lan_ip':None if public_host else lan_ip(),'lan_ips':[] if public_host else lan_ips(),'lan_url':public_origin or f'http://{lan_ip()}:{PORT}','google_js_origin':public_origin or local_url,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':not public_host,'mobile_hint':'Acesse esta mesma URL HTTPS no computador e no celular.' if public_host else 'PC e celular precisam estar na mesma rede Wi-Fi. Se o endereço não abrir, confirme a regra privada TCP da porta configurada no Windows.'})
         if path in ('/manifest.json','/service-worker.js','/icon-192.png','/icon-512.png'):
             types={
                 '/manifest.json':'application/manifest+json; charset=utf-8',
@@ -694,7 +711,10 @@ class Gateway(BaseHTTPRequestHandler):
                 uid=u['id']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
             c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
         if path=='/api/auth/status':
-            u=get_user(self); return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':f'http://localhost:{PORT}','google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
+            u=get_user(self)
+            public_origin=str(os.getenv('CIME_PUBLIC_URL','')).strip().rstrip('/')
+            google_origin=public_origin or f'http://localhost:{PORT}'
+            return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':google_origin,'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':not is_public_host() and BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
         if path=='/api/bootstrap':
             u=require(self)
             if not u: return
@@ -832,6 +852,7 @@ class Gateway(BaseHTTPRequestHandler):
             return legacy.Handler.do_GET(self)
         self.send_json({'error':'Rota não encontrada.','route':path,'method':'GET'},404)
     def do_POST(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None); p=urlparse(self.path); path=p.path.rstrip('/') or '/'
         # Fallback absoluto para o login Google: mesmo se um rewrite encaminhar
         # o POST para um endpoint genérico, a presença de "credential" identifica
@@ -1091,11 +1112,13 @@ class Gateway(BaseHTTPRequestHandler):
             self.send_json({'error':'Rota não encontrada.','route':path,'method':'POST'},404)
         except Exception as e: self.send_json({'error':str(e)},500)
     def do_PUT(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None)
         legacy.invalidate_library_cache()
         if not require(self): return
         return legacy.Handler.do_PUT(self)
     def do_DELETE(self):
+        self._reset_body_cache()
         _tls.__dict__.pop('user_id',None)
         legacy.invalidate_library_cache()
         if not require(self): return
