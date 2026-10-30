@@ -235,7 +235,7 @@ def ensure_library(uid):
         else:
             _tls.user_id=previous_uid
 
-SESSION_TOKEN_SECRET = os.getenv('CIME_SESSION_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET') or 'CimeDosMundos5_0_session_fallback_9c7f2d4a8e31b6f0'
+from cime_security import SESSION_SECRET as SESSION_TOKEN_SECRET
 
 def _stateless_token(uid, email='', name='', role='beta', provider='local'):
     now=datetime.now(timezone.utc).replace(tzinfo=None)
@@ -313,41 +313,24 @@ def get_user(handler):
             c.execute('UPDATE sessions SET expires_at=? WHERE token_hash=?',((now+timedelta(days=SESSION_DAYS)).isoformat(timespec='seconds'),token_hash)); c.commit()
         c.close(); return dict(row)
     c.close()
-    # Vercel Functions can serve consecutive requests on different instances.
-    # In that case /tmp SQLite sessions may not be present in the new instance.
-    # Accept the signed token itself so a successful login is not immediately lost.
-    return _stateless_user(raw)
+    # A sessão precisa existir no banco persistente. Tokens sem registro ativo
+    # não são aceitos, mesmo que tenham assinatura válida.
+    return None
 
 def require(handler):
     u=get_user(handler)
     if not u:
         handler.send_json({'error':'Faça login para continuar.','code':'AUTH_REQUIRED'},401)
         return None
-    # Vercel pode encaminhar requisições para outra instância sem o SQLite
-    # temporário que criou a sessão. Recria o registro mínimo do usuário a
-    # partir do token assinado, para que FKs como groups.owner_id não falhem.
+    # O banco de autenticação persistente é a fonte de verdade da identidade.
+    # A biblioteca e a mídia são sempre vinculadas ao ID retornado pela sessão.
+    _tls.user_id=int(u['id'])
     try:
-        c=auth_db()
-        exists=c.execute('SELECT id FROM users WHERE id=?',(int(u['id']),)).fetchone()
-        if not exists:
-            email=normalize_email(str(u.get('email') or ''))
-            if email:
-                by_email=c.execute('SELECT id FROM users WHERE email=?',(email,)).fetchone()
-                if by_email:
-                    # Reuse the existing account ID to avoid duplicate-email conflicts.
-                    u=dict(u); u['id']=int(by_email['id'])
-                else:
-                    now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
-                    c.execute('INSERT INTO users(id,email,password_hash,display_name,role,provider,provider_subject,created_at,updated_at,last_login_at) VALUES(?,?,NULL,?,?,?,?,?,?,?)',
-                        (int(u['id']),email,str(u.get('display_name') or email.split('@')[0]),str(u.get('role') or 'beta'),str(u.get('provider') or 'local'),'','',now,now))
-                    c.commit()
-        c.close()
+        ensure_library(_tls.user_id)
     except Exception:
-        try: c.close()
-        except Exception: pass
-    _tls.user_id=u['id']
-    try: ensure_library(u['id'])
-    except Exception: pass
+        _tls.__dict__.pop('user_id',None)
+        handler.send_json({'error':'Não foi possível abrir a biblioteca desta conta.','code':'LIBRARY_UNAVAILABLE'},503)
+        return None
     return u
 
 # Google Identity Services uses a public OAuth Client ID in the browser.
