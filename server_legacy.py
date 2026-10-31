@@ -353,12 +353,12 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
         return {"configured": False, "recognized": False, "provider": "Gemini", "reason": "GEMINI_API_KEY não configurada."}
     try:
         prepared = _prepare_vision_image(image_bytes)
-        prompt = VISION_SYSTEM + "\\n"
+        prompt = VISION_SYSTEM + "\n"
         prompt += ("Faça uma análise visual cuidadosa de toda a imagem e das pistas de temporada." if deep
                    else "Faça uma identificação visual rápida, sem depender exclusivamente de OCR.")
         if ocr_hint:
-            prompt += "\\nOCR auxiliar (pode conter erros; não o trate como autoridade): " + str(ocr_hint)[:1400]
-        prompt += "\\nRetorne somente JSON válido com as chaves: recognized, title, aliases, category, confidence, season, season_title, arc, episode, season_evidence, evidence, visible_title_text, alternatives. "
+            prompt += "\nOCR auxiliar (pode conter erros; não o trate como autoridade): " + str(ocr_hint)[:1400]
+        prompt += "\nRetorne somente JSON válido com as chaves: recognized, title, aliases, category, confidence, season, season_title, arc, episode, season_evidence, evidence, visible_title_text, alternatives. "
         prompt += "category deve ser Anime, Série, Filme, Desenho ou string vazia. confidence é número entre 0 e 1. season e episode são inteiros ou null. alternatives é lista de objetos title, confidence e evidence. Não invente título nem temporada."
         endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_VISION_MODEL + ":generateContent"
         payload = {
@@ -366,7 +366,7 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
                 {"text": prompt},
                 {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(prepared).decode("ascii")}}
             ]}],
-            "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json"}
+            "generationConfig": {"responseMimeType": "application/json"}
         }
         response = requests.post(
             endpoint,
@@ -380,7 +380,7 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
         data = response.json()
         candidates = data.get("candidates") or []
         parts = ((candidates[0].get("content") or {}).get("parts") or []) if candidates else []
-        raw_text = "\\n".join(str(part.get("text") or "") for part in parts if isinstance(part, dict))
+        raw_text = "\n".join(str(part.get("text") or "") for part in parts if isinstance(part, dict))
         obj = _parse_json_from_text(raw_text)
         title = str(obj.get("title") or "").strip()
         try:
