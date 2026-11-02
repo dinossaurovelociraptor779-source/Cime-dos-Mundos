@@ -1,8 +1,256 @@
-Get-Content : Não é possível localizar o caminho '.github/workflows/cime5-verify.yml' porque ele não existe.
-No linha:2 caractere:1
-+ Get-Content -Raw -LiteralPath .github/workflows/cime5-verify.yml
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (.github/workflows/cime5-verify.yml:String) [Get-Content], ItemNotFoundE 
-   xception
-    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
- 
+name: Cime 5.0 verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Chave descartÃ¡vel, exclusiva dos testes locais do CI. Nunca Ã© usada na Vercel.
+      CIME_SESSION_SECRET: "ci-only-not-a-production-secret-5-0-verification-key-2026-long-test-value"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Compile Python
+        run: python -m compileall -q api server_v5.py server_legacy.py cime_persistent_store.py render_server.py
+
+      - name: Run regression and persistence tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Import backend
+        env:
+          CIME_DATA_DIR: /tmp/cime5-ci
+          CIME_PORT: "8790"
+          CIME_BIND: "127.0.0.1"
+        run: |
+          rm -rf /tmp/cime5-ci
+          python - <<'PY'
+          import api.index
+          import server_v5
+          assert server_v5.google_ok(), "Google Client ID is not configured"
+          print("Python backend import: OK")
+          print("Google client: OK")
+          PY
+
+      - name: Smoke-test serverless gateway, auth, library CRUD, groups and backup
+        env:
+          CIME_DATA_DIR: /tmp/cime5-smoke
+          CIME_PORT: "8790"
+          CIME_BIND: "127.0.0.1"
+        run: |
+          rm -rf /tmp/cime5-smoke
+          python - <<'PY'
+          import json
+          import threading
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from http.server import ThreadingHTTPServer
+          # The CI smoke test uses a disposable local SQLite directory.
+          # Replace only the persistence context here; production still uses Neon.
+          import cime_persistent_store
+          from contextlib import contextmanager
+
+          @contextmanager
+          def local_test_store(write=False):
+              yield None
+
+          cime_persistent_store.request_context = local_test_store
+          import api.cime
+
+          server = ThreadingHTTPServer(("127.0.0.1", 0), api.cime.handler)
+          threading.Thread(target=server.serve_forever, daemon=True).start()
+          base = f"http://127.0.0.1:{server.server_port}"
+
+          def call(method, route, payload=None, token=None, mount="/api/cime", request_base=None):
+              parsed = urllib.parse.urlsplit(route)
+              target = mount + "?__cime_path=" + urllib.parse.quote(parsed.path, safe="")
+              if parsed.query:
+                  target += "&" + parsed.query
+              headers = {"Accept": "application/json"}
+              body = None
+              if payload is not None:
+                  body = json.dumps(payload).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              if token:
+                  headers["Authorization"] = "Bearer " + token
+              req = urllib.request.Request((request_base or base) + target, data=body, headers=headers, method=method)
+              try:
+                  response = urllib.request.urlopen(req, timeout=12)
+              except urllib.error.HTTPError as exc:
+                  response = exc
+              raw = response.read()
+              ctype = response.headers.get("Content-Type", "")
+              parsed_body = raw
+              if "application/json" in ctype:
+                  parsed_body = json.loads(raw.decode("utf-8")) if raw else None
+              elif ctype.startswith("text/") or "javascript" in ctype:
+                  parsed_body = raw.decode("utf-8", "replace")
+              return response.status, parsed_body, ctype, raw
+
+          def expect(method, route, expected, payload=None, token=None):
+              status, body, ctype, raw = call(method, route, payload, token)
+              assert status == expected, (
+                  f"{method} {route}: expected HTTP {expected}, got {status}; "
+                  f"response={raw[:450]!r}"
+              )
+              return body, ctype, raw
+
+          index_server = None
+          try:
+              # Repeated requests catch wrappers that accidentally replace their own route methods.
+              for _ in range(2):
+                  status, body, _, raw = call("GET", "/api/auth/status")
+                  assert status == 200 and body.get("authenticated") is False, (status, raw[:400])
+                  assert body.get("google_js_origin") == "https://cime-dos-mundos.vercel.app", body
+              page, ctype, _ = expect("GET", "/app.html", 200)
+              assert "text/html" in ctype and "Cime dos Mundos" in page
+              expect("GET", "/app.html", 200)
+              health, _, _ = expect("GET", "/api/health", 200)
+              assert health.get("ok") is True, health
+              persistence, _, _ = expect("GET", "/api/persistence/health", 503)
+              assert persistence.get("persistent") is False, persistence
+              expect("GET", "/api/bootstrap", 401)
+
+              first, _, _ = expect(
+                  "POST", "/api/auth/register", 201,
+                  {"display_name": "Smoke Creator", "email": "smoke-creator@example.invalid", "password": "SmokeTest123!"}
+              )
+              creator_token = first["token"]
+              assert first["user"]["role"] == "creator", first
+              status_data, _, _ = expect("GET", "/api/auth/status", 200, token=creator_token)
+              assert status_data["authenticated"] is True
+              bootstrap, _, _ = expect("GET", "/api/bootstrap", 200, token=creator_token)
+              assert bootstrap["user"]["email"] == "smoke-creator@example.invalid"
+              assert isinstance(bootstrap.get("titles"), list)
+
+              title, _, _ = expect(
+                  "POST", "/api/titles", 201,
+                  {"name": "Cime CI Smoke Title", "category": "Anime", "status": "Quero assistir", "episodes": 12},
+                  creator_token
+              )
+              title_id = int(title["id"])
+              titles, _, _ = expect("GET", "/api/titles", 200, token=creator_token)
+              assert any(int(row["id"]) == title_id for row in titles), titles
+              expect(
+                  "PUT", f"/api/titles/{title_id}", 200,
+                  {"name": "Cime CI Smoke Title Updated", "category": "Anime", "status": "Assistindo", "episodes": 12, "current_episode": 2},
+                  creator_token
+              )
+              titles, _, _ = expect("GET", "/api/titles", 200, token=creator_token)
+              assert any(row["name"] == "Cime CI Smoke Title Updated" for row in titles), titles
+
+              group, _, _ = expect(
+                  "POST", "/api/groups", 201,
+                  {"name": "Cime CI Smoke Group", "description": "Isolated automated test", "group_type": "both"},
+                  creator_token
+              )
+              group_id = int(group["group_id"])
+              groups, _, _ = expect("GET", "/api/groups", 200, token=creator_token)
+              assert any(int(row["id"]) == group_id for row in groups), groups
+              details, _, _ = expect("GET", f"/api/groups/{group_id}", 200, token=creator_token)
+              assert int(details["group"]["id"]) == group_id
+
+              second, _, _ = expect(
+                  "POST", "/api/auth/register", 201,
+                  {"display_name": "Smoke Beta", "email": "smoke-beta@example.invalid", "password": "SmokeTest123!"}
+              )
+              beta_token = second["token"]
+              assert second["user"]["role"] == "beta", second
+              beta_titles, _, _ = expect("GET", "/api/titles", 200, token=beta_token)
+              assert not any(row["name"] == "Cime CI Smoke Title Updated" for row in beta_titles), beta_titles
+              beta_groups, _, _ = expect("GET", "/api/groups", 200, token=beta_token)
+              assert not any(int(row["id"]) == group_id for row in beta_groups), beta_groups
+
+              _, backup_type, backup = expect("GET", "/api/backup", 200, token=creator_token)
+              assert "application/zip" in backup_type and backup[:2] == b"PK", (backup_type, backup[:10])
+              expect("DELETE", f"/api/titles/{title_id}", 200, token=creator_token)
+              titles, _, _ = expect("GET", "/api/titles", 200, token=creator_token)
+              assert not any(int(row["id"]) == title_id for row in titles), titles
+
+              # Exercise the secondary api/index wrapper too; both wrappers must restore
+              # their route on every invocation and support legacy PUT/DELETE.
+              import api.index
+              index_server = ThreadingHTTPServer(("127.0.0.1", 0), api.index.handler)
+              threading.Thread(target=index_server.serve_forever, daemon=True).start()
+              index_base = f"http://127.0.0.1:{index_server.server_port}"
+
+              def expect_index(method, route, expected, payload=None, token=None):
+                  status, body, ctype, raw = call(
+                      method, route, payload, token,
+                      mount="/api/index", request_base=index_base
+                  )
+                  assert status == expected, (
+                      f"api.index {method} {route}: expected HTTP {expected}, got {status}; "
+                      f"response={raw[:450]!r}"
+                  )
+                  return body, ctype, raw
+
+              for _ in range(2):
+                  index_status, _, _ = expect_index("GET", "/api/auth/status", 200, token=creator_token)
+                  assert index_status["authenticated"] is True
+              health, _, _ = expect_index("GET", "/api/health", 200)
+              assert health.get("ok") is True, health
+              persistence, _, _ = expect_index("GET", "/api/persistence/health", 503)
+              assert persistence.get("persistent") is False, persistence
+              index_title, _, _ = expect_index(
+                  "POST", "/api/titles", 201,
+                  {"name": "Cime CI Index Wrapper Title", "category": "Anime", "status": "Quero assistir"},
+                  creator_token
+              )
+              index_title_id = int(index_title["id"])
+              expect_index(
+                  "PUT", f"/api/titles/{index_title_id}", 200,
+                  {"name": "Cime CI Index Wrapper Updated", "category": "Anime", "status": "Assistindo"},
+                  creator_token
+              )
+              expect_index("DELETE", f"/api/titles/{index_title_id}", 200, token=creator_token)
+              print("Serverless gateway smoke test: repeated routes, auth, bootstrap, title CRUD through both Vercel wrappers, groups, account isolation and ZIP backup all passed.")
+          finally:
+              if index_server is not None:
+                  index_server.shutdown()
+                  index_server.server_close()
+              server.shutdown()
+              server.server_close()
+          PY
+
+      - name: Verify frontend auth wiring and API routes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          html = Path("index.html").read_text(encoding="utf-8")
+          app_html = Path("app.html").read_text(encoding="utf-8")
+          config = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
+          cime_wrapper = Path("api/cime.py").read_text(encoding="utf-8")
+          index_wrapper = Path("api/index.py").read_text(encoding="utf-8")
+          assert "https://accounts.google.com/gsi/client" in html
+          assert "/api/auth/google/credential" in html
+          assert "/api/auth/status" in app_html
+          assert "function cimeBackendPath(path)" in html
+          assert "fetch(cimeBackendPath(path)" in html
+          assert "location.assign('/oauth/google/start')" not in html
+          rewrites = config.get("rewrites", [])
+          assert any(r.get("source") == "/api" and r.get("destination") == "/api/cime" for r in rewrites)
+          assert any(r.get("source") == "/api/:path*" and r.get("destination") == "/api/cime?__cime_path=/api/:path*" for r in rewrites)
+          assert 'return getattr(cls,method)(self)' in cime_wrapper
+          assert 'return getattr(gateway, method)(self)' in index_wrapper
+          assert 'def do_PUT(self):' in cime_wrapper and 'def do_DELETE(self):' in cime_wrapper
+          assert 'def do_PUT(self):' in index_wrapper and 'def do_DELETE(self):' in index_wrapper
+          print("Frontend auth wiring, stable Vercel dispatch and API routes: OK")
+          PY
+
