@@ -2910,4 +2910,64 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
 @media(max-width:760px){#c5go #c5createOverlay{padding:12px!important;align-items:center!important}#c5go .c5create-dialog{border-radius:20px!important;padding:15px!important;width:100%!important;max-height:calc(100dvh - 28px)!important}}
 </style>
 
+
+<style id="cime-title-panel-organized-v1">
+#detailsDlg{padding:clamp(8px,2vw,24px)!important}
+#detailsDlg .modal{width:min(960px,100%)!important;max-width:960px!important;max-height:calc(100dvh - 24px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;padding:clamp(12px,2.2vw,24px)!important;border-radius:22px!important;background:linear-gradient(160deg,#0d1523,#080d16)!important;border:1px solid #29374d!important;box-shadow:0 25px 80px #000a!important}
+#detailsDlg #detailsPanel{display:flex!important;flex-direction:column!important;gap:14px!important;min-width:0!important}
+#detailsDlg .panel-toolbar{position:sticky!important;top:-1px!important;z-index:20!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;padding:9px 0 12px!important;background:#0d1523f5!important;border-bottom:1px solid #263449!important}
+#detailsDlg .panel-kicker{font-size:11px!important;letter-spacing:.11em!important;text-transform:uppercase!important;font-weight:800!important;color:#9cadd0!important}
+#detailsDlg .panel-head{display:grid!important;grid-template-columns:minmax(140px,210px) minmax(0,1fr)!important;gap:clamp(14px,2.5vw,24px)!important;padding:clamp(12px,2vw,20px)!important;border:1px solid #29374d!important;border-radius:20px!important;background:linear-gradient(145deg,#142137,#0b121e)!important;align-items:start!important}
+#detailsDlg .panel-head .cover{width:100%!important;height:clamp(220px,30vw,320px)!important;max-height:none!important;border-radius:15px!important;overflow:hidden!important;background:#080e18!important}
+#detailsDlg .panel-head .cover img{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;padding:0!important}
+#detailsDlg .panel-info{min-width:0!important}
+#detailsDlg .panel-info h2{font-size:clamp(22px,3vw,32px)!important;line-height:1.15!important;letter-spacing:-.04em!important;margin:0 0 7px!important;overflow-wrap:anywhere!important}
+#detailsDlg .panel-info>.sub{font-size:13px!important;color:#a9b8d0!important;margin-bottom:10px!important}
+#detailsDlg .chips{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin:10px 0!important}
+#detailsDlg .chip{margin:0!important;padding:6px 9px!important;border-radius:999px!important;background:#1b2a40!important;border:1px solid #34445d!important;font-size:11px!important}
+#detailsDlg .synopsis{padding:12px 13px!important;border-radius:14px!important;background:#0a111d!important;border:1px solid #253247!important;font-size:13px!important;line-height:1.65!important;color:#cbd6e7!important}
+#detailsDlg .panel-box{margin:0!important;padding:clamp(12px,2vw,18px)!important;border-radius:18px!important;border:1px solid #29374d!important;background:#0d1624!important}
+#detailsDlg .progress-row{display:flex!important;justify-content:space-between!important;gap:10px!important;font-size:14px!important;margin-bottom:9px!important}
+#detailsDlg .progress{height:9px!important;border-radius:999px!important;overflow:hidden!important;background:#202d41!important}
+#detailsDlg .progress i{border-radius:999px!important;background:linear-gradient(90deg,#7b61e8,#45b9c9)!important}
+#detailsDlg .season-switcher{display:flex!important;gap:7px!important;flex-wrap:wrap!important;margin:13px 0!important}
+#detailsDlg .season-switcher .btn{min-width:42px!important;min-height:38px!important;border-radius:11px!important}
+#detailsDlg .next-row{padding:10px 12px!important;border-radius:13px!important;background:#111e30!important;border:1px solid #26364d!important;margin:8px 0 0!important}
+#detailsDlg .episode-track{margin:12px 0 0!important;border-radius:15px!important;background:#09111d!important;border-color:#253247!important}
+#detailsDlg .episode-list{max-height:200px!important;overflow-y:auto!important;padding:2px!important}
+#detailsDlg .episode-dot{min-width:36px!important;min-height:36px!important;border-radius:10px!important}
+#detailsDlg .section-title{margin:0!important;padding:4px 2px!important;font-size:16px!important;font-weight:850!important;letter-spacing:-.02em!important}
+#detailsDlg .season-list{margin:0!important;gap:8px!important}
+#detailsDlg .season-item{padding:12px!important;border:1px solid #29374d!important;border-radius:15px!important;background:#101a29!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}
+#detailsDlg .season-item>div{min-width:0!important;flex:1!important}
+#detailsDlg .season-item b{font-size:14px!important}
+#detailsDlg .season-item .muted{font-size:12px!important;line-height:1.5!important}
+#detailsDlg .panel-grid{margin:0!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+#detailsDlg .panel-grid>div{padding:14px!important;border:1px solid #29374d!important;border-radius:15px!important;background:#101a29!important;min-width:0!important}
+#detailsDlg .panel-grid>div>b{display:block!important;margin-bottom:6px!important;font-size:13px!important;color:#dfe8f7!important}
+#detailsDlg .history-list{margin:0!important;gap:7px!important;background:#0a111d!important;border-color:#29374d!important;border-radius:15px!important}
+#detailsDlg .history-list>div{padding:9px 10px!important;border-radius:10px!important;background:#111c2b!important;font-size:12px!important}
+#detailsDlg .actions{display:flex!important;flex-wrap:wrap!important;gap:8px!important;margin:0!important;padding-top:5px!important}
+#detailsDlg .actions button{min-height:43px!important;border-radius:12px!important;flex:1 1 120px!important}
+#detailsDlg .modal>.actions{padding:12px 0 0!important;border-top:1px solid #263449!important}
+@media(max-width:700px){
+ #detailsDlg{padding:0!important;align-items:flex-end!important}
+ #detailsDlg .modal{width:100%!important;max-width:none!important;max-height:calc(100dvh - 4px)!important;border-radius:22px 22px 0 0!important;padding:12px 11px calc(12px + env(safe-area-inset-bottom,0px))!important}
+ #detailsDlg .panel-head{grid-template-columns:minmax(88px,112px) minmax(0,1fr)!important;gap:11px!important;padding:11px!important;border-radius:16px!important}
+ #detailsDlg .panel-head .cover{height:158px!important;border-radius:11px!important}
+ #detailsDlg .panel-info h2{font-size:20px!important}
+ #detailsDlg .panel-info>.sub{font-size:11px!important}
+ #detailsDlg .chip{font-size:10px!important;padding:5px 7px!important}
+ #detailsDlg .synopsis{font-size:12px!important;padding:10px!important}
+ #detailsDlg .panel-grid{grid-template-columns:minmax(0,1fr)!important}
+ #detailsDlg .next-row{flex-direction:column!important;align-items:stretch!important;font-size:12px!important}
+ #detailsDlg .next-row button{width:100%!important;min-height:42px!important}
+ #detailsDlg .season-item{align-items:flex-start!important;flex-wrap:wrap!important}
+ #detailsDlg .season-item button{min-height:40px!important}
+ #detailsDlg .episode-dot{min-width:34px!important;min-height:34px!important}
+ #detailsDlg .actions button{flex:1 1 calc(50% - 8px)!important}
+}
+@media(max-width:360px){#detailsDlg .panel-head{grid-template-columns:84px minmax(0,1fr)!important}#detailsDlg .panel-head .cover{height:135px!important}#detailsDlg .panel-info h2{font-size:18px!important}}
+</style>
+
 </body></html>
