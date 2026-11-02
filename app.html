@@ -1429,7 +1429,7 @@ async function c5shareGroup(){
       <div class="c5sharebox">
         <div class="share-hero"><div><div class="eyebrow">📱 CONVITE DO GRUPO</div><b>Pronto para abrir no celular</b><div class="c5mut">O Cime gera o QR Code localmente. Não depende do Play Store nem de outro site.</div></div><span class="c5pill">7 dias</span></div>
         <div class="c5sharelink" style="margin-top:10px"><input id="c5shareInput" readonly value="${esc(d.invite_link)}"><button class="c5gb c5b2" onclick="c5copyShare()">📋 Copiar</button></div>
-        <div class="share-qr-wrap"><img class="share-qr" alt="QR Code do grupo" loading="eager" src="${qr}"><div><b>Como abrir no celular</b><p class="c5mut">Conecte PC e celular na mesma Wi‑Fi e escaneie o código. Depois, faça login e aceite o convite.</p><button class="c5gb" onclick="c5copyShare()">🔗 Copiar endereço</button></div></div>
+        <div class="share-qr-wrap"><img class="share-qr" alt="QR Code do grupo" loading="eager" src="${qr}" onerror="c5qrFallback(this)"><div><b>Como abrir no celular</b><p class="c5mut">Conecte PC e celular na mesma Wi‑Fi e escaneie o código. Depois, faça login e aceite o convite.</p><button class="c5gb" onclick="c5copyShare()">🔗 Copiar endereço</button></div></div>
         <div class="share-actions"><button class="c5gb" onclick="c5nativeShare()">📱 Compartilhar</button><button class="c5gb" onclick="c5shareWhatsApp()">💬 WhatsApp</button></div>
       </div>`;
     return d;
@@ -2970,4 +2970,19 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
 @media(max-width:360px){#detailsDlg .panel-head{grid-template-columns:84px minmax(0,1fr)!important}#detailsDlg .panel-head .cover{height:135px!important}#detailsDlg .panel-info h2{font-size:18px!important}}
 </style>
 
+<script id="cime-qr-fallback-v1">
+window.c5qrFallback=function(img){
+  if(!img||img.dataset.qrFallback)return;img.dataset.qrFallback='1';img.style.display='none';
+  const host=img.parentElement;if(!host)return;
+  const box=document.createElement('div');box.className='share-qr-fallback';box.style.cssText='width:200px;height:200px;min-width:200px;display:grid;place-items:center;background:#fff;border-radius:12px;padding:8px;overflow:hidden';
+  host.insertBefore(box,img);
+  let text='';try{text=new URL(img.src,location.href).searchParams.get('text')||''}catch{}
+  const render=()=>{if(window.QRCode){box.innerHTML='';new QRCode(box,{text,width:184,height:184,colorDark:'#111827',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});return true}return false};
+  if(render())return;
+  const existing=document.querySelector('script[data-cime-qrcodejs]');
+  const fail=()=>{box.style.cssText='width:200px;min-width:200px;min-height:120px;display:grid;place-items:center;background:#111827;color:#e5e7eb;border-radius:12px;padding:12px;text-align:center;font-size:12px';box.textContent='QR indisponível. Use “Copiar endereço” para abrir o convite.'};
+  if(existing){existing.addEventListener('load',()=>render()||fail(),{once:true});existing.addEventListener('error',fail,{once:true});return}
+  const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';script.async=true;script.dataset.cimeQrcodejs='1';script.onload=()=>render()||fail();script.onerror=fail;document.head.appendChild(script);
+};
+</script>
 </body></html>
