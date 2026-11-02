@@ -3,6 +3,7 @@ import sqlite3
 import tempfile
 import unittest
 import zipfile
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -35,15 +36,16 @@ class PersistentSnapshotTests(unittest.TestCase):
             with patch.object(store_module, "DATA_DIR", root):
                 db_path = root / "users" / "1" / "library.db"
                 db_path.parent.mkdir(parents=True)
-                with sqlite3.connect(db_path) as db:
+                with closing(sqlite3.connect(db_path)) as db:
                     db.execute("CREATE TABLE titles (name TEXT NOT NULL)")
                     db.execute("INSERT INTO titles(name) VALUES (?)", ("Arcane",))
+                    db.commit()
                 payload = store_module._pack_data_dir()
 
                 (root / "users" / "1" / "library.db").unlink()
                 store_module._restore_data_dir(payload)
 
-                with sqlite3.connect(db_path) as db:
+                with closing(sqlite3.connect(db_path)) as db:
                     names = db.execute("SELECT name FROM titles").fetchall()
                 self.assertEqual(names, [("Arcane",)])
 
@@ -64,6 +66,7 @@ class PersistentSnapshotTests(unittest.TestCase):
         events = []
         request_store = store_module.RequestStore(None, None, True, 0, False)
         handler = _FakeHandler()
+        handler.events = events
         with patch.object(request_store, "save", side_effect=lambda: events.append("save")):
             request_store.attach_response(handler)
             handler.end_headers()

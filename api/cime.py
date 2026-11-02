@@ -203,8 +203,28 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(raw)
         return True
 
+    def _health_fallback_get(self):
+        path = (urlparse(self.path).path.rstrip("/") or "/")
+        if path not in ("/api/health", "/api/cime_health", "/health"):
+            return False
+        try:
+            from api.health import handler as HealthHandler
+            HealthHandler.do_GET(self)
+        except Exception as exc:
+            raw = json.dumps({"ok": False, "error": "Health indisponível.", "detail": str(exc)[:300]},
+                             ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+        return True
+
     def do_GET(self):
         self._restore_route()
+        if self._health_fallback_get():
+            return
         if self._qr_fallback_get():
             return
         if self._google_fallback_get():

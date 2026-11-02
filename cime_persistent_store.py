@@ -192,7 +192,7 @@ def _checkpoint_sqlite_files() -> None:
         if not path.is_file():
             continue
         try:
-            with sqlite3.connect(str(path), timeout=5) as db:
+            with contextlib.closing(sqlite3.connect(str(path), timeout=5)) as db:
                 row = db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
                 if row and int(row[0] or 0) != 0:
                     raise PersistentStoreError("Um banco SQLite está ocupado durante a gravação.")

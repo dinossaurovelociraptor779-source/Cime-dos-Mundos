@@ -163,21 +163,29 @@ class handler(BaseHTTPRequestHandler):
         # Preserve the original pathname in an internal query parameter so
         # Gateway keeps seeing the real route (e.g. /api/auth/login).
         try:
-            raw_q = self.path.split("?", 1)[1] if "?" in self.path else ""
             from urllib.parse import parse_qs, urlencode, urlparse
-            q = parse_qs(raw_q, keep_blank_values=True)
-            original = str((q.get("__cime_path") or [""])[0] or "").strip()
-            if not original:
+            q = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            candidates = [str(value or "").strip() for value in q.get("__cime_path", [])]
+            original = next((value for value in reversed(candidates)
+                             if value.startswith("/") and (value.rstrip("/") or "/") != "/api/cime"), "")
+            if original:
+                clean = []
+                for key, vals in q.items():
+                    if key == "__cime_path":
+                        continue
+                    for value in vals:
+                        clean.append((key, value))
+                self.path = original.rstrip("/") or "/"
+                if clean:
+                    self.path += "?" + urlencode(clean, doseq=True)
+
+            parsed = urlparse(self.path)
+            if parsed.path in ("/api/google_login", "/api/google-login"):
+                self.path = "/api/auth/google/credential" + (("?" + parsed.query) if parsed.query else "")
                 return
-            clean = []
-            for key, vals in q.items():
-                if key == "__cime_path":
-                    continue
-                for value in vals:
-                    clean.append((key, value))
-            suffix = ("?" + urlencode(clean, doseq=True)) if clean else ""
-            self.path = original.rstrip("/") or "/" 
-            self.path += suffix
+            if parsed.path == "/api/cime" or parsed.path.startswith("/api/cime/"):
+                suffix = parsed.path[len("/api/cime"):] or "/"
+                self.path = "/api" + suffix + (("?" + parsed.query) if parsed.query else "")
         except Exception:
             pass
 
@@ -185,8 +193,25 @@ class handler(BaseHTTPRequestHandler):
         self._restore_route()
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
         qs = self.path.split("?", 1)[1] if "?" in self.path else ""
-        if path in ("/api/health", "/health") or "health=1" in qs:
+        if path in ("/api/health", "/api/cime_health", "/health") or "health=1" in qs:
             return self._health()
+        if path == "/api/persistence/health":
+            from api.persistence_health import handler as PersistenceHandler
+            return PersistenceHandler.do_GET(self)
+        if path == "/api/qr":
+            try:
+                from api.qr import handler as QRHandler
+                return QRHandler.do_GET(self)
+            except Exception as exc:
+                raw = json.dumps({"error": "QR indisponível.", "detail": str(exc)[:300]},
+                                 ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+                return
         return self._delegate("do_GET")
 
     def do_POST(self):
