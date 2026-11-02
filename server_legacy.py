@@ -281,7 +281,7 @@ def _prepare_vision_views(image_bytes, deep=False):
 def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
     """Identificação visual via Gemini, com multivista na análise aprofundada."""
     mode = "deep" if deep else "fast"
-    cache_revision = "gemini-multiview-v2"
+    cache_revision = "gemini-multiview-v3"
     cached = _vision_cache_get(image_bytes, mode) if GEMINI_API_KEY else None
     if cached is not None and str(cached.get("model") or "") == GEMINI_VISION_MODEL and cached.get("vision_engine") == cache_revision:
         return cached
@@ -326,7 +326,7 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
             "contents": [{"role": "user", "parts": parts}],
             "generationConfig": {
                 "responseMimeType": "application/json",
-                "temperature": 0.1,
+                "thinkingConfig": {"thinkingLevel": "MEDIUM" if deep else "LOW"},
                 "maxOutputTokens": 1200
             }
         }
