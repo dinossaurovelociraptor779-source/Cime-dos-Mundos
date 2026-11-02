@@ -709,7 +709,7 @@ class Gateway(BaseHTTPRequestHandler):
             titles=legacy.all_titles()
             stats=legacy.library_stats()
             rate=legacy.automatic_watch_rate()
-            vision={'configured':bool(legacy.vision_configured()),'provider':'OpenAI Vision + Web Search' if legacy.vision_configured() else 'OCR local'}
+            vision={'configured':bool(legacy.vision_configured()),'provider':'Gemini Vision' if getattr(legacy,'GEMINI_API_KEY','') else 'OpenAI Vision + Web Search' if getattr(legacy,'OPENAI_API_KEY','') else 'OCR local'}
             payload={'version':'5.0','user':{'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']},'titles':titles,'stats':stats,'watch_rate':rate,'vision':vision}
             with _BOOTSTRAP_CACHE_LOCK:
                 _BOOTSTRAP_CACHE[uid]=(time.monotonic(),payload)
@@ -826,7 +826,7 @@ class Gateway(BaseHTTPRequestHandler):
             finally:
                 _tls.__dict__.pop('user_id',None)
         if path=='/api/vision/status':
-            return legacy.Handler.do_GET(self) if False else self.send_json({'configured':legacy.vision_configured(),'provider':'OpenAI Vision + Web Search' if legacy.vision_configured() else 'OCR local'})
+            return legacy.Handler.do_GET(self) if False else self.send_json({'configured':legacy.vision_configured(),'provider':'Gemini Vision' if getattr(legacy,'GEMINI_API_KEY','') else 'OpenAI Vision + Web Search' if getattr(legacy,'OPENAI_API_KEY','') else 'OCR local'})
         if path.startswith('/api/') or path.startswith('/media/'):
             if not require(self): return
             return legacy.Handler.do_GET(self)

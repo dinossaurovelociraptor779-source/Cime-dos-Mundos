@@ -1,0 +1,12 @@
+# Segredos e configuracoes locais
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.test
+
+# Dados e caches locais do Cime
+CimeDados/
+__pycache__/
+*.pyc
