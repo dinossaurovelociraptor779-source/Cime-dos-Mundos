@@ -89,7 +89,7 @@ class handler(BaseHTTPRequestHandler):
             parsed=urlparse(self.path)
             # Google login has a dedicated public alias. If Vercel ever sends
             # that request through the generic gateway, normalize it before
-            # delegating to server_v5 so it can never end in "Rota não encontrada".
+            # delegating to server_v5 so it can never end in "Rota nÃ£o encontrada".
             if parsed.path in ("/api/google_login","/api/google-login"):
                 self.path="/api/auth/google/credential"
                 if parsed.query:
@@ -137,7 +137,7 @@ class handler(BaseHTTPRequestHandler):
                 except Exception as exc:
                     raw=json.dumps({
                         "ok":False,
-                        "error":"Backend Python não conseguiu processar a solicitação.",
+                        "error":"Backend Python nÃ£o conseguiu processar a solicitaÃ§Ã£o.",
                         "detail":str(exc)[:800]
                     },ensure_ascii=False,separators=(",",":")).encode("utf-8")
                     self.send_response(500)
@@ -149,7 +149,7 @@ class handler(BaseHTTPRequestHandler):
         except PersistentStoreError as exc:
             raw=json.dumps({
                 "ok":False,
-                "error":"O armazenamento permanente do Cime está indisponível. A alteração não foi confirmada.",
+                "error":"O armazenamento permanente do Cime estÃ¡ indisponÃ­vel. A alteraÃ§Ã£o nÃ£o foi confirmada.",
                 "code":getattr(exc,"code","CIME_PERSISTENCE_UNAVAILABLE")
             },ensure_ascii=False,separators=(",",":")).encode("utf-8")
             self.send_response(503)
@@ -203,7 +203,7 @@ class handler(BaseHTTPRequestHandler):
             from api.qr import handler as QRHandler
             QRHandler.do_GET(self)
         except Exception as exc:
-            raw=json.dumps({"error":"QR indisponível.","detail":str(exc)[:300]},
+            raw=json.dumps({"error":"QR indisponÃ­vel.","detail":str(exc)[:300]},
                            ensure_ascii=False,separators=(",",":")).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type","application/json; charset=utf-8")
@@ -213,8 +213,28 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(raw)
         return True
 
+    def _health_fallback_get(self):
+        path = (urlparse(self.path).path.rstrip("/") or "/")
+        if path not in ("/api/health", "/api/cime_health", "/health"):
+            return False
+        try:
+            from api.health import handler as HealthHandler
+            HealthHandler.do_GET(self)
+        except Exception as exc:
+            raw = json.dumps({"ok": False, "error": "Health indisponÃ­vel.", "detail": str(exc)[:300]},
+                             ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+        return True
+
     def do_GET(self):
         self._restore_route()
+        if self._health_fallback_get():
+            return
         if self._qr_fallback_get():
             return
         if self._google_fallback_get():
@@ -238,3 +258,4 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self._restore_route()
         return self._run("do_OPTIONS")
+

@@ -135,7 +135,7 @@ class handler(BaseHTTPRequestHandler):
             raw = json.dumps({
                 "ok": False,
                 "version": "5.0",
-                "error": "Não foi possível acessar ou salvar os dados permanentes do Cime.",
+                "error": "NÃ£o foi possÃ­vel acessar ou salvar os dados permanentes do Cime.",
                 "code": getattr(exc, "code", "CIME_PERSISTENCE_UNAVAILABLE"),
             }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             try:
@@ -151,7 +151,7 @@ class handler(BaseHTTPRequestHandler):
             raw = json.dumps({
                 "ok": False,
                 "version": "5.0",
-                "error": "Backend Python não conseguiu inicializar.",
+                "error": "Backend Python nÃ£o conseguiu inicializar.",
                 "detail": str(exc),
             }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             try:
@@ -187,12 +187,41 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
+    def _health_fallback_get(self):
+        from urllib.parse import parse_qs, urlparse
+
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        if path not in ("/api/health", "/api/cime_health", "/health") and "1" not in parse_qs(parsed.query).get("health", []):
+            return False
+        self._health()
+        return True
+
+    def _qr_fallback_get(self):
+        from urllib.parse import urlparse
+
+        if (urlparse(self.path).path.rstrip("/") or "/") != "/api/qr":
+            return False
+        try:
+            from api.qr import handler as QRHandler
+            QRHandler.do_GET(self)
+        except Exception as exc:
+            raw = json.dumps({"error": "QR indisponÃ­vel.", "detail": str(exc)[:300]},
+                             ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+        return True
+
     def do_GET(self):
         self._restore_route()
-        path = self.path.split("?", 1)[0].rstrip("/") or "/"
-        qs = self.path.split("?", 1)[1] if "?" in self.path else ""
-        if path in ("/api/health", "/health") or "health=1" in qs:
-            return self._health()
+        if self._health_fallback_get():
+            return
+        if self._qr_fallback_get():
+            return
         return self._delegate("do_GET")
 
     def do_POST(self):
@@ -210,3 +239,4 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self._restore_route()
         return self._delegate("do_OPTIONS")
+
