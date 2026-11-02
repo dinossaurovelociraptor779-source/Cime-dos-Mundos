@@ -9,6 +9,7 @@ class VercelRoutingRegressionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.app = (ROOT / "app.html").read_text(encoding="utf-8")
         cls.gateway = (ROOT / "api" / "cime.py").read_text(encoding="utf-8")
 
     def test_frontend_uses_canonical_api_paths(self):
@@ -35,6 +36,10 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertEqual(rewrites.get("/api/:path*"), "/api/cime?__cime_path=/api/:path*")
         self.assertIn("if self._health_fallback_get():", self.gateway)
         self.assertIn('path == "/api/persistence/health"', self.gateway)
+
+    def test_details_panel_uses_its_single_close_control(self):
+        self.assertIn("data-panel-close", self.app)
+        self.assertNotIn('$("closeDetails").onclick', self.app)
 
     def test_all_mutating_get_routes_are_persisted(self):
         self.assertIn("def _is_write_request(method, path):", self.gateway)
