@@ -1,0 +1,20 @@
+name: Cime Python syntax check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/gemini-smart-vision]
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile server modules
+        run: python -m py_compile server_legacy.py server_v5.py
