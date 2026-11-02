@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +26,15 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn("def _qr_fallback_get(self):", self.gateway)
         self.assertIn('!= "/api/qr":', self.gateway)
         self.assertIn("if self._qr_fallback_get():", self.gateway)
+
+    def test_public_health_qr_and_persistence_routes_use_gateway(self):
+        config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+        rewrites = {rule["source"]: rule["destination"] for rule in config["rewrites"]}
+        for path in ("/api/health", "/api/cime_health", "/api/qr", "/api/persistence/health"):
+            self.assertNotIn(path, rewrites)
+        self.assertEqual(rewrites.get("/api/:path*"), "/api/cime?__cime_path=/api/:path*")
+        self.assertIn("if self._health_fallback_get():", self.gateway)
+        self.assertIn('path == "/api/persistence/health"', self.gateway)
 
     def test_all_mutating_get_routes_are_persisted(self):
         self.assertIn("def _is_write_request(method, path):", self.gateway)
