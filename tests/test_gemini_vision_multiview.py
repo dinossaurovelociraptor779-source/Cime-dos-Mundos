@@ -57,6 +57,7 @@ class GeminiVisionMultiViewTests(unittest.TestCase):
         self.assertEqual(result["vision_engine"], "gemini-multiview-v2")
         parts = post.call_args.kwargs["json"]["contents"][0]["parts"]
         self.assertEqual(sum("inline_data" in part for part in parts), 1)
+        self.assertEqual(post.call_args.kwargs["json"]["generationConfig"]["thinkingConfig"]["thinkingLevel"], "LOW")
 
     def test_deep_mode_sends_full_image_and_two_detail_crops(self):
         response = self._mock_response()
@@ -74,6 +75,7 @@ class GeminiVisionMultiViewTests(unittest.TestCase):
         parts = post.call_args.kwargs["json"]["contents"][0]["parts"]
         self.assertEqual(sum("inline_data" in part for part in parts), 3)
         self.assertEqual(post.call_args.kwargs["timeout"], 14)
+        self.assertEqual(post.call_args.kwargs["json"]["generationConfig"]["thinkingConfig"]["thinkingLevel"], "MEDIUM")
 
 
 if __name__ == "__main__":
