@@ -19,6 +19,9 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn("return String(path||'');", helper)
         self.assertNotIn("return '/api/cime?__cime_path='", helper)
 
+    def test_app_checks_auth_status_on_the_canonical_route(self):
+        self.assertIn("/api/auth/status", self.app)
+
     def test_gateway_ignores_gateway_sentinel_when_restoring_route(self):
         self.assertIn("candidates=[str(value or \"\").strip() for value in q.get(\"__cime_path\",[])]", self.gateway)
         self.assertIn("(value.rstrip(\"/\") or \"/\")!=\"/api/cime\"", self.gateway)
@@ -28,7 +31,7 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn('!= "/api/qr":', self.gateway)
         self.assertIn("if self._qr_fallback_get():", self.gateway)
 
-    def test_public_health_qr_and_persistence_routes_use_gateway(self):
+    def test_health_qr_and_persistence_routes_use_gateway(self):
         config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
         rewrites = {rule["source"]: rule["destination"] for rule in config["rewrites"]}
         for path in ("/api/health", "/api/cime_health", "/api/qr", "/api/persistence/health"):
@@ -36,10 +39,6 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertEqual(rewrites.get("/api/:path*"), "/api/cime?__cime_path=/api/:path*")
         self.assertIn("if self._health_fallback_get():", self.gateway)
         self.assertIn('path == "/api/persistence/health"', self.gateway)
-
-    def test_details_panel_uses_its_single_close_control(self):
-        self.assertIn("data-panel-close", self.app)
-        self.assertNotIn('$("closeDetails").onclick', self.app)
 
     def test_all_mutating_get_routes_are_persisted(self):
         self.assertIn("def _is_write_request(method, path):", self.gateway)
@@ -53,6 +52,22 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn("Do not handle OAuth here: direct responses bypass the persistent", self.gateway)
         self.assertIn("with request_context(write=True) as store:", self.gateway)
 
+    def test_persistence_health_is_public_through_the_gateway(self):
+        server = (ROOT / "server_v5.py").read_text(encoding="utf-8")
+        self.assertIn("'/api/persistence/health'", server)
+        self.assertIn("if path=='/api/persistence/health':", server)
+        self.assertIn("with request_context(write=write) as store:", (ROOT / "api" / "index.py").read_text(encoding="utf-8"))
+
+    def test_details_panel_uses_its_single_close_control(self):
+        self.assertIn("data-panel-close", self.app)
+        self.assertNotIn('$("closeDetails").onclick', self.app)
+
+    def test_cloud_adapters_preserve_host_specific_oauth_origin(self):
+        self.assertIn('os.environ.setdefault("CIME_DEPLOYMENT", "vercel")', self.gateway)
+        self.assertIn('os.environ["CIME_DEPLOYMENT"].lower() == "vercel"', self.gateway)
+        self.assertIn('os.getenv("RENDER_EXTERNAL_URL")', self.gateway)
+        self.assertIn("public_origin()", (ROOT / "server_v5.py").read_text(encoding="utf-8"))
+
     def test_backend_routing_module_parses(self):
         import ast
         ast.parse(self.gateway)
@@ -60,3 +75,4 @@ class VercelRoutingRegressionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

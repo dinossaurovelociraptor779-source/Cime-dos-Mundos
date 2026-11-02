@@ -9,11 +9,17 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("CIME_DATA_DIR", "/tmp/CimeDados")
 os.environ.setdefault("CIME_PORT", "80")
 os.environ.setdefault("CIME_BIND", "0.0.0.0")
-os.environ["CIME_DEPLOYMENT"] = "vercel"
+os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
 # OAuth MUST use one fixed production callback. Do not let VERCEL_URL or an old
 # Vercel environment variable replace it, because Google compares redirect_uri exactly.
-os.environ["CIME_PUBLIC_URL"] = "https://cime-dos-mundos.vercel.app"
-os.environ["GOOGLE_REDIRECT_URI"] = os.environ["CIME_PUBLIC_URL"] + "/oauth/google/callback"
+if os.environ["CIME_DEPLOYMENT"].lower() == "vercel":
+    os.environ["CIME_PUBLIC_URL"] = "https://cime-dos-mundos.vercel.app"
+    os.environ["GOOGLE_REDIRECT_URI"] = os.environ["CIME_PUBLIC_URL"] + "/oauth/google/callback"
+else:
+    public_url = str(os.getenv("RENDER_EXTERNAL_URL") or os.getenv("CIME_PUBLIC_URL") or "").strip().rstrip("/")
+    if public_url:
+        os.environ["CIME_PUBLIC_URL"] = public_url
+        os.environ["GOOGLE_REDIRECT_URI"] = public_url + "/oauth/google/callback"
 
 _HANDLER_CLASS = None
 _IMPORT_ERROR = None
@@ -84,7 +90,7 @@ class handler(BaseHTTPRequestHandler):
             "ok": True,
             "version": "5.0",
             "service": "Cime dos Mundos",
-            "deployment": "vercel",
+            "deployment": os.getenv("CIME_DEPLOYMENT", "vercel"),
             "online": bool(public),
             "public_url": public or None,
         }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -97,9 +103,8 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def _delegate(self, method):
-        # Vercel instances have ephemeral /tmp storage. Hydrate the local SQLite
-        # directory from PostgreSQL for every request and persist every mutation
-        # before the HTTP response is sent to the browser.
+        # Cloud instances have ephemeral storage. Hydrate local SQLite from
+        # PostgreSQL for every request and persist every mutation before reply.
         from urllib.parse import urlparse
         from cime_persistent_store import request_context, PersistentStoreError
 
@@ -123,13 +128,14 @@ class handler(BaseHTTPRequestHandler):
             with request_context(write=write) as store:
                 if store is not None:
                     store.attach_response(self)
+                self._cime_request_store = store
                 gateway = _load_gateway()
                 return getattr(gateway, method)(self)
         except PersistentStoreError as exc:
             raw = json.dumps({
                 "ok": False,
                 "version": "5.0",
-                "error": "Não foi possível acessar ou salvar os dados permanentes do Cime.",
+                "error": "NÃ£o foi possÃ­vel acessar ou salvar os dados permanentes do Cime.",
                 "code": getattr(exc, "code", "CIME_PERSISTENCE_UNAVAILABLE"),
             }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             try:
@@ -145,7 +151,7 @@ class handler(BaseHTTPRequestHandler):
             raw = json.dumps({
                 "ok": False,
                 "version": "5.0",
-                "error": "Backend Python não conseguiu inicializar.",
+                "error": "Backend Python nÃ£o conseguiu inicializar.",
                 "detail": str(exc),
             }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             try:
@@ -163,55 +169,59 @@ class handler(BaseHTTPRequestHandler):
         # Preserve the original pathname in an internal query parameter so
         # Gateway keeps seeing the real route (e.g. /api/auth/login).
         try:
+            raw_q = self.path.split("?", 1)[1] if "?" in self.path else ""
             from urllib.parse import parse_qs, urlencode, urlparse
-            q = parse_qs(urlparse(self.path).query, keep_blank_values=True)
-            candidates = [str(value or "").strip() for value in q.get("__cime_path", [])]
-            original = next((value for value in reversed(candidates)
-                             if value.startswith("/") and (value.rstrip("/") or "/") != "/api/cime"), "")
-            if original:
-                clean = []
-                for key, vals in q.items():
-                    if key == "__cime_path":
-                        continue
-                    for value in vals:
-                        clean.append((key, value))
-                self.path = original.rstrip("/") or "/"
-                if clean:
-                    self.path += "?" + urlencode(clean, doseq=True)
-
-            parsed = urlparse(self.path)
-            if parsed.path in ("/api/google_login", "/api/google-login"):
-                self.path = "/api/auth/google/credential" + (("?" + parsed.query) if parsed.query else "")
+            q = parse_qs(raw_q, keep_blank_values=True)
+            original = str((q.get("__cime_path") or [""])[0] or "").strip()
+            if not original:
                 return
-            if parsed.path == "/api/cime" or parsed.path.startswith("/api/cime/"):
-                suffix = parsed.path[len("/api/cime"):] or "/"
-                self.path = "/api" + suffix + (("?" + parsed.query) if parsed.query else "")
+            clean = []
+            for key, vals in q.items():
+                if key == "__cime_path":
+                    continue
+                for value in vals:
+                    clean.append((key, value))
+            suffix = ("?" + urlencode(clean, doseq=True)) if clean else ""
+            self.path = original.rstrip("/") or "/" 
+            self.path += suffix
         except Exception:
             pass
 
+    def _health_fallback_get(self):
+        from urllib.parse import parse_qs, urlparse
+
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        if path not in ("/api/health", "/api/cime_health", "/health") and "1" not in parse_qs(parsed.query).get("health", []):
+            return False
+        self._health()
+        return True
+
+    def _qr_fallback_get(self):
+        from urllib.parse import urlparse
+
+        if (urlparse(self.path).path.rstrip("/") or "/") != "/api/qr":
+            return False
+        try:
+            from api.qr import handler as QRHandler
+            QRHandler.do_GET(self)
+        except Exception as exc:
+            raw = json.dumps({"error": "QR indisponÃ­vel.", "detail": str(exc)[:300]},
+                             ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+        return True
+
     def do_GET(self):
         self._restore_route()
-        path = self.path.split("?", 1)[0].rstrip("/") or "/"
-        qs = self.path.split("?", 1)[1] if "?" in self.path else ""
-        if path in ("/api/health", "/api/cime_health", "/health") or "health=1" in qs:
-            return self._health()
-        if path == "/api/persistence/health":
-            from api.persistence_health import handler as PersistenceHandler
-            return PersistenceHandler.do_GET(self)
-        if path == "/api/qr":
-            try:
-                from api.qr import handler as QRHandler
-                return QRHandler.do_GET(self)
-            except Exception as exc:
-                raw = json.dumps({"error": "QR indisponível.", "detail": str(exc)[:300]},
-                                 ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-                self.send_response(500)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("Content-Length", str(len(raw)))
-                self.end_headers()
-                self.wfile.write(raw)
-                return
+        if self._health_fallback_get():
+            return
+        if self._qr_fallback_get():
+            return
         return self._delegate("do_GET")
 
     def do_POST(self):
@@ -229,3 +239,4 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self._restore_route()
         return self._delegate("do_OPTIONS")
+

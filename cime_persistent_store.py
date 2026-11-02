@@ -1,10 +1,10 @@
-"""Durable snapshot storage for Cime's existing SQLite databases on Vercel.
+"""Durable snapshot storage for Cime's existing SQLite databases.
 
-The app still uses SQLite internally. On Vercel, the full Cime data directory
-(auth DB, per-user libraries, and media) is loaded/saved as one compressed
-snapshot in the project's Neon PostgreSQL database. A PostgreSQL advisory lock
-serializes requests across serverless instances so concurrent saves do not
-silently overwrite each other.
+The app still uses SQLite internally. On Vercel and configured Render
+deployments, the full Cime data directory (auth DB, per-user libraries, and
+media) is loaded/saved as one compressed PostgreSQL snapshot. A PostgreSQL
+advisory lock serializes requests so concurrent saves do not silently overwrite
+each other.
 """
 from __future__ import annotations
 
@@ -14,8 +14,10 @@ import os
 import shutil
 import sqlite3
 import threading
+import tempfile
+import uuid
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Iterator
 
 DATA_DIR = Path(os.getenv("CIME_DATA_DIR", "/tmp/CimeDados")).resolve()
@@ -28,10 +30,15 @@ CREATE TABLE IF NOT EXISTS public.cime_runtime_snapshot (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 )
 """
+TABLE_SECURITY_SQL = (
+    "ALTER TABLE public.cime_runtime_snapshot ENABLE ROW LEVEL SECURITY",
+    "REVOKE ALL ON TABLE public.cime_runtime_snapshot FROM PUBLIC",
+)
 MAX_SNAPSHOT_BYTES = 128 * 1024 * 1024
 MAX_UNPACKED_BYTES = 512 * 1024 * 1024
 _LOCAL_LOCK = threading.RLock()
 _LOADED_VERSION: int | None = None
+_TABLE_READY = False
 
 
 class PersistentStoreError(RuntimeError):
@@ -124,6 +131,9 @@ class RequestStore:
 
 def _database_url() -> str:
     for name in (
+        "CIME_DATABASE_URL",
+        "SUPABASE_DB_URL",
+        "SUPABASE_DATABASE_URL",
         "POSTGRES_URL_NON_POOLING",
         "DATABASE_URL_UNPOOLED",
         "POSTGRES_URL",
@@ -133,6 +143,24 @@ def _database_url() -> str:
         if value:
             return value
     raise PersistentStoreError("A conexão PostgreSQL do Cime não está configurada.")
+
+
+def _persistent_store_enabled() -> bool:
+    """Vercel always requires durable storage; other hosts opt in explicitly."""
+    if str(os.getenv("CIME_DEPLOYMENT", "")).strip().lower() == "vercel":
+        return True
+    configured = str(os.getenv("CIME_PERSISTENT_STORE", "")).strip().lower()
+    return configured in {"1", "true", "yes", "on"}
+
+
+def _ensure_schema(cursor) -> None:
+    global _TABLE_READY
+    if _TABLE_READY:
+        return
+    cursor.execute(TABLE_SQL)
+    for statement in TABLE_SECURITY_SQL:
+        cursor.execute(statement)
+    _TABLE_READY = True
 
 
 def _connect():
@@ -153,36 +181,53 @@ def _connect():
         raise PersistentStoreError("Não foi possível conectar ao banco permanente do Cime.") from exc
 
 
-def _clear_data_dir() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    for child in DATA_DIR.iterdir():
-        try:
-            if child.is_dir() and not child.is_symlink():
-                shutil.rmtree(child)
-            else:
-                child.unlink(missing_ok=True)
-        except FileNotFoundError:
-            pass
-
-
 def _restore_data_dir(payload: bytes) -> None:
+    root = DATA_DIR.resolve()
+    root.parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(tempfile.mkdtemp(prefix=f".{root.name}.restore-", dir=root.parent))
+    backup = root.with_name(f".{root.name}.backup-{uuid.uuid4().hex}")
+    moved_old_data = False
     try:
         with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
             infos = archive.infolist()
+            if len(infos) > 100000:
+                raise PersistentStoreError("O backup contém uma quantidade inválida de arquivos.")
             total = sum(max(0, int(item.file_size)) for item in infos)
             if total > MAX_UNPACKED_BYTES:
-                raise PersistentStoreError("O backup permanente excede o limite de restauração.")
-            root = DATA_DIR.resolve()
+                raise PersistentStoreError("O backup excede o tamanho seguro de restauração.")
             for item in infos:
-                target = (root / item.filename).resolve()
-                if target != root and root not in target.parents:
+                posix_name = PurePosixPath(item.filename.replace("\\", "/"))
+                windows_name = PureWindowsPath(item.filename)
+                if (posix_name.is_absolute() or windows_name.is_absolute() or windows_name.drive
+                        or not posix_name.parts
+                        or any(part in ("", ".", "..") for part in posix_name.parts)):
                     raise PersistentStoreError("O backup contém um caminho inválido.")
-            _clear_data_dir()
-            archive.extractall(root)
+                target = (stage.joinpath(*posix_name.parts)).resolve()
+                if target != stage and stage not in target.parents:
+                    raise PersistentStoreError("O backup contém um caminho inválido.")
+            archive.extractall(stage)
+        if root.exists():
+            os.replace(root, backup)
+            moved_old_data = True
+        try:
+            os.replace(stage, root)
+        except Exception:
+            if moved_old_data and backup.exists():
+                os.replace(backup, root)
+                moved_old_data = False
+            raise
+        if moved_old_data:
+            shutil.rmtree(backup, ignore_errors=True)
+            moved_old_data = False
     except PersistentStoreError:
         raise
     except Exception as exc:
         raise PersistentStoreError("Não foi possível restaurar os dados permanentes do Cime.") from exc
+    finally:
+        if stage.exists():
+            shutil.rmtree(stage, ignore_errors=True)
+        if moved_old_data and backup.exists() and not root.exists():
+            os.replace(backup, root)
 
 
 def _checkpoint_sqlite_files() -> None:
@@ -191,16 +236,19 @@ def _checkpoint_sqlite_files() -> None:
     for path in DATA_DIR.rglob("*.db"):
         if not path.is_file():
             continue
+        db = None
         try:
-            with contextlib.closing(sqlite3.connect(str(path), timeout=5)) as db:
-                row = db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-                if row and int(row[0] or 0) != 0:
-                    raise PersistentStoreError("Um banco SQLite está ocupado durante a gravação.")
+            db = sqlite3.connect(str(path), timeout=5)
+            row = db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if row and int(row[0] or 0) != 0:
+                raise PersistentStoreError("Um banco SQLite está ocupado durante a gravação.")
         except PersistentStoreError:
             raise
         except Exception as exc:
             raise PersistentStoreError("Não foi possível preparar os arquivos do Cime para gravação.") from exc
-
+        finally:
+            if db is not None:
+                db.close()
 
 def _pack_data_dir() -> bytes:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -231,7 +279,7 @@ def _pack_data_dir() -> bytes:
 def request_context(write: bool = False) -> Iterator[RequestStore | None]:
     """Acquire the cross-instance lock and hydrate the local SQLite directory."""
     global _LOADED_VERSION
-    if str(os.getenv("CIME_DEPLOYMENT", "")).lower() != "vercel":
+    if not _persistent_store_enabled():
         yield None
         return
 
@@ -244,7 +292,7 @@ def request_context(write: bool = False) -> Iterator[RequestStore | None]:
                 cursor.execute("SET statement_timeout = '45000ms'")
                 cursor.execute("SELECT pg_advisory_lock(%s)", (LOCK_KEY,))
                 locked = True
-                cursor.execute(TABLE_SQL)
+                _ensure_schema(cursor)
                 cursor.execute(
                     "SELECT version, payload FROM public.cime_runtime_snapshot WHERE singleton = 1"
                 )

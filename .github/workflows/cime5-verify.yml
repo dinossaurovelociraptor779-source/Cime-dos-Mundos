@@ -3,14 +3,16 @@ name: Cime 5.0 verification
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      # Chave descartável, exclusiva dos testes locais do CI. Nunca é usada na Vercel.
-      CIME_SESSION_SECRET: "ci-only-not-a-production-secret-5-0-verification-key-2026"
+      # Chave descartÃ¡vel, exclusiva dos testes locais do CI. Nunca Ã© usada na Vercel.
+      CIME_SESSION_SECRET: "ci-only-not-a-production-secret-5-0-verification-key-2026-long-test-value"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +26,7 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Compile Python
-        run: python -m compileall -q api server_v5.py server_legacy.py cime_persistent_store.py
+        run: python -m compileall -q api server_v5.py server_legacy.py cime_persistent_store.py render_server.py
 
       - name: Run regression and persistence tests
         run: python -m unittest discover -s tests -v
@@ -114,9 +116,14 @@ jobs:
               for _ in range(2):
                   status, body, _, raw = call("GET", "/api/auth/status")
                   assert status == 200 and body.get("authenticated") is False, (status, raw[:400])
+                  assert body.get("google_js_origin") == "https://cime-dos-mundos.vercel.app", body
               page, ctype, _ = expect("GET", "/app.html", 200)
               assert "text/html" in ctype and "Cime dos Mundos" in page
               expect("GET", "/app.html", 200)
+              health, _, _ = expect("GET", "/api/health", 200)
+              assert health.get("ok") is True, health
+              persistence, _, _ = expect("GET", "/api/persistence/health", 503)
+              assert persistence.get("persistent") is False, persistence
               expect("GET", "/api/bootstrap", 401)
 
               first, _, _ = expect(
@@ -196,6 +203,10 @@ jobs:
               for _ in range(2):
                   index_status, _, _ = expect_index("GET", "/api/auth/status", 200, token=creator_token)
                   assert index_status["authenticated"] is True
+              health, _, _ = expect_index("GET", "/api/health", 200)
+              assert health.get("ok") is True, health
+              persistence, _, _ = expect_index("GET", "/api/persistence/health", 503)
+              assert persistence.get("persistent") is False, persistence
               index_title, _, _ = expect_index(
                   "POST", "/api/titles", 201,
                   {"name": "Cime CI Index Wrapper Title", "category": "Anime", "status": "Quero assistir"},
@@ -223,12 +234,13 @@ jobs:
           import json
           from pathlib import Path
           html = Path("index.html").read_text(encoding="utf-8")
+          app_html = Path("app.html").read_text(encoding="utf-8")
           config = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
           cime_wrapper = Path("api/cime.py").read_text(encoding="utf-8")
           index_wrapper = Path("api/index.py").read_text(encoding="utf-8")
           assert "https://accounts.google.com/gsi/client" in html
           assert "/api/auth/google/credential" in html
-          assert "/api/auth/status?ts=" in html
+          assert "/api/auth/status" in app_html
           assert "function cimeBackendPath(path)" in html
           assert "fetch(cimeBackendPath(path)" in html
           assert "location.assign('/oauth/google/start')" not in html
@@ -241,3 +253,4 @@ jobs:
           assert 'def do_PUT(self):' in index_wrapper and 'def do_DELETE(self):' in index_wrapper
           print("Frontend auth wiring, stable Vercel dispatch and API routes: OK")
           PY
+

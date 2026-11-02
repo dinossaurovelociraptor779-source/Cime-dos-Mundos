@@ -10,9 +10,15 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("CIME_DATA_DIR","/tmp/CimeDados")
 os.environ.setdefault("CIME_PORT","80")
 os.environ.setdefault("CIME_BIND","0.0.0.0")
-os.environ["CIME_DEPLOYMENT"]="vercel"
-os.environ["CIME_PUBLIC_URL"]="https://cime-dos-mundos.vercel.app"
-os.environ["GOOGLE_REDIRECT_URI"]=os.environ["CIME_PUBLIC_URL"]+"/oauth/google/callback"
+os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
+if os.environ["CIME_DEPLOYMENT"].lower() == "vercel":
+    os.environ["CIME_PUBLIC_URL"]="https://cime-dos-mundos.vercel.app"
+    os.environ["GOOGLE_REDIRECT_URI"]=os.environ["CIME_PUBLIC_URL"]+"/oauth/google/callback"
+else:
+    public_url = str(os.getenv("RENDER_EXTERNAL_URL") or os.getenv("CIME_PUBLIC_URL") or "").strip().rstrip("/")
+    if public_url:
+        os.environ["CIME_PUBLIC_URL"] = public_url
+        os.environ["GOOGLE_REDIRECT_URI"] = public_url + "/oauth/google/callback"
 
 _gateway=None
 _boot=False
@@ -23,8 +29,10 @@ def load_gateway():
         return _gateway
     import server_v5 as cime
     from server_v5 import Gateway,bootstrap
-    cime.public_lan_base=lambda:"https://cime-dos-mundos.vercel.app"
-    os.environ["GOOGLE_REDIRECT_URI"]="https://cime-dos-mundos.vercel.app/oauth/google/callback"
+    public_url = str(os.getenv("CIME_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
+    if public_url:
+        cime.public_lan_base=lambda:public_url
+        os.environ["GOOGLE_REDIRECT_URI"]=public_url+"/oauth/google/callback"
     if not _boot:
         bootstrap()
         _boot=True
@@ -81,7 +89,7 @@ class handler(BaseHTTPRequestHandler):
             parsed=urlparse(self.path)
             # Google login has a dedicated public alias. If Vercel ever sends
             # that request through the generic gateway, normalize it before
-            # delegating to server_v5 so it can never end in "Rota não encontrada".
+            # delegating to server_v5 so it can never end in "Rota nÃ£o encontrada".
             if parsed.path in ("/api/google_login","/api/google-login"):
                 self.path="/api/auth/google/credential"
                 if parsed.query:
@@ -104,6 +112,7 @@ class handler(BaseHTTPRequestHandler):
             with request_context(write=write_request) as store:
                 if store is not None:
                     store.attach_response(self)
+                self._cime_request_store = store
                 try:
                     cls=load_gateway()
                     # Copy only request helpers. Do not overwrite handler.do_GET/do_POST:
@@ -116,18 +125,19 @@ class handler(BaseHTTPRequestHandler):
 
                     if method == "do_GET" and path == "/api/persistence/health":
                         return self.send_json({
-                            "ok": True,
+                            "ok": bool(store is not None),
                             "version": "5.0",
-                            "storage": "Neon PostgreSQL" if store is not None else "local",
+                            "storage": "PostgreSQL" if store is not None else "not_configured",
                             "persistent": bool(store is not None),
+                            "database_connected": bool(store is not None),
                             "snapshot_exists": bool(store.snapshot_exists) if store is not None else False,
                             "snapshot_version": int(store.version) if store is not None else 0
-                        })
+                        }, 200 if store is not None else 503)
                     return getattr(cls,method)(self)
                 except Exception as exc:
                     raw=json.dumps({
                         "ok":False,
-                        "error":"Backend Python não conseguiu processar a solicitação.",
+                        "error":"Backend Python nÃ£o conseguiu processar a solicitaÃ§Ã£o.",
                         "detail":str(exc)[:800]
                     },ensure_ascii=False,separators=(",",":")).encode("utf-8")
                     self.send_response(500)
@@ -139,7 +149,7 @@ class handler(BaseHTTPRequestHandler):
         except PersistentStoreError as exc:
             raw=json.dumps({
                 "ok":False,
-                "error":"O armazenamento permanente do Cime está indisponível. A alteração não foi confirmada.",
+                "error":"O armazenamento permanente do Cime estÃ¡ indisponÃ­vel. A alteraÃ§Ã£o nÃ£o foi confirmada.",
                 "code":getattr(exc,"code","CIME_PERSISTENCE_UNAVAILABLE")
             },ensure_ascii=False,separators=(",",":")).encode("utf-8")
             self.send_response(503)
@@ -193,7 +203,7 @@ class handler(BaseHTTPRequestHandler):
             from api.qr import handler as QRHandler
             QRHandler.do_GET(self)
         except Exception as exc:
-            raw=json.dumps({"error":"QR indisponível.","detail":str(exc)[:300]},
+            raw=json.dumps({"error":"QR indisponÃ­vel.","detail":str(exc)[:300]},
                            ensure_ascii=False,separators=(",",":")).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type","application/json; charset=utf-8")
@@ -211,7 +221,7 @@ class handler(BaseHTTPRequestHandler):
             from api.health import handler as HealthHandler
             HealthHandler.do_GET(self)
         except Exception as exc:
-            raw = json.dumps({"ok": False, "error": "Health indisponível.", "detail": str(exc)[:300]},
+            raw = json.dumps({"ok": False, "error": "Health indisponÃ­vel.", "detail": str(exc)[:300]},
                              ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -248,3 +258,4 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self._restore_route()
         return self._run("do_OPTIONS")
+
