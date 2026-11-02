@@ -223,12 +223,14 @@ jobs:
           import json
           from pathlib import Path
           html = Path("index.html").read_text(encoding="utf-8")
+          app_html = Path("app.html").read_text(encoding="utf-8")
           config = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
           cime_wrapper = Path("api/cime.py").read_text(encoding="utf-8")
           index_wrapper = Path("api/index.py").read_text(encoding="utf-8")
           assert "https://accounts.google.com/gsi/client" in html
           assert "/api/auth/google/credential" in html
-          assert "/api/auth/status?ts=" in html
+          assert "cimeApiUrl('/api/auth/status')" in app_html
+          assert "api('/api/bootstrap')" in app_html
           assert "function cimeBackendPath(path)" in html
           assert "fetch(cimeBackendPath(path)" in html
           assert "location.assign('/oauth/google/start')" not in html
