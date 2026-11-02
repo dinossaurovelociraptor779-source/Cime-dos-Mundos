@@ -19,6 +19,9 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn("return String(path||'');", helper)
         self.assertNotIn("return '/api/cime?__cime_path='", helper)
 
+    def test_app_checks_auth_status_on_the_canonical_route(self):
+        self.assertIn("/api/auth/status", self.app)
+
     def test_gateway_ignores_gateway_sentinel_when_restoring_route(self):
         self.assertIn("candidates=[str(value or \"\").strip() for value in q.get(\"__cime_path\",[])]", self.gateway)
         self.assertIn("(value.rstrip(\"/\") or \"/\")!=\"/api/cime\"", self.gateway)
