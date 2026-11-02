@@ -54,7 +54,7 @@ class GeminiVisionMultiViewTests(unittest.TestCase):
 
         self.assertTrue(result["recognized"])
         self.assertEqual(result["title"], "Wistoria: Wand and Sword")
-        self.assertEqual(result["vision_engine"], "gemini-multiview-v2")
+        self.assertEqual(result["vision_engine"], "gemini-multiview-v3")
         parts = post.call_args.kwargs["json"]["contents"][0]["parts"]
         self.assertEqual(sum("inline_data" in part for part in parts), 1)
         self.assertEqual(post.call_args.kwargs["json"]["generationConfig"]["thinkingConfig"]["thinkingLevel"], "LOW")
