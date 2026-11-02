@@ -10,6 +10,7 @@ class VercelRoutingRegressionTests(unittest.TestCase):
     def setUpClass(cls):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
         cls.app = (ROOT / "app.html").read_text(encoding="utf-8")
+        cls.app_core = (ROOT / "app_core.html").read_text(encoding="utf-8")
         cls.gateway = (ROOT / "api" / "cime.py").read_text(encoding="utf-8")
         cls.worker = (ROOT / "service-worker.js").read_text(encoding="utf-8")
         cls.server = (ROOT / "server_v5.py").read_text(encoding="utf-8")
@@ -66,6 +67,31 @@ class VercelRoutingRegressionTests(unittest.TestCase):
     def test_panel_displays_retry_when_episode_history_fails(self):
         self.assertIn("data-panel-retry", self.app)
         self.assertIn("Não foi possível carregar temporadas e episódios agora.", self.app)
+
+    def test_episode_controls_use_only_the_selected_season_total(self):
+        self.assertIn("function currentSeasonEpisodeTotal(x,season=x?.current_season)", self.app)
+        self.assertIn("const currentTotal=currentSeasonEpisodeTotal(x,currentSeason);", self.app)
+        self.assertIn("const currentTotal=currentSeasonEpisodeTotal(x,cs);", self.app_core)
+        self.assertNotIn("currentInfo?.episodes||x.episodes||0", self.app)
+        self.assertIn("${currentTotal?`<div class=\"episode-track\"", self.app)
+
+    def test_movie_cards_hide_season_labels_and_next_episode_controls(self):
+        self.assertIn('function isFilmTitle(x){', self.app)
+        self.assertIn('function franchiseLabel(x){if(isFilmTitle(x))return"";', self.app)
+        self.assertIn('function nextPosition(x){if(isFilmTitle(x))return null;', self.app)
+        self.assertIn('function franchiseLabel(x){if(isFilmTitle(x))return"";', self.app_core)
+        self.assertIn('function nextPosition(x){if(isFilmTitle(x))return null;', self.app_core)
+
+    def test_progress_filter_keeps_unknown_separate_from_zero_percent(self):
+        self.assertIn('a.progress==="unknown"?p==null', self.app)
+        self.assertIn('a.progress==="none"?p===0', self.app)
+        self.assertIn('option value="unknown">Progresso pendente ou total desconhecido', self.app)
+        self.assertIn('option value="none">Sem progresso (0%)', self.app)
+
+    def test_details_still_render_personal_rating_and_written_review(self):
+        self.assertIn('field("Nota pessoal",x.rating', self.app)
+        self.assertIn('String(x.notes||"").trim()', self.app)
+        self.assertIn("📝 Minha avaliação</h3>", self.app)
 
     def test_all_mutating_get_routes_are_persisted(self):
         self.assertIn("def _is_write_request(method, path):", self.gateway)
