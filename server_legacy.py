@@ -62,9 +62,13 @@ KNOWN_ANIME_ALIASES = {
 
 USER_AGENT = "CimeDosMundos/5.0 BETA SMART VISION PT"
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_VISION_MODEL = os.getenv("GEMINI_VISION_MODEL", "gemini-3.8-flash").strip()
+GEMINI_GENERATE_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-5.6-sol").strip()
-OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", "gpt-5.6-sol").strip()
+OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-6.1-terra").strip()
+OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", "gpt-6.1-sol").strip()
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 OPENAI_VISION_TIMEOUT = 8
 OPENAI_VISION_DEEP_TIMEOUT = 12
@@ -167,7 +171,8 @@ REGRAS CRÍTICAS:
 """
 
 def vision_configured():
-    return bool(OPENAI_API_KEY)
+    # Smart Vision pode usar Gemini (chave já configurada no deploy) ou OpenAI.
+    return bool(GEMINI_API_KEY or OPENAI_API_KEY)
 
 def _prepare_vision_image(image_bytes):
     image = Image.open(BytesIO(image_bytes)).convert("RGB")
@@ -273,13 +278,100 @@ def _prepare_vision_views(image_bytes, deep=False):
         views.append((name,out.getvalue()))
     return views
 
+def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
+    """Identificação visual via Gemini API, mantendo o mesmo contrato da Smart Vision."""
+    mode="deep" if deep else "fast"
+    cached=_vision_cache_get(image_bytes, mode) if GEMINI_API_KEY else None
+    if cached is not None and str(cached.get("model") or "") == GEMINI_VISION_MODEL:
+        return cached
+    if not GEMINI_API_KEY:
+        return {"configured":False,"recognized":False,"reason":"GEMINI_API_KEY não configurada.","vision_mode":mode}
+    try:
+        prepared=_prepare_vision_image(image_bytes)
+        b64=base64.b64encode(prepared).decode("ascii")
+        depth_note=("ANÁLISE APROFUNDADA: compare a imagem inteira e os detalhes; confirme franquia, temporada/arco e episódio."
+                    if deep else
+                    "ANÁLISE RÁPIDA: identifique o título principal e só informe temporada/episódio se houver evidência visual.")
+        prompt=(VISION_SYSTEM+"\n"+depth_note+
+                "\nOCR auxiliar (pode estar errado, não trate como autoridade): "+str(ocr_hint or "")[:1800]+
+                "\nRetorne exclusivamente JSON válido com as chaves recognized,title,aliases,category,confidence,season,season_title,arc,episode,season_evidence,evidence,visible_title_text,alternatives. Não invente dados; use null para season/episode desconhecidos e arrays vazios quando necessário.")
+        payload={
+            "contents":[{"role":"user","parts":[
+                {"text":prompt},
+                {"inline_data":{"mime_type":"image/jpeg","data":b64}}
+            ]}],
+            "generationConfig":{"responseMimeType":"application/json","temperature":0.1,"maxOutputTokens":1200}
+        }
+        timeout=14 if deep else 10
+        response=requests.post(
+            GEMINI_GENERATE_URL.format(model=GEMINI_VISION_MODEL),
+            headers={"x-goog-api-key":GEMINI_API_KEY,"Content-Type":"application/json"},
+            json=payload,timeout=timeout
+        )
+        if not response.ok:
+            return {"configured":True,"recognized":False,"error":f"Gemini Vision HTTP {response.status_code}","detail":str(response.text or "")[:220],"model":GEMINI_VISION_MODEL,"vision_mode":mode}
+        data=response.json()
+        parts=((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+        output_text="\n".join(str(part.get("text") or "") for part in parts if isinstance(part,dict))
+        obj=_parse_json_from_text(output_text)
+        title=str(obj.get("title") or "").strip()
+        try: conf=max(0.0,min(1.0,float(obj.get("confidence") or 0)))
+        except Exception: conf=0.0
+        valid_title=_valid_ai_title(title)
+        recognized=bool(obj.get("recognized")) and valid_title and conf>=0.70
+        aliases=[str(x).strip() for x in (obj.get("aliases") or []) if str(x).strip()][:8]
+        alternatives=[]
+        for item in (obj.get("alternatives") or [])[:4]:
+            try:
+                alt_title=str(item.get("title") or "").strip()
+                alt_conf=max(0.0,min(1.0,float(item.get("confidence") or 0)))
+                if alt_title and _valid_ai_title(alt_title):
+                    alternatives.append({"title":alt_title,"confidence":alt_conf,"evidence":str(item.get("evidence") or "")})
+            except Exception:
+                continue
+        season=obj.get("season")
+        try: season=int(season) if season is not None else None
+        except Exception: season=None
+        episode=obj.get("episode")
+        try: episode=int(episode) if episode is not None else None
+        except Exception: episode=None
+        season_title=str(obj.get("season_title") or "")
+        arc=str(obj.get("arc") or "")
+        season_evidence=str(obj.get("season_evidence") or "")
+        hint=infer_season_from_title_text(" ".join([title,season_title,arc,str(obj.get("visible_title_text") or "")]))
+        if season is None and hint.get("verified_hint"): season=hint.get("season")
+        if not season_title and hint.get("season_title"): season_title=hint.get("season_title")
+        if not arc and hint.get("arc"): arc=hint.get("arc")
+        category=str(obj.get("category") or "")
+        if category not in ("Anime","Série","Filme","Desenho",""): category=""
+        result={
+            "configured":True,"recognized":recognized,"title":title if recognized else "",
+            "title_raw":title if valid_title else "","aliases":aliases,"category":category,
+            "confidence":conf,"season":season,"season_title":season_title,"arc":arc,
+            "episode":episode,"season_evidence":season_evidence,"evidence":str(obj.get("evidence") or ""),
+            "visible_title_text":str(obj.get("visible_title_text") or ""),"alternatives":alternatives,
+            "model":GEMINI_VISION_MODEL,"cached":False,"vision_mode":mode
+        }
+        _vision_cache_put(image_bytes,result,mode)
+        return result
+    except Exception as exc:
+        return {"configured":True,"recognized":False,"error":str(exc)[:300],"model":GEMINI_VISION_MODEL,"vision_mode":mode}
+
+
 def openai_vision_analyze(image_bytes, ocr_hint="", deep=False):
     mode="deep" if deep else "fast"
-    cached=_vision_cache_get(image_bytes, mode) if vision_configured() else None
+    # Prioridade ao Gemini quando a chave está disponível; OpenAI é fallback opcional.
+    if GEMINI_API_KEY:
+        gemini_result=gemini_vision_analyze(image_bytes,ocr_hint,deep)
+        if not gemini_result.get("error") or not OPENAI_API_KEY:
+            return gemini_result
+    cached=_vision_cache_get(image_bytes, mode) if OPENAI_API_KEY else None
+    if cached is not None and str(cached.get("model") or "") != OPENAI_VISION_MODEL:
+        cached=None
     if cached is not None:
         return cached
-    if not vision_configured():
-        return {"configured":False,"recognized":False,"reason":"OPENAI_API_KEY não configurada.","vision_mode":mode}
+    if not OPENAI_API_KEY:
+        return {"configured":False,"recognized":False,"reason":"Nenhuma chave de IA visual configurada.","vision_mode":mode}
     try:
         views=_prepare_vision_views(image_bytes, deep=deep)
         depth_note = "ANÁLISE PROFUNDA: use todas as vistas, confirme a franquia e temporada/arco." if deep else "CAMINHO RÁPIDO: use a vista inteira e responda sem procurar detalhes desnecessários."
@@ -399,8 +491,8 @@ REGRAS DE PESQUISA:
 """
 
 def openai_vision_web_identify(image_bytes, ocr_hint=""):
-    if not vision_configured():
-        return {"configured": False, "recognized": False, "found": False, "reason": "OPENAI_API_KEY não configurada."}
+    if not OPENAI_API_KEY:
+        return {"configured": False, "recognized": False, "found": False, "reason": "OPENAI_API_KEY não configurada para visão+pesquisa web."}
     try:
         prepared = _prepare_vision_image(image_bytes)
         b64 = base64.b64encode(prepared).decode("ascii")
@@ -479,8 +571,8 @@ def _cache_ai_put(query, data):
     except Exception: pass
 
 def openai_web_research(title, aliases=None, category_hint=""):
-    if not vision_configured():
-        return {"configured":False,"found":False,"reason":"OPENAI_API_KEY não configurada."}
+    if not OPENAI_API_KEY:
+        return {"configured":False,"found":False,"reason":"OPENAI_API_KEY não configurada para pesquisa web."}
     title=str(title or "").strip()
     if not title: return {"configured":True,"found":False,"reason":"Título vazio."}
     cached=_cache_ai_get(title)
