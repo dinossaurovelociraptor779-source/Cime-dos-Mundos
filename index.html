@@ -119,7 +119,7 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <div class="google-head"><div class="google-logo" aria-hidden="true">G</div><div><div class="google-title">Entrar com Google</div><div class="google-sub">O Google será aberto em uma página segura do Cime.</div></div></div>
 <div id="googleState" class="google-state">Pronto para entrar com Google.</div>
 <div id="googleGisButton" class="google-gis-button" aria-label="Entrar com Google"></div>
-<button type="button" id="googleBackButton" class="btn" style="width:100%;margin-top:10px;min-height:42px;border:1px solid var(--line2);border-radius:12px;background:rgba(255,255,255,.035)">← Voltar para a tela de login</button>
+
 <div class="google-note"><span>🔒</span><span>O Google entrega um token seguro ao Cime para concluir seu login.</span></div>
 
 </div>
@@ -363,4 +363,4 @@ health().catch(()=>{});
  }catch(_){}
 })();
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js',{scope:'/'}).catch(()=>{}),{once:true});}</script><script>document.getElementById("googleBackButton")?.addEventListener("click",()=>{document.getElementById("tl")?.click();document.getElementById("login")?.scrollIntoView({behavior:"smooth",block:"center"});document.getElementById("le")?.focus({preventScroll:true});});</script></body></html>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js',{scope:'/'}).catch(()=>{}),{once:true});}</script></body></html>
