@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Chave descartável, exclusiva dos testes locais do CI. Nunca é usada na Vercel.
-      CIME_SESSION_SECRET: "ci-only-not-a-production-secret-5-0-verification-key-2026"
+      CIME_SESSION_SECRET: "ci-only-not-a-production-secret-5-0-verification-key-2026-long-test-value"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -103,16 +103,23 @@ class PersistentSnapshotTests(unittest.TestCase):
             with patch.object(store_module, "DATA_DIR", root):
                 db_path = root / "users" / "1" / "library.db"
                 db_path.parent.mkdir(parents=True)
-                with sqlite3.connect(db_path) as db:
+                db = sqlite3.connect(db_path)
+                try:
                     db.execute("CREATE TABLE titles (name TEXT NOT NULL)")
                     db.execute("INSERT INTO titles(name) VALUES (?)", ("Arcane",))
+                    db.commit()
+                finally:
+                    db.close()
                 payload = store_module._pack_data_dir()
 
                 (root / "users" / "1" / "library.db").unlink()
                 store_module._restore_data_dir(payload)
 
-                with sqlite3.connect(db_path) as db:
+                db = sqlite3.connect(db_path)
+                try:
                     names = db.execute("SELECT name FROM titles").fetchall()
+                finally:
+                    db.close()
                 self.assertEqual(names, [("Arcane",)])
 
     def test_snapshot_rejects_path_traversal_without_clearing_current_data(self):
@@ -146,6 +153,7 @@ class PersistentSnapshotTests(unittest.TestCase):
         events = []
         request_store = store_module.RequestStore(None, None, True, 0, False)
         handler = _FakeHandler()
+        handler.events = events
         with patch.object(request_store, "save", side_effect=lambda: events.append("save")):
             request_store.attach_response(handler)
             handler.end_headers()

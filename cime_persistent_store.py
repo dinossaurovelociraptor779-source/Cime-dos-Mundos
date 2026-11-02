@@ -236,16 +236,19 @@ def _checkpoint_sqlite_files() -> None:
     for path in DATA_DIR.rglob("*.db"):
         if not path.is_file():
             continue
+        db = None
         try:
-            with sqlite3.connect(str(path), timeout=5) as db:
-                row = db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-                if row and int(row[0] or 0) != 0:
-                    raise PersistentStoreError("Um banco SQLite está ocupado durante a gravação.")
+            db = sqlite3.connect(str(path), timeout=5)
+            row = db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if row and int(row[0] or 0) != 0:
+                raise PersistentStoreError("Um banco SQLite está ocupado durante a gravação.")
         except PersistentStoreError:
             raise
         except Exception as exc:
             raise PersistentStoreError("Não foi possível preparar os arquivos do Cime para gravação.") from exc
-
+        finally:
+            if db is not None:
+                db.close()
 
 def _pack_data_dir() -> bytes:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
