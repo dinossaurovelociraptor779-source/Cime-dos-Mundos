@@ -25,7 +25,7 @@ try {
         }
         if (-not $found) { $lines += "$keyName=$($updates[$keyName])" }
     }
-    Set-Content -Path $envPath -Value $lines -Encoding UTF8
+    [System.IO.File]::WriteAllLines($envPath, [string[]]$lines, [System.Text.UTF8Encoding]::new($false))
     Write-Host "A chave foi salva em .env (arquivo local)."
     Write-Host "Modelo visual: gemini-3.8-flash"
     Write-Host "Nao compartilhe .env nem envie a chave para o GitHub."
