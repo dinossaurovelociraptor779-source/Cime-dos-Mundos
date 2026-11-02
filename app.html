@@ -1625,6 +1625,7 @@ async function c5photoAdd(){
     const map={chat:'#c5chatSection',members:'#c5gmembers',rec:'#c5recSection',mem:'#c5memSection',share:'#c5shareSection'};
     Object.values(map).forEach(sel=>{const el=q(sel);if(el)el.style.display='none'});
     const main=q(map[section]); if(main)main.style.display='block';
+    if(section==='rec')c5loadHistoryRecommendationOptions();
     if(section==='share'){const inv=q('#c5inviteSection');if(inv)inv.style.display='block'} else {const inv=q('#c5inviteSection');if(inv)inv.style.display='none'}
   });
   document.addEventListener('input',e=>{if(e.target&&e.target.id==='c5chatText'){e.target.style.height='40px';e.target.style.height=Math.min(e.target.scrollHeight,110)+'px';}});
