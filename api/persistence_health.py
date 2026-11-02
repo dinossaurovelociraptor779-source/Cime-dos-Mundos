@@ -3,7 +3,7 @@ import os
 from http.server import BaseHTTPRequestHandler
 
 os.environ.setdefault("CIME_DATA_DIR", "/tmp/CimeDados")
-os.environ["CIME_DEPLOYMENT"] = "vercel"
+os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
 
 
 class handler(BaseHTTPRequestHandler):
@@ -15,7 +15,7 @@ class handler(BaseHTTPRequestHandler):
                 payload = {
                     "ok": bool(store is not None),
                     "version": "5.0",
-                    "storage": "Neon PostgreSQL" if store is not None else "local",
+                    "storage": "PostgreSQL" if store is not None else "not_configured",
                     "persistent": bool(store is not None),
                     "database_connected": bool(store is not None),
                     "snapshot_exists": bool(store.snapshot_exists) if store is not None else False,
@@ -31,7 +31,7 @@ class handler(BaseHTTPRequestHandler):
             payload = {
                 "ok": False,
                 "version": "5.0",
-                "storage": "Neon PostgreSQL",
+                "storage": "PostgreSQL",
                 "persistent": False,
                 "database_connected": False,
                 "snapshot_exists": False,

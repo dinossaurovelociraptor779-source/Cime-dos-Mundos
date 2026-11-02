@@ -1,0 +1,12 @@
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+
+# Local application data and Python artifacts
+CimeDados/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/

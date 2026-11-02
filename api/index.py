@@ -9,11 +9,17 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("CIME_DATA_DIR", "/tmp/CimeDados")
 os.environ.setdefault("CIME_PORT", "80")
 os.environ.setdefault("CIME_BIND", "0.0.0.0")
-os.environ["CIME_DEPLOYMENT"] = "vercel"
+os.environ.setdefault("CIME_DEPLOYMENT", "vercel")
 # OAuth MUST use one fixed production callback. Do not let VERCEL_URL or an old
 # Vercel environment variable replace it, because Google compares redirect_uri exactly.
-os.environ["CIME_PUBLIC_URL"] = "https://cime-dos-mundos.vercel.app"
-os.environ["GOOGLE_REDIRECT_URI"] = os.environ["CIME_PUBLIC_URL"] + "/oauth/google/callback"
+if os.environ["CIME_DEPLOYMENT"].lower() == "vercel":
+    os.environ["CIME_PUBLIC_URL"] = "https://cime-dos-mundos.vercel.app"
+    os.environ["GOOGLE_REDIRECT_URI"] = os.environ["CIME_PUBLIC_URL"] + "/oauth/google/callback"
+else:
+    public_url = str(os.getenv("RENDER_EXTERNAL_URL") or os.getenv("CIME_PUBLIC_URL") or "").strip().rstrip("/")
+    if public_url:
+        os.environ["CIME_PUBLIC_URL"] = public_url
+        os.environ["GOOGLE_REDIRECT_URI"] = public_url + "/oauth/google/callback"
 
 _HANDLER_CLASS = None
 _IMPORT_ERROR = None
@@ -84,7 +90,7 @@ class handler(BaseHTTPRequestHandler):
             "ok": True,
             "version": "5.0",
             "service": "Cime dos Mundos",
-            "deployment": "vercel",
+            "deployment": os.getenv("CIME_DEPLOYMENT", "vercel"),
             "online": bool(public),
             "public_url": public or None,
         }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -97,9 +103,8 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def _delegate(self, method):
-        # Vercel instances have ephemeral /tmp storage. Hydrate the local SQLite
-        # directory from PostgreSQL for every request and persist every mutation
-        # before the HTTP response is sent to the browser.
+        # Cloud instances have ephemeral storage. Hydrate local SQLite from
+        # PostgreSQL for every request and persist every mutation before reply.
         from urllib.parse import urlparse
         from cime_persistent_store import request_context, PersistentStoreError
 
@@ -123,6 +128,7 @@ class handler(BaseHTTPRequestHandler):
             with request_context(write=write) as store:
                 if store is not None:
                     store.attach_response(self)
+                self._cime_request_store = store
                 gateway = _load_gateway()
                 return getattr(gateway, method)(self)
         except PersistentStoreError as exc:

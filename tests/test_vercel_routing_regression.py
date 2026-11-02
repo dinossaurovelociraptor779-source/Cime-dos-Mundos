@@ -38,6 +38,23 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn("Do not handle OAuth here: direct responses bypass the persistent", self.gateway)
         self.assertIn("with request_context(write=True) as store:", self.gateway)
 
+    def test_persistence_health_is_public_and_has_an_exact_vercel_route(self):
+        server = (ROOT / "server_v5.py").read_text(encoding="utf-8")
+        config = __import__("json").loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+        self.assertIn("'/api/persistence/health'", server)
+        self.assertIn("if path=='/api/persistence/health':", server)
+        self.assertTrue(any(
+            rule.get("source") == "/api/persistence/health"
+            and rule.get("destination") == "/api/persistence_health.py"
+            for rule in config.get("rewrites", [])
+        ))
+
+    def test_cloud_adapters_preserve_host_specific_oauth_origin(self):
+        self.assertIn('os.environ.setdefault("CIME_DEPLOYMENT", "vercel")', self.gateway)
+        self.assertIn('os.environ["CIME_DEPLOYMENT"].lower() == "vercel"', self.gateway)
+        self.assertIn('os.getenv("RENDER_EXTERNAL_URL")', self.gateway)
+        self.assertIn("public_origin()", (ROOT / "server_v5.py").read_text(encoding="utf-8"))
+
     def test_backend_routing_module_parses(self):
         import ast
         ast.parse(self.gateway)
