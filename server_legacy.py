@@ -279,84 +279,131 @@ def _prepare_vision_views(image_bytes, deep=False):
     return views
 
 def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
-    """Identificação visual via Gemini API, mantendo o mesmo contrato da Smart Vision."""
-    mode="deep" if deep else "fast"
-    cached=_vision_cache_get(image_bytes, mode) if GEMINI_API_KEY else None
-    if cached is not None and str(cached.get("model") or "") == GEMINI_VISION_MODEL:
+    """Identificação visual via Gemini, com multivista na análise aprofundada."""
+    mode = "deep" if deep else "fast"
+    cache_revision = "gemini-multiview-v2"
+    cached = _vision_cache_get(image_bytes, mode) if GEMINI_API_KEY else None
+    if cached is not None and str(cached.get("model") or "") == GEMINI_VISION_MODEL and cached.get("vision_engine") == cache_revision:
         return cached
     if not GEMINI_API_KEY:
-        return {"configured":False,"recognized":False,"reason":"GEMINI_API_KEY não configurada.","vision_mode":mode}
+        return {"configured": False, "recognized": False, "reason": "GEMINI_API_KEY não configurada.", "vision_mode": mode}
     try:
-        prepared=_prepare_vision_image(image_bytes)
-        b64=base64.b64encode(prepared).decode("ascii")
-        depth_note=("ANÁLISE APROFUNDADA: compare a imagem inteira e os detalhes; confirme franquia, temporada/arco e episódio."
-                    if deep else
-                    "ANÁLISE RÁPIDA: identifique o título principal e só informe temporada/episódio se houver evidência visual.")
-        prompt=(VISION_SYSTEM+"\n"+depth_note+
-                "\nOCR auxiliar (pode estar errado, não trate como autoridade): "+str(ocr_hint or "")[:1800]+
-                "\nRetorne exclusivamente JSON válido com as chaves recognized,title,aliases,category,confidence,season,season_title,arc,episode,season_evidence,evidence,visible_title_text,alternatives. Não invente dados; use null para season/episode desconhecidos e arrays vazios quando necessário.")
-        payload={
-            "contents":[{"role":"user","parts":[
-                {"text":prompt},
-                {"inline_data":{"mime_type":"image/jpeg","data":b64}}
-            ]}],
-            "generationConfig":{"responseMimeType":"application/json","temperature":0.1,"maxOutputTokens":1200}
+        depth_note = (
+            "ANÁLISE APROFUNDADA: compare a imagem inteira com os recortes enviados. "
+            "Confirme franquia, temporada/arco e episódio usando evidência visível."
+            if deep else
+            "ANÁLISE RÁPIDA: identifique o título principal; informe temporada/episódio somente com evidência visual."
+        )
+        prompt = (
+            VISION_SYSTEM + "\n" + depth_note +
+            "\nAs imagens adicionais, quando presentes, são recortes da mesma imagem original, não obras separadas." +
+            "\nOCR auxiliar (pode estar errado, não trate como autoridade): " + str(ocr_hint or "")[:1800] +
+            "\nRetorne exclusivamente JSON válido com as chaves recognized,title,aliases,category,confidence,season,season_title,arc,episode,season_evidence,evidence,visible_title_text,alternatives. "
+            "Não invente dados; use null para season/episode desconhecidos e arrays vazios quando necessário."
+        )
+        parts = [{"text": prompt}]
+        if deep:
+            views = _prepare_vision_views(image_bytes, deep=True)
+            for view_name, view_bytes in views:
+                parts.append({
+                    "text": "Vista da imagem: " + str(view_name) + "."
+                })
+                parts.append({
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": base64.b64encode(view_bytes).decode("ascii")
+                    }
+                })
+        else:
+            prepared = _prepare_vision_image(image_bytes)
+            parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": base64.b64encode(prepared).decode("ascii")
+                }
+            })
+        payload = {
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "temperature": 0.1,
+                "maxOutputTokens": 1200
+            }
         }
-        timeout=14 if deep else 10
-        response=requests.post(
+        timeout = 14 if deep else 10
+        response = requests.post(
             GEMINI_GENERATE_URL.format(model=GEMINI_VISION_MODEL),
-            headers={"x-goog-api-key":GEMINI_API_KEY,"Content-Type":"application/json"},
-            json=payload,timeout=timeout
+            headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+            json=payload,
+            timeout=timeout
         )
         if not response.ok:
-            return {"configured":True,"recognized":False,"error":f"Gemini Vision HTTP {response.status_code}","detail":str(response.text or "")[:220],"model":GEMINI_VISION_MODEL,"vision_mode":mode}
-        data=response.json()
-        parts=((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
-        output_text="\n".join(str(part.get("text") or "") for part in parts if isinstance(part,dict))
-        obj=_parse_json_from_text(output_text)
-        title=str(obj.get("title") or "").strip()
-        try: conf=max(0.0,min(1.0,float(obj.get("confidence") or 0)))
-        except Exception: conf=0.0
-        valid_title=_valid_ai_title(title)
-        recognized=bool(obj.get("recognized")) and valid_title and conf>=0.70
-        aliases=[str(x).strip() for x in (obj.get("aliases") or []) if str(x).strip()][:8]
-        alternatives=[]
+            return {
+                "configured": True,
+                "recognized": False,
+                "error": f"Gemini Vision HTTP {response.status_code}",
+                "detail": str(response.text or "")[:220],
+                "model": GEMINI_VISION_MODEL,
+                "vision_mode": mode
+            }
+        data = response.json()
+        candidates = data.get("candidates") or []
+        content = (candidates[0].get("content") or {}) if candidates else {}
+        response_parts = content.get("parts") or []
+        output_text = "\n".join(str(part.get("text") or "") for part in response_parts if isinstance(part, dict))
+        obj = _parse_json_from_text(output_text)
+        title = str(obj.get("title") or "").strip()
+        try:
+            conf = max(0.0, min(1.0, float(obj.get("confidence") or 0)))
+        except Exception:
+            conf = 0.0
+        valid_title = _valid_ai_title(title)
+        recognized = bool(obj.get("recognized")) and valid_title and conf >= 0.70
+        aliases = [str(x).strip() for x in (obj.get("aliases") or []) if str(x).strip()][:8]
+        alternatives = []
         for item in (obj.get("alternatives") or [])[:4]:
             try:
-                alt_title=str(item.get("title") or "").strip()
-                alt_conf=max(0.0,min(1.0,float(item.get("confidence") or 0)))
+                alt_title = str(item.get("title") or "").strip()
+                alt_conf = max(0.0, min(1.0, float(item.get("confidence") or 0)))
                 if alt_title and _valid_ai_title(alt_title):
-                    alternatives.append({"title":alt_title,"confidence":alt_conf,"evidence":str(item.get("evidence") or "")})
+                    alternatives.append({"title": alt_title, "confidence": alt_conf, "evidence": str(item.get("evidence") or "")})
             except Exception:
                 continue
-        season=obj.get("season")
-        try: season=int(season) if season is not None else None
-        except Exception: season=None
-        episode=obj.get("episode")
-        try: episode=int(episode) if episode is not None else None
-        except Exception: episode=None
-        season_title=str(obj.get("season_title") or "")
-        arc=str(obj.get("arc") or "")
-        season_evidence=str(obj.get("season_evidence") or "")
-        hint=infer_season_from_title_text(" ".join([title,season_title,arc,str(obj.get("visible_title_text") or "")]))
-        if season is None and hint.get("verified_hint"): season=hint.get("season")
-        if not season_title and hint.get("season_title"): season_title=hint.get("season_title")
-        if not arc and hint.get("arc"): arc=hint.get("arc")
-        category=str(obj.get("category") or "")
-        if category not in ("Anime","Série","Filme","Desenho",""): category=""
-        result={
-            "configured":True,"recognized":recognized,"title":title if recognized else "",
-            "title_raw":title if valid_title else "","aliases":aliases,"category":category,
-            "confidence":conf,"season":season,"season_title":season_title,"arc":arc,
-            "episode":episode,"season_evidence":season_evidence,"evidence":str(obj.get("evidence") or ""),
-            "visible_title_text":str(obj.get("visible_title_text") or ""),"alternatives":alternatives,
-            "model":GEMINI_VISION_MODEL,"cached":False,"vision_mode":mode
+        season = obj.get("season")
+        try:
+            season = int(season) if season is not None else None
+        except Exception:
+            season = None
+        episode = obj.get("episode")
+        try:
+            episode = int(episode) if episode is not None else None
+        except Exception:
+            episode = None
+        season_title = str(obj.get("season_title") or "")
+        arc = str(obj.get("arc") or "")
+        season_evidence = str(obj.get("season_evidence") or "")
+        hint = infer_season_from_title_text(" ".join([title, season_title, arc, str(obj.get("visible_title_text") or "")]))
+        if season is None and hint.get("verified_hint"):
+            season = hint.get("season")
+        if not season_title and hint.get("season_title"):
+            season_title = hint.get("season_title")
+        if not arc and hint.get("arc"):
+            arc = hint.get("arc")
+        category = str(obj.get("category") or "")
+        if category not in ("Anime", "Série", "Filme", "Desenho", ""):
+            category = ""
+        result = {
+            "configured": True, "recognized": recognized, "title": title if recognized else "",
+            "title_raw": title if valid_title else "", "aliases": aliases, "category": category,
+            "confidence": conf, "season": season, "season_title": season_title, "arc": arc,
+            "episode": episode, "season_evidence": season_evidence, "evidence": str(obj.get("evidence") or ""),
+            "visible_title_text": str(obj.get("visible_title_text") or ""), "alternatives": alternatives,
+            "model": GEMINI_VISION_MODEL, "vision_engine": cache_revision, "cached": False, "vision_mode": mode
         }
-        _vision_cache_put(image_bytes,result,mode)
+        _vision_cache_put(image_bytes, result, mode)
         return result
     except Exception as exc:
-        return {"configured":True,"recognized":False,"error":str(exc)[:300],"model":GEMINI_VISION_MODEL,"vision_mode":mode}
-
+        return {"configured": True, "recognized": False, "error": str(exc)[:300], "model": GEMINI_VISION_MODEL, "vision_mode": mode}
 
 def openai_vision_analyze(image_bytes, ocr_hint="", deep=False):
     mode="deep" if deep else "fast"
