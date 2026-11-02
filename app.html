@@ -1149,7 +1149,7 @@ window.addEventListener('load',async()=>{loadTheme();setSelectionMode(false);res
   header{padding:18px 12px 12px}.brand{align-items:flex-start}.brand h1{font-size:24px;line-height:1.12}.brand p{font-size:12px}.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:14px}.nav .btn{min-height:46px;padding:10px 9px;font-size:12px}.library-hero{padding:16px;border-radius:18px;margin-bottom:12px}.library-hero h2{font-size:21px}.hero-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.hero-actions .btn{min-height:46px}.stats{gap:7px;margin-bottom:12px}.stat{padding:10px;border-radius:13px}.stat b{font-size:18px}.stat span{font-size:9px}.toolbar{gap:7px}.library-search{min-width:100%;width:100%}.compact-toolbar .filter,.compact-toolbar .bulk-btn{width:100%;min-height:46px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}.cover{height:235px!important}.card-body{padding:10px}.title{font-size:14px}.sub{font-size:11px}.chip{font-size:9px;padding:4px 6px}.genre{font-size:9px}.meta{font-size:10px}.card-actions{display:grid;grid-template-columns:1fr;gap:6px}.card-actions button{min-height:44px}.next-row .btn{min-height:46px}.modal{padding:16px 13px}.form-grid{grid-template-columns:1fr}.field input,.field select,.field textarea{min-height:46px;font-size:16px}.actions{display:grid;grid-template-columns:1fr 1fr}.actions .btn{min-height:46px}.episode-dot{min-width:42px;height:42px}.season-edit-row{grid-template-columns:42px 1fr 1fr!important}.season-edit-row select,.season-edit-row button{grid-column:span 1}.panel-head .cover{height:255px!important}.panel-grid{grid-template-columns:1fr}.discover-result{padding:12px}.discover-cover{height:230px!important}.c5gm{width:100%;max-width:none;height:96dvh;max-height:96dvh;border-radius:22px 22px 0 0;padding:12px 12px calc(14px + env(safe-area-inset-bottom));overscroll-behavior:contain}.c5ggrid{display:flex!important;flex-direction:column;gap:10px}.c5ggrid>.c5gc:last-child{order:1}.c5ggrid>.c5gc:first-child{order:2}.c5gc{padding:11px}.c5quick-wrap{display:block}.c5group-title{font-size:18px}.c5group-sub{font-size:11px}.c5section{padding:11px;margin-top:8px}.c5sharebox{padding:12px}.c5actionrow{display:grid;grid-template-columns:1fr 1fr}.c5actionrow .c5gb{min-height:46px}.c5sharelink{flex-direction:column;align-items:stretch}.c5sharelink input,.c5gi,.c5gt{min-height:46px;font-size:16px}.c5gb{min-height:46px}.share-actions{display:grid;grid-template-columns:1fr 1fr}.share-actions .c5gb{min-height:46px}.share-qr-wrap{grid-template-columns:1fr!important;text-align:center}.share-qr{margin:auto}.c5photos{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.c5ph>div{font-size:11px;padding:8px}.c5ph img{max-height:240px}.c5member{padding:8px 7px;gap:6px}.c5member>div{min-width:0}.c5member small:last-child{max-width:42vw}.c5rec{font-size:12px}.c5ggrid>.c5gc:first-child .c5section{margin-top:8px}.c5ggrid>.c5gc:first-child{background:transparent;border:0;padding:0}.c5ggrid>.c5gc:first-child>.c5mut{font-size:11px}.c5ggrid>.c5gc:first-child .c5gi{min-height:46px}.c5group-card{min-width:220px}.c5gSync{font-size:10px}.c5quick-group{min-width:180px;min-height:46px}.c5ggrid>.c5gc:last-child{border:0;padding:0;background:transparent}.c5gm>div:first-child{position:sticky;top:0;z-index:5;padding-bottom:8px;background:#101725}.c5gm>div:first-child button{min-width:82px}.}
 @media(max-width:370px){.grid{grid-template-columns:1fr!important}.cover{height:300px!important}.hero-actions,.nav{grid-template-columns:1fr}.c5photos{grid-template-columns:1fr}.c5actionrow,.share-actions{grid-template-columns:1fr}}
 </style>
-<div id="c5go"><div class="c5gm"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><div class="c5group-title">👥 Grupos e Memórias</div><div class="c5group-sub">Um espaço separado para pessoas, recomendações e lembranças.</div></div><div style="display:flex;gap:7px"><button class="c5gb c5b2 c5newgroup" onclick="c5toggleCreateGroup()">＋ Novo grupo</button><button class="c5gb c5b2" onclick="c5closeGroups()">Fechar</button></div></div><div class="c5ggrid" style="margin-top:12px"><div class="c5gc" id="c5createBox"><div class="c5create-heading"><b>＋ Criar grupo</b><div class="c5mut" style="margin:4px 0 8px">Escolha como o grupo vai funcionar.</div></div><div id="c5createFields" class="c5create-fields" hidden><input id="c5gn" class="c5gi" placeholder="Nome do grupo"><input id="c5gd" class="c5gi" placeholder="Descrição"><select id="c5gtp" class="c5gi"><option value="both">🎌 Recomendações + 📸 Memórias</option><option value="recommendations">🎌 Só recomendações</option><option value="memories">📸 Só memórias</option></select><button class="c5gb" onclick="c5createGroup()">Criar grupo</button></div><div class="c5section"><h4>Seus grupos</h4><div id="c5gl" class="c5mut">Carregando…</div></div></div><div class="c5gc"><div id="c5quickWrap" class="c5quick-wrap"><div class="c5quick-label">Seus grupos</div><div id="c5quickGroups" class="c5quick-groups"></div></div><div id="c5gvempty" class="c5mut" style="padding:24px;text-align:center">Selecione um grupo para abrir o painel.</div><div id="c5gv" style="display:none"><div class="c5-group-mobile-head"><div><h3 id="c5gname" style="margin:0"></h3><div id="c5gdesc" class="c5group-sub"></div></div><span class="c5pill">🔐 Privado</span></div><div id="c5GroupTabs" class="c5-group-tabs" role="tablist" aria-label="Áreas do grupo"><button type="button" data-gsection="chat" class="active">💬 Conversa</button><button type="button" data-gsection="members">👥 Pessoas</button><button type="button" data-gsection="rec">🎌 Recomendações</button><button type="button" data-gsection="mem">📸 Memórias</button><button type="button" data-gsection="share">🔗 Compartilhar</button></div><div id="c5chatSection" class="c5section c5chat-section"><div class="c5chat-head"><div><h4>💬 Conversa</h4><div class="c5mut">Fale com o grupo e compartilhe fotos aqui.</div></div><span id="c5chatStatus" class="c5pill">🟢 ao vivo</span></div><div id="c5chatFeed" class="c5chat-feed"><div class="c5empty">Carregando conversa…</div></div><div class="c5chat-tools"><button type="button" class="c5gb c5b2" onclick="c5toggleAnimeShare()">🎌 Compartilhar anime + avaliação</button><span class="c5mut">Conversa simples, como um mensageiro</span></div><div id="c5animeShareBox" class="c5anime-share-box" hidden><b>Compartilhar anime</b><div class="c5anime-share-fields"><input id="c5animeTitle" class="c5gi" maxlength="160" placeholder="Nome do anime"><label class="c5anime-rating">Sua nota <select id="c5animeRating" class="c5gi"><option value="10">10/10</option><option value="9">9/10</option><option value="8">8/10</option><option value="7">7/10</option><option value="6">6/10</option><option value="5">5/10</option><option value="4">4/10</option><option value="3">3/10</option><option value="2">2/10</option><option value="1">1/10</option></select></label></div><textarea id="c5animeNote" class="c5gt" rows="2" maxlength="600" placeholder="O que você achou? (opcional)"></textarea><div class="c5actionrow"><button type="button" class="c5gb" onclick="c5sendAnimeShare()">Enviar para conversa</button><button type="button" class="c5gb c5b2" onclick="c5toggleAnimeShare(false)">Cancelar</button></div></div><form id="c5chatComposer" class="c5chat-composer" onsubmit="event.preventDefault();c5sendMessage()"><input id="c5chatPhoto" type="file" accept="image/*" hidden><button type="button" class="c5chat-attach" aria-label="Enviar foto" onclick="c5x('c5chatPhoto').click()">＋</button><textarea id="c5chatText" class="c5chat-input" rows="1" maxlength="4000" placeholder="Escreva uma mensagem…"></textarea><button class="c5chat-send" type="submit" aria-label="Enviar">➤</button></form><div id="c5chatUpload" class="c5mut c5chat-upload"></div></div><div id="c5gmembers" class="c5section"></div><div id="c5shareSection" class="c5section"><h4>🔗 Compartilhar o grupo</h4><div class="c5mut">O link abaixo usa o endereço da rede local do Cime, não “localhost”, para poder ser aberto em outro aparelho na mesma Wi‑Fi.</div><div class="c5actionrow"><button class="c5gb" onclick="c5shareGroup()">Gerar link</button><button class="c5gb c5b2" onclick="c5shareWhatsApp()">💬 WhatsApp</button><button class="c5gb c5b2" onclick="c5nativeShare()">📱 Abrir compartilhamento</button></div><div id="c5share"></div><div id="c5im"></div></div><div id="c5inviteSection" class="c5section"><h4>✉️ Convidar por e-mail</h4><div style="display:flex;gap:7px;flex-wrap:wrap"><input id="c5ie" class="c5gi" style="flex:1;min-width:180px" type="email" placeholder="email@exemplo.com"><button class="c5gb" onclick="c5invite()">Enviar convite</button></div></div><div id="c5recSection" class="c5section"><h4>🎌 Recomendações</h4><div class="c5rec-history-picker"><div><b>📚 Compartilhar do meu histórico</b><p>Escolha um título da sua biblioteca para recomendar diretamente ao grupo.</p></div><select id="c5recHistorySelect" class="c5gi"><option value="">Carregar títulos da minha biblioteca…</option></select><button type="button" class="c5gb" id="c5recHistorySend" onclick="c5sendHistoryRecommendation()">📤 Enviar título selecionado</button><div id="c5recHistoryStatus" class="c5mut" aria-live="polite"></div></div><div class="c5rec-divider">ou escreva uma recomendação</div><input id="c5rt" class="c5gi" placeholder="Anime, série ou filme"><textarea id="c5rr" class="c5gt" rows="3" placeholder="Por que você recomenda?"></textarea><button class="c5gb" onclick="c5recAdd()">Publicar recomendação</button><div id="c5recs"></div></div><div id="c5memSection" class="c5section"><h4>📸 Memórias</h4><input id="c5pf" class="c5gi" type="file" accept="image/*"><input id="c5pc" class="c5gi" placeholder="Legenda"><div style="display:flex;gap:7px;flex-wrap:wrap"><input id="c5pd" class="c5gi" type="datetime-local" style="flex:1"><input id="c5pl" class="c5gi" placeholder="Local" style="flex:1"></div><button class="c5gb" onclick="c5photoAdd()">Guardar foto</button><div id="c5pm" class="c5mut"></div><div id="c5photos" class="c5photos"></div></div></div></div></div></div>
+<div id="c5go"><div class="c5gm"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><div class="c5group-title">👥 Grupos e Memórias</div><div class="c5group-sub">Um espaço separado para pessoas, recomendações e lembranças.</div></div><div style="display:flex;gap:7px"><button class="c5gb c5b2 c5newgroup" onclick="c5toggleCreateGroup()">＋ Novo grupo</button><button class="c5gb c5b2" onclick="c5closeGroups()">Fechar</button></div></div><div id="c5createOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="c5createTitle"><div class="c5create-overlay-bg" onclick="c5toggleCreateGroup(false)"></div><div class="c5create-dialog"><div class="c5create-dialog-head"><div><h3 id="c5createTitle">＋ Criar grupo</h3><p>Configure o espaço com seus amigos.</p></div><button type="button" class="c5gb c5b2" onclick="c5toggleCreateGroup(false)" aria-label="Fechar">✕</button></div><div class="c5create-form"><input id="c5gn" class="c5gi" placeholder="Nome do grupo" maxlength="80"><input id="c5gd" class="c5gi" placeholder="Descrição (opcional)" maxlength="240"><select id="c5gtp" class="c5gi"><option value="both">🎌 Recomendações + 📸 Memórias</option><option value="recommendations">🎌 Só recomendações</option><option value="memories">📸 Só memórias</option></select><button id="c5createSubmit" class="c5gb" onclick="c5createGroup()">Criar grupo</button></div></div></div><div class="c5ggrid" style="margin-top:12px"><div class="c5gc" id="c5createBox"><div class="c5section"><h4>👥 Seus grupos</h4><div id="c5gl" class="c5mut">Carregando…</div></div></div><div class="c5gc"><div id="c5quickWrap" class="c5quick-wrap"><div class="c5quick-label">Seus grupos</div><div id="c5quickGroups" class="c5quick-groups"></div></div><div id="c5gvempty" class="c5mut" style="padding:24px;text-align:center">Selecione um grupo para abrir o painel.</div><div id="c5gv" style="display:none"><div class="c5-group-mobile-head"><div><h3 id="c5gname" style="margin:0"></h3><div id="c5gdesc" class="c5group-sub"></div></div><span class="c5pill">🔐 Privado</span></div><div id="c5GroupTabs" class="c5-group-tabs" role="tablist" aria-label="Áreas do grupo"><button type="button" data-gsection="chat" class="active">💬 Conversa</button><button type="button" data-gsection="members">👥 Pessoas</button><button type="button" data-gsection="rec">🎌 Recomendações</button><button type="button" data-gsection="mem">📸 Memórias</button><button type="button" data-gsection="share">🔗 Compartilhar</button></div><div id="c5chatSection" class="c5section c5chat-section"><div class="c5chat-head"><div><h4>💬 Conversa</h4><div class="c5mut">Fale com o grupo e compartilhe fotos aqui.</div></div><span id="c5chatStatus" class="c5pill">🟢 ao vivo</span></div><div id="c5chatFeed" class="c5chat-feed"><div class="c5empty">Carregando conversa…</div></div><div class="c5chat-tools"><button type="button" class="c5gb c5b2" onclick="c5toggleAnimeShare()">🎌 Compartilhar anime + avaliação</button><span class="c5mut">Conversa simples, como um mensageiro</span></div><div id="c5animeShareBox" class="c5anime-share-box" hidden><b>Compartilhar anime</b><div class="c5anime-share-fields"><input id="c5animeTitle" class="c5gi" maxlength="160" placeholder="Nome do anime"><label class="c5anime-rating">Sua nota <select id="c5animeRating" class="c5gi"><option value="10">10/10</option><option value="9">9/10</option><option value="8">8/10</option><option value="7">7/10</option><option value="6">6/10</option><option value="5">5/10</option><option value="4">4/10</option><option value="3">3/10</option><option value="2">2/10</option><option value="1">1/10</option></select></label></div><textarea id="c5animeNote" class="c5gt" rows="2" maxlength="600" placeholder="O que você achou? (opcional)"></textarea><div class="c5actionrow"><button type="button" class="c5gb" onclick="c5sendAnimeShare()">Enviar para conversa</button><button type="button" class="c5gb c5b2" onclick="c5toggleAnimeShare(false)">Cancelar</button></div></div><form id="c5chatComposer" class="c5chat-composer" onsubmit="event.preventDefault();c5sendMessage()"><input id="c5chatPhoto" type="file" accept="image/*" hidden><button type="button" class="c5chat-attach" aria-label="Enviar foto" onclick="c5x('c5chatPhoto').click()">＋</button><textarea id="c5chatText" class="c5chat-input" rows="1" maxlength="4000" placeholder="Escreva uma mensagem…"></textarea><button class="c5chat-send" type="submit" aria-label="Enviar">➤</button></form><div id="c5chatUpload" class="c5mut c5chat-upload"></div></div><div id="c5gmembers" class="c5section"></div><div id="c5shareSection" class="c5section"><h4>🔗 Compartilhar o grupo</h4><div class="c5mut">O link abaixo usa o endereço da rede local do Cime, não “localhost”, para poder ser aberto em outro aparelho na mesma Wi‑Fi.</div><div class="c5actionrow"><button class="c5gb" onclick="c5shareGroup()">Gerar link</button><button class="c5gb c5b2" onclick="c5shareWhatsApp()">💬 WhatsApp</button><button class="c5gb c5b2" onclick="c5nativeShare()">📱 Abrir compartilhamento</button></div><div id="c5share"></div><div id="c5im"></div></div><div id="c5inviteSection" class="c5section"><h4>✉️ Convidar por e-mail</h4><div style="display:flex;gap:7px;flex-wrap:wrap"><input id="c5ie" class="c5gi" style="flex:1;min-width:180px" type="email" placeholder="email@exemplo.com"><button class="c5gb" onclick="c5invite()">Enviar convite</button></div></div><div id="c5recSection" class="c5section"><h4>🎌 Recomendações</h4><div class="c5rec-history-picker"><div><b>📚 Compartilhar do meu histórico</b><p>Escolha um título da sua biblioteca para recomendar diretamente ao grupo.</p></div><select id="c5recHistorySelect" class="c5gi"><option value="">Carregar títulos da minha biblioteca…</option></select><button type="button" class="c5gb" id="c5recHistorySend" onclick="c5sendHistoryRecommendation()">📤 Enviar título selecionado</button><div id="c5recHistoryStatus" class="c5mut" aria-live="polite"></div></div><div class="c5rec-divider">ou escreva uma recomendação</div><input id="c5rt" class="c5gi" placeholder="Anime, série ou filme"><textarea id="c5rr" class="c5gt" rows="3" placeholder="Por que você recomenda?"></textarea><button class="c5gb" onclick="c5recAdd()">Publicar recomendação</button><div id="c5recs"></div></div><div id="c5memSection" class="c5section"><h4>📸 Memórias</h4><input id="c5pf" class="c5gi" type="file" accept="image/*"><input id="c5pc" class="c5gi" placeholder="Legenda"><div style="display:flex;gap:7px;flex-wrap:wrap"><input id="c5pd" class="c5gi" type="datetime-local" style="flex:1"><input id="c5pl" class="c5gi" placeholder="Local" style="flex:1"></div><button class="c5gb" onclick="c5photoAdd()">Guardar foto</button><div id="c5pm" class="c5mut"></div><div id="c5photos" class="c5photos"></div></div></div></div></div></div>
 <div id="c5PhotoViewer" class="c5-photo-viewer" aria-hidden="true"><button class="c5-photo-close" type="button" onclick="c5closePhoto()" aria-label="Fechar">✕</button><div class="c5-photo-viewer-bg" onclick="c5closePhoto()"></div><img id="c5PhotoViewerImg" alt="Foto ampliada"><div class="c5photo-toolbar"><button type="button" onclick="c5downloadOpenPhoto()" aria-label="Salvar foto">⬇️</button><button type="button" onclick="c5shareOpenPhoto()" aria-label="Compartilhar foto">↗️</button></div></div>
 <script>
 let c5gid = 0;
@@ -1159,44 +1159,19 @@ let c5lastMessageId = 0;
 let c5currentMessages = new Set();
 const c5x = id => document.getElementById(id);
 
-function c5toggleCreateGroup(){
-  const box=c5x('c5createBox'),fields=c5x('c5createFields');
-  if(!box||!fields)return;
-  const mobile=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;
-  const show=fields.hidden;
-  fields.hidden=!show;
-  box.classList.toggle('c5-create-open',show);
-  const toggle=document.querySelector('#c5go .c5newgroup');
-  if(toggle)toggle.textContent=show?'✕ Fechar criação':'＋ Novo grupo';
-  if(mobile){
-    const panel=document.querySelector('#c5go .c5ggrid>.c5gc:last-child'),quick=c5x('c5quickWrap');
-    if(panel&&quick&&box.parentElement!==panel)panel.insertBefore(box,quick);
-    box.style.display='block';
-    box.classList.toggle('c5-mobile-create-open',show);
-    if(show){box.scrollIntoView({behavior:'smooth',block:'nearest'});setTimeout(()=>c5x('c5gn')?.focus(),240);}
-  }else{
-    box.style.display='block';
-    if(show){box.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>c5x('c5gn')?.focus(),240);}
-  }
+function c5toggleCreateGroup(force){
+ const overlay=c5x('c5createOverlay');if(!overlay)return;
+ const show=typeof force==='boolean'?force:overlay.hidden;
+ overlay.hidden=!show;
+ const toggle=document.querySelector('#c5go .c5newgroup');if(toggle)toggle.textContent=show?'✕ Fechar criação':'＋ Novo grupo';
+ if(show){setTimeout(()=>c5x('c5gn')?.focus(),80);}
 }
 
 function c5closeGroups(){
   c5stopGroupPolling();
   const dlg = c5x('c5go');
   if (dlg) dlg.style.display = 'none';
-  const box=c5x('c5createBox');
-  if(box){
-    const fields=c5x('c5createFields');if(fields)fields.hidden=true;
-    box.classList.remove('c5-create-open','c5-mobile-create-open');
-    if(window.matchMedia&&window.matchMedia('(max-width:760px)').matches){
-      box.style.display='none';
-    }else{
-      const first=dlg?.querySelector('.c5ggrid>.c5gc:first-child');
-      if(first&&!first.contains(box))first.insertBefore(box,first.firstChild);
-      box.style.display='block';
-    }
-    const toggle=dlg?.querySelector('.c5newgroup');if(toggle)toggle.textContent='＋ Novo grupo';
-  }
+  c5toggleCreateGroup(false);
   c5urls.forEach(u => URL.revokeObjectURL(u));
   c5urls = [];
 }
@@ -1306,7 +1281,7 @@ async function c5shareOpenPhoto(){const img=c5x('c5PhotoViewerImg');if(!img?.src
 let c5creatingGroup = false;
 async function c5createGroup(){
   const nameInput=c5x('c5gn'), descInput=c5x('c5gd'), typeInput=c5x('c5gtp');
-  const button=c5x('c5createBox')?.querySelector('button[onclick*="c5createGroup"]');
+  const button=c5x('c5createSubmit');
   const name=String(nameInput?.value||'').trim();
   if(!name){
     showToast('Digite um nome para o grupo.');
@@ -1332,6 +1307,7 @@ async function c5createGroup(){
     cimeInvalidateApiCache();
     await c5groups();
     await c5select(d.group_id);
+    c5toggleCreateGroup(false);
     showToast('✅ Grupo criado com sucesso.');
   }catch(e){
     const message=e?.name==='AbortError'?'O servidor demorou para responder. Tente novamente.':(e?.message||'Erro desconhecido ao criar o grupo.');
@@ -1485,13 +1461,22 @@ async function c5nativeShare(){
 }
 
 
-async function c5loadHistoryRecommendationOptions(){
+async async function c5loadHistoryRecommendationOptions(){
  const sel=c5x('c5recHistorySelect'),status=c5x('c5recHistoryStatus');if(!sel)return;
  sel.innerHTML='<option value="">Carregando sua biblioteca…</option>';if(status)status.textContent='';
  try{
   let arr=Array.isArray(titles)?titles:[];
-  if(!arr.length){const boot=window.__cimeBootstrap||await api('/api/bootstrap');arr=Array.isArray(boot.titles)?boot.titles:[];if(arr.length)titles=arr;}
-  const sorted=[...arr].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'pt-BR'));
+  if(!arr.length){
+   const boot=window.__cimeBootstrap;
+   if(boot&&Array.isArray(boot.titles))arr=boot.titles;
+   else{
+    if(status)status.textContent='Biblioteca ainda não está pronta; buscando títulos…';
+    const loaded=await Promise.race([api('/api/bootstrap'),new Promise((_,reject)=>setTimeout(()=>reject(new Error('A consulta demorou. Reabra a aba para tentar novamente.')),8000))]);
+    arr=Array.isArray(loaded.titles)?loaded.titles:[];
+   }
+   if(arr.length)titles=arr;
+  }
+  const sorted=[...arr].sort((a,b)=>String(a.name||a.title_english||'').localeCompare(String(b.name||b.title_english||''),'pt-BR'));
   sel.innerHTML='<option value="">— Selecione um título —</option>'+sorted.map(x=>{const rating=x.rating!=null?' · ⭐ '+Number(x.rating).toFixed(1):'';const state=x.status?' · '+String(x.status):'';return '<option value="'+String(x.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">'+esc(x.name||'Título')+esc(state+rating)+'</option>';}).join('');
   if(status)status.textContent=sorted.length?sorted.length+' título(s) disponível(is) da sua biblioteca.':'Sua biblioteca ainda não tem títulos para compartilhar.';
  }catch(e){sel.innerHTML='<option value="">Não foi possível carregar o histórico</option>';if(status)status.textContent='Erro: '+e.message;}
@@ -2906,6 +2891,23 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
 #c5go #c5createBox>.c5section{margin:13px 0 0!important;padding:11px!important;border-radius:13px!important}
 @media(min-width:761px){#c5go #c5createBox{display:block!important}#c5go #c5createBox .c5section{display:block!important}}
 @media(max-width:760px){#c5go #c5createBox{display:block!important;margin:0 0 12px!important;padding:12px!important}#c5go #c5createBox:not(.c5-mobile-create-open){display:none!important}#c5go #c5createBox .c5section{display:none!important}#c5go #c5quickWrap{display:block!important}}
+</style>
+
+
+<style id="cime-groups-create-modal-v2">
+#c5go .c5ggrid>#c5createBox{padding:0!important;background:transparent!important;border:0!important;min-width:0!important}
+#c5go #c5createBox>.c5section{margin:0!important;padding:12px!important}
+#c5go #c5createOverlay[hidden]{display:none!important}
+#c5go #c5createOverlay{position:fixed!important;inset:0!important;z-index:50000!important;display:grid!important;place-items:center!important;padding:18px!important}
+#c5go .c5create-overlay-bg{position:absolute!important;inset:0!important;background:#020611d9!important;backdrop-filter:blur(9px)!important}
+#c5go .c5create-dialog{position:relative!important;width:min(480px,100%)!important;max-height:min(90dvh,650px)!important;overflow:auto!important;border:1px solid #2b3a52!important;border-radius:22px!important;padding:18px!important;background:linear-gradient(145deg,#121e30,#0b1220)!important;box-shadow:0 28px 90px #000a!important}
+#c5go .c5create-dialog-head{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:12px!important;margin-bottom:15px!important}
+#c5go .c5create-dialog-head h3{margin:0!important;font-size:20px!important;font-weight:850!important}
+#c5go .c5create-dialog-head p{margin:5px 0 0!important;color:#91a2bb!important;font-size:12px!important}
+#c5go .c5create-form{display:grid!important;gap:10px!important}
+#c5go .c5create-form .c5gi{width:100%!important;min-width:0!important;margin:0!important;min-height:45px!important}
+#c5go #c5createSubmit{min-height:46px!important;width:100%!important}
+@media(max-width:760px){#c5go #c5createOverlay{padding:12px!important;align-items:center!important}#c5go .c5create-dialog{border-radius:20px!important;padding:15px!important;width:100%!important;max-height:calc(100dvh - 28px)!important}}
 </style>
 
 </body></html>
