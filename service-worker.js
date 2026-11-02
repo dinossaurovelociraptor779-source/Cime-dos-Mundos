@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cime5-shell-v56-single-panel-close';
+const CACHE_NAME = 'cime5-shell-v57-qr-local-fallback';
 const SHELL = ['/', '/index.html', '/manifest.json', '/cime-logo.svg'];
 async function putShell(url,response){if(!response||!response.ok||response.type!=='basic')return;const cache=await caches.open(CACHE_NAME);await cache.put(url,response.clone());}
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
