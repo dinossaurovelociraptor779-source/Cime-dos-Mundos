@@ -9,6 +9,7 @@ class VercelRoutingRegressionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.app = (ROOT / "app.html").read_text(encoding="utf-8")
         cls.gateway = (ROOT / "api" / "cime.py").read_text(encoding="utf-8")
 
     def test_frontend_uses_canonical_api_paths(self):
@@ -53,6 +54,10 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn("'/api/persistence/health'", server)
         self.assertIn("if path=='/api/persistence/health':", server)
         self.assertIn("with request_context(write=write) as store:", (ROOT / "api" / "index.py").read_text(encoding="utf-8"))
+
+    def test_details_panel_uses_its_single_close_control(self):
+        self.assertIn("data-panel-close", self.app)
+        self.assertNotIn('$("closeDetails").onclick', self.app)
 
     def test_cloud_adapters_preserve_host_specific_oauth_origin(self):
         self.assertIn('os.environ.setdefault("CIME_DEPLOYMENT", "vercel")', self.gateway)
