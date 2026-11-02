@@ -84,6 +84,22 @@ def public_lan_base():
     ip = lan_ip()
     return f"http://{ip}:{PORT}"
 
+def public_app_base(handler):
+    """Use the public Vercel host for deployed invitations and LAN URLs locally."""
+    configured=os.getenv('CIME_PUBLIC_URL','').strip().rstrip('/')
+    if configured.startswith('https://'):
+        return configured
+    request_host=str(handler.headers.get('x-forwarded-host') or handler.headers.get('host') or '').split(',')[0].strip()
+    hostname=(urlparse('//'+request_host).hostname or '').lower()
+    trusted_hosts={'cime-dos-mundos.vercel.app'}
+    for key in ('VERCEL_URL','VERCEL_PROJECT_PRODUCTION_URL'):
+        value=os.getenv(key,'').strip().lower()
+        if value:
+            trusted_hosts.add((urlparse('//'+value).hostname or value.split(':')[0]).lower())
+    if hostname and hostname in trusted_hosts:
+        return 'https://'+hostname
+    return public_lan_base()
+
 sys.path.insert(0,str(BASE))
 import server_legacy as legacy
 
@@ -530,11 +546,14 @@ class Gateway(BaseHTTPRequestHandler):
             limit=max(1,min(12,int(qs.get('limit',['6'])[0] or 6)))
             after_id=max(0,int(qs.get('after_id',['0'])[0] or 0))
             target_id=max(0,int(qs.get('id',['0'])[0] or 0))
+            mode='names_synopses' if str(qs.get('mode',[''])[0] or '')=='names_synopses' else 'full'
             titles=legacy.all_titles()
             # Pode enriquecer somente o título recém-salvo ou percorrer toda a biblioteca.
             # Analisa uma vez cada registro incompleto neste passe, em ordem estável.
             # Assim a interface não fica presa repetindo os mesmos títulos que não foram encontrados.
             def incomplete(x):
+                if mode=='names_synopses':
+                    return any(x.get(k) for k in ('name','title_english','title_japanese'))
                 return any([
                     not x.get('cover'),
                     not x.get('title_english'),
@@ -552,7 +571,7 @@ class Gateway(BaseHTTPRequestHandler):
             titles=sorted(titles,key=lambda x:int(x.get('id') or 0))[:limit]
             out=[]
             for row in titles:
-                try: out.append(_safe_enrich_title(row))
+                try: out.append(_safe_enrich_title(row,mode=mode))
                 except Exception as e: out.append({'id':row.get('id'),'name':row.get('name'),'changed':False,'reason':'erro','detail':str(e)[:240]})
             next_after=int(titles[-1].get('id') or after_id) if titles else after_id
             return self.send_json({'success':True,'processed':len(out),'results':out,'after_id':after_id,'next_after_id':next_after,'finished':not bool(titles) or len(titles)<limit})
@@ -950,7 +969,7 @@ class Gateway(BaseHTTPRequestHandler):
                 raw=secrets.token_urlsafe(32); th=hashlib.sha256(raw.encode()).hexdigest(); now=datetime.now(timezone.utc).replace(tzinfo=None); exp=now+timedelta(days=GROUP_INVITE_DAYS)
                 c=auth_db(); c.execute("UPDATE group_share_links SET status='revoked' WHERE group_id=? AND inviter_id=? AND status='active'",(gid,u['id']))
                 c.execute('INSERT INTO group_share_links(group_id,inviter_id,token_hash,created_at,expires_at) VALUES(?,?,?,?,?)',(gid,u['id'],th,now.isoformat(timespec='seconds'),exp.isoformat(timespec='seconds'))); g=c.execute('SELECT name FROM groups WHERE id=?',(gid,)).fetchone(); c.commit(); c.close()
-                link=f"{public_lan_base()}/?group_share={raw}"; text=f"👥 Convite para o grupo \"{g['name']}\" no Cime dos Mundos 5.0\n\n{link}"; from urllib.parse import quote; wa='https://wa.me/?text='+quote(text)
+                link=f"{public_app_base(self)}/?group_share={raw}"; text=f"👥 Convite para o grupo \"{g['name']}\" no Cime dos Mundos 5.0\n\n{link}"; from urllib.parse import quote; wa='https://wa.me/?text='+quote(text)
                 return self.send_json({'success':True,'group_id':gid,'invite_link':link,'whatsapp_url':wa,'expires_at':exp.isoformat(timespec='seconds')},201)
             if path=='/api/groups/share/accept':
                 u=require(self)
@@ -971,7 +990,7 @@ class Gateway(BaseHTTPRequestHandler):
                 if not valid_email(email):return self.send_json({'error':'Informe um e-mail válido.'},400)
                 c=auth_db(); already=c.execute('SELECT 1 FROM group_members gm JOIN users u ON u.id=gm.user_id WHERE gm.group_id=? AND u.email=? AND gm.status="active"',(gid,email)).fetchone(); g=c.execute('SELECT name FROM groups WHERE id=?',(gid,)).fetchone()
                 if already:c.close();return self.send_json({'error':'Essa pessoa já está no grupo.'},409)
-                raw=secrets.token_urlsafe(36); th=hashlib.sha256(raw.encode()).hexdigest(); now=datetime.now(timezone.utc).replace(tzinfo=None); exp=now+timedelta(days=GROUP_INVITE_DAYS); c.execute('INSERT INTO group_invites(group_id,inviter_id,email,token_hash,created_at,expires_at) VALUES(?,?,?,?,?,?)',(gid,u['id'],email,th,now.isoformat(timespec='seconds'),exp.isoformat(timespec='seconds'))); c.commit(); c.close(); link=f"{public_lan_base()}/?invite={raw}"; sent=False; status='not_sent';
+                raw=secrets.token_urlsafe(36); th=hashlib.sha256(raw.encode()).hexdigest(); now=datetime.now(timezone.utc).replace(tzinfo=None); exp=now+timedelta(days=GROUP_INVITE_DAYS); c.execute('INSERT INTO group_invites(group_id,inviter_id,email,token_hash,created_at,expires_at) VALUES(?,?,?,?,?,?)',(gid,u['id'],email,th,now.isoformat(timespec='seconds'),exp.isoformat(timespec='seconds'))); c.commit(); c.close(); link=f"{public_app_base(self)}/?invite={raw}"; sent=False; status='not_sent';
                 try: sent,status=maybe_send_invite_email(email,g['name'],u['display_name'],link)
                 except Exception as e: status='send_error'
                 return self.send_json({'success':True,'email':email,'sent':sent,'delivery_status':status,'invite_token':raw,'invite_link':link},201)
@@ -1269,13 +1288,28 @@ def _deep_verify_candidate(best, diagnostics):
             diagnostics.append({'source':'TMDB detalhes','query':str(sid),'status':'detail_ok','count':1})
     return item
 
-def _safe_enrich_title(row):
-    """Análise profunda multi-fonte; nunca apaga um valor já salvo pelo usuário."""
+def _simple_synopsis(text, limit=320):
+    """Return a short synopsis snippet for display without changing user-written text."""
+    import html
+    value=html.unescape(re.sub(r'<[^>]*>', ' ', str(text or '')))
+    value=re.sub(r'\s+',' ',legacy.limpar_linha(value)).strip()
+    if len(value)<8:
+        return ''
+    sentences=re.split(r'(?<=[.!?])\s+',value)
+    short=' '.join(sentences[:2]).strip()
+    if len(short)>limit:
+        short=short[:limit-1].rsplit(' ',1)[0].rstrip(' ,;:.-')+'…'
+    return short
+
+
+def _safe_enrich_title(row, mode='full'):
+    """Research a title while leaving ratings and any user-written data untouched."""
     name=_clean_text(row.get('name'))
-    if not name:
+    search_name=name or _clean_text(row.get('title_english')) or _clean_text(row.get('title_japanese'))
+    if not search_name:
         return {'id':row.get('id'),'name':name,'changed':False,'reason':'sem_nome'}
     cat=_clean_text(row.get('category'))
-    canonical=legacy.canonical_title_from_text(name) or name
+    canonical=legacy.canonical_title_from_text(search_name) or search_name
     diagnostics=[]
 
     # O botão agora faz a pesquisa completa; fast_mode era rápido demais e podia pular Jikan/Kitsu.
@@ -1290,7 +1324,7 @@ def _safe_enrich_title(row):
     if not best:
         # IA de pesquisa vira último fallback quando configurada.
         try:
-            research=legacy.openai_web_research(canonical,[name],cat) if getattr(legacy,'OPENAI_API_KEY','') else None
+            research=legacy.openai_web_research(canonical,[search_name],cat) if getattr(legacy,'OPENAI_API_KEY','') else None
             if research and research.get('found'):
                 best={
                     'id':None,'title':research.get('canonical_title') or canonical,
@@ -1308,14 +1342,30 @@ def _safe_enrich_title(row):
         except Exception as e:
             diagnostics.append({'source':'OpenAI Web Search','query':canonical,'status':'error','detail':str(e)[:160]})
     if not best:
-        return {'id':row.get('id'),'name':name,'changed':False,'reason':'nao_encontrado','diagnostics':diagnostics[-14:]}
+        return {'id':row.get('id'),'name':search_name,'changed':False,'reason':'nao_encontrado','diagnostics':diagnostics[-14:]}
 
     best=_deep_verify_candidate(best,diagnostics)
     # Capas: além da capa principal, tenta preencher cada temporada individualmente.
-    season_updates, season_changed = _refresh_season_covers(row, best, diagnostics)
+    season_updates, season_changed = _refresh_season_covers(row, best, diagnostics) if mode!='names_synopses' else ([],False)
     conn=legacy.db(); updates={}
     category=cat or best.get('category') or 'Anime'
-    # Só preenche lacunas — não sobrescreve capa, nota, status, datas etc.
+    if mode=='names_synopses':
+        matched_title=_clean_text(best.get('title') or best.get('name'))
+        try: match_score=float(best.get('_match_score') or 0)
+        except Exception: match_score=0
+        # Só troca o nome quando a pesquisa confirma uma correspondência muito forte.
+        if matched_title and match_score>=92 and matched_title.casefold()!=name.casefold():
+            updates['name']=matched_title
+        if not row.get('synopsis_pt'):
+            source_synopsis=_first_nonempty(best.get('synopsis_pt'),best.get('synopsis'))
+            if source_synopsis:
+                translated=best.get('synopsis_pt') or legacy.translate_synopsis(source_synopsis)
+                simple=_simple_synopsis(translated)
+                if simple:
+                    updates['synopsis_pt']=simple
+                    if not row.get('synopsis'):
+                        updates['synopsis']=simple
+    # Modo completo só preenche lacunas e nunca inclui avaliação pessoal.
     scalar_map={
         'cover':_first_nonempty(best.get('cover'), ((best.get('images') or {}).get('jpg') or {}).get('large_image_url') if isinstance(best.get('images'),dict) else ''),
         'title_english':best.get('title_english'),
@@ -1328,19 +1378,20 @@ def _safe_enrich_title(row):
         'season':_season_label(best.get('season')),
         'episodes':best.get('episodes'),
     }
-    for field,val in scalar_map.items():
-        if not row.get(field) and val not in (None,'',[]):
-            if field in ('year','episodes'):
-                try: val=int(float(val))
-                except Exception: continue
-            updates[field]=val
-    if not row.get('source_id'):
+    if mode!='names_synopses':
+        for field,val in scalar_map.items():
+            if not row.get(field) and val not in (None,'',[]):
+                if field in ('year','episodes'):
+                    try: val=int(float(val))
+                    except Exception: continue
+                updates[field]=val
+    if mode!='names_synopses' and not row.get('source_id'):
         ref=_source_ref(best)
         if ref: updates['source_id']=ref
-    if not row.get('total_episodes') and best.get('episodes') not in (None,''):
+    if mode!='names_synopses' and not row.get('total_episodes') and best.get('episodes') not in (None,''):
         try: updates['total_episodes']=int(float(best.get('episodes')))
         except Exception: pass
-    if season_updates:
+    if mode!='names_synopses' and season_updates:
         updates['seasons_json']=json.dumps(season_updates,ensure_ascii=False)
         updates['season_covers']=json.dumps([e.get('cover') for e in season_updates if e.get('cover')],ensure_ascii=False)
         if not updates.get('cover') and season_updates:
@@ -1354,22 +1405,23 @@ def _safe_enrich_title(row):
                 try: updates['episodes']=int(first_ep)
                 except Exception: pass
     # Temporadas de anime: mantém a informação textual original e tenta completar a posição atual.
-    if category in ('Anime','Desenho') and not row.get('current_season') and best.get('season_number'):
+    if mode!='names_synopses' and category in ('Anime','Desenho') and not row.get('current_season') and best.get('season_number'):
         try: updates['current_season']=int(best.get('season_number'))
         except Exception: pass
-    if category in ('Anime','Desenho') and not row.get('total_seasons') and best.get('season_number'):
+    if mode!='names_synopses' and category in ('Anime','Desenho') and not row.get('total_seasons') and best.get('season_number'):
         try: updates['total_seasons']=int(best.get('season_number'))
         except Exception: pass
-    # Guarda a procedência sem criar coluna nova.
-    provenance=[]
-    try: provenance=json.loads(row.get('history_sources') or '[]') if isinstance(row.get('history_sources'),str) else (row.get('history_sources') or [])
-    except Exception: provenance=[]
-    if not isinstance(provenance,list): provenance=[]
-    prov={'source':best.get('source') or '','id':best.get('id'),'title':best.get('title') or best.get('name') or canonical,'score':best.get('_match_score'),'checked_at':datetime.now().isoformat(timespec='seconds')}
-    provenance=[x for x in provenance if not (isinstance(x,dict) and x.get('source')==prov.get('source') and str(x.get('id'))==str(prov.get('id')))]
-    provenance.insert(0,prov)
-    provenance=provenance[:8]
-    updates['history_sources']=json.dumps(provenance,ensure_ascii=False)
+    if mode!='names_synopses':
+        # Guarda a procedência sem criar coluna nova.
+        provenance=[]
+        try: provenance=json.loads(row.get('history_sources') or '[]') if isinstance(row.get('history_sources'),str) else (row.get('history_sources') or [])
+        except Exception: provenance=[]
+        if not isinstance(provenance,list): provenance=[]
+        prov={'source':best.get('source') or '','id':best.get('id'),'title':best.get('title') or best.get('name') or canonical,'score':best.get('_match_score'),'checked_at':datetime.now().isoformat(timespec='seconds')}
+        provenance=[x for x in provenance if not (isinstance(x,dict) and x.get('source')==prov.get('source') and str(x.get('id'))==str(prov.get('id')))]
+        provenance.insert(0,prov)
+        provenance=provenance[:8]
+        updates['history_sources']=json.dumps(provenance,ensure_ascii=False)
 
     if updates:
         sets=', '.join(f'{k}=?' for k in updates)
@@ -1377,7 +1429,7 @@ def _safe_enrich_title(row):
         conn.execute(f'UPDATE titles SET {sets} WHERE id=?',vals); conn.commit()
     conn.close()
     return {
-        'id':row.get('id'),'name':name,'changed':bool([k for k in updates if k!='history_sources']),
+        'id':row.get('id'),'name':updates.get('name') or name or search_name,'changed':bool([k for k in updates if k!='history_sources']),
         'cover':updates.get('cover') or row.get('cover') or '', 'fields':[k for k in updates if k!='history_sources'],
         'matched_title':best.get('title') or best.get('name') or '', 'source':best.get('source') or '',
         'source_id':updates.get('source_id') or row.get('source_id') or '',

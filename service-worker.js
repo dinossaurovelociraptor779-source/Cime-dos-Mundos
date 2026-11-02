@@ -1,6 +1,8 @@
-const CACHE_NAME = 'cime5-shell-v58-panel-mobile-brand';
-const SHELL = ['/', '/index.html', '/manifest.json', '/cime-logo.svg'];
+const CACHE_NAME = 'cime5-shell-v59-static-logo-history-retry';
+const REQUIRED_SHELL = ['/', '/index.html', '/manifest.json'];
+const OPTIONAL_SHELL = ['/cime-logo.svg'];
+const SHELL = [...REQUIRED_SHELL, ...OPTIONAL_SHELL];
 async function putShell(url,response){if(!response||!response.ok||response.type!=='basic')return;const cache=await caches.open(CACHE_NAME);await cache.put(url,response.clone());}
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
+self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE_NAME);await cache.addAll(REQUIRED_SHELL);await Promise.allSettled(OPTIONAL_SHELL.map(async url=>{const response=await fetch(url);if(response.ok&&response.type==='basic')await cache.put(url,response);}));await self.skipWaiting();})());});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',event=>{const req=event.request;if(req.method!=='GET')return;const url=new URL(req.url);if(url.origin!==self.location.origin)return;if(url.pathname.startsWith('/api/')||url.pathname.startsWith('/oauth/'))return;if(url.pathname.startsWith('/media/')||url.pathname.startsWith('/groups_media/'))return;const shell=req.mode==='navigate'||url.pathname==='/'||url.pathname==='/index.html'||url.pathname==='/app'||url.pathname==='/app/'||url.pathname==='/manifest.json'||url.pathname==='/cime-logo.svg';if(!shell) return;event.respondWith((async()=>{const cache=await caches.open(CACHE_NAME);const key=url.pathname==='/app/'?'/app':url.pathname;const cached=await cache.match(key);const refresh=fetch(req).then(async fresh=>{if(fresh.ok&&fresh.type==='basic')await putShell(key,fresh);return fresh;}).catch(()=>null);if(cached){const fresh=await refresh; if(fresh) return fresh; return cached;}const fresh=await refresh;return fresh||cache.match('/')||Response.error();})());});

@@ -433,7 +433,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     <button class="btn" id="discoverTab">🔎 Pesquisar / Descobrir</button>
     <button class="btn" id="add">＋ Adicionar</button>
     <button class="btn" id="addImage">📷 Identificar por imagem</button>
-    <button class="btn" id="refreshCovers" title="Atualizar capas de filmes, séries, animes e temporadas">🖼️ Atualizar capas</button><button class="btn" id="enrichLibrary" title="Completar capas e detalhes automaticamente">✨ Completar biblioteca</button>
+    <button class="btn" id="refreshCovers" title="Atualizar capas de filmes, séries, animes e temporadas">🖼️ Atualizar capas</button><button class="btn" id="enrichLibrary" title="Pesquisar nomes confirmados e adicionar sinopses curtas sem alterar avaliações">🔎 Pesquisar nomes e sinopses</button>
     <button class="btn" id="openHistoryImport" title="Importar histórico da Netflix ou Tomato">📥 Histórico Netflix / Tomato</button>
     <button class="btn" id="statsTab">📊 Estatísticas</button><button class="btn" id="settingsBtn">⚙️ Configurações</button>
   </div>
@@ -463,7 +463,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   <div class="library-heading"><div><div class="tiny">SUA COLEÇÃO</div><h2 style="margin:2px 0">📚 Minha biblioteca</h2></div><div class="library-heading-note">Tudo o que você acompanha, em um só lugar.</div></div>
   <div class="info-actions" aria-label="Explicação das ações da biblioteca">
     <div class="action-help"><b><span class="help-icon">🖼️</span>Atualizar capas</b>Procura capas melhores para os títulos e também para as temporadas. Não deve substituir uma capa manual correta por uma busca pior.</div>
-    <div class="action-help"><b><span class="help-icon">✨</span>Completar biblioteca</b>Preenche informações que estiverem faltando, como nomes, sinopse, ano, gêneros, episódios, temporadas e capas.</div>
+    <div class="action-help"><b><span class="help-icon">🔎</span>Pesquisar nomes e sinopses</b>Confere os títulos com fontes públicas e acrescenta uma sinopse curta quando estiver vazia. Suas notas e avaliações são preservadas.</div>
   </div>
   <div class="toolbar compact-toolbar">
     <input class="search library-search" id="librarySearch" placeholder="🔎 Buscar na sua biblioteca..." autocomplete="off">
@@ -554,7 +554,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
 <dialog id="settingsDlg"><div class="modal"><h2>⚙️ Configurações</h2>
 <p class="muted">Personalize a aparência do Cime e veja os recursos principais da biblioteca.</p>
 <div class="panel-box"><h3 style="margin:0 0 8px">🎨 Tema do aplicativo</h3><div class="muted" style="margin-bottom:10px">O tema preto é o padrão do Cime 5.0. Você pode trocar para branco quando quiser.</div><div class="theme-choice"><button type="button" id="themeDark">🌙 Preto (padrão)</button><button type="button" id="themeLight">☀️ Branco</button></div></div>
-<div class="panel-box" style="margin-top:12px"><h3 style="margin:0 0 8px">🤖 Ações inteligentes</h3><div class="muted">🖼️ <b>Atualizar capas</b>: procura capas melhores sem substituir uma capa manual correta por uma busca ruim.<br><br>✨ <b>Completar biblioteca</b>: tenta preencher automaticamente os dados que estiverem faltando.</div></div>
+<div class="panel-box" style="margin-top:12px"><h3 style="margin:0 0 8px">🤖 Ações inteligentes</h3><div class="muted">🖼️ <b>Atualizar capas</b>: procura capas melhores sem substituir uma capa manual correta por uma busca ruim.<br><br>🔎 <b>Pesquisar nomes e sinopses</b>: confere os títulos e acrescenta uma descrição curta quando não houver sinopse. A avaliação e os dados de progresso ficam preservados.</div></div>
 <div class="panel-box" style="margin-top:12px"><div class="progress-row"><b>🤖 Média atual de episódios</b><b id="autoRateValue">Calculando...</b></div><div id="autoRateInfo" class="muted" style="margin-top:8px"></div></div>
 <div class="actions"><button class="btn" id="backupSettings">💾 Fazer backup</button><button class="btn" id="openHistoryImportSettings">📥 Importar histórico</button><button class="btn" id="cancelSettings">Fechar</button></div></div></dialog>
 <dialog id="historyImportDlg"><div class="modal history-import-modal"><div class="history-head"><div><div class="eyebrow">📥 CENTRAL DE IMPORTAÇÃO</div><h2>Importar histórico</h2><p class="muted">Traga seu histórico para o Cime sem senha. Os arquivos são lidos localmente no navegador e só os registros necessários são enviados para sua biblioteca.</p></div><button class="icon-close" id="closeHistoryImport" aria-label="Fechar">✕</button></div>
@@ -595,17 +595,20 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     const startupToken=localStorage.getItem('cime5Token')||'';
     const bootstrapUrl=startupToken?('/api/bootstrap?token='+encodeURIComponent(startupToken)):'/api/bootstrap';
     const r=await originalFetch(apiUrlEarly(bootstrapUrl),{headers:authHeaders(),cache:'no-store',credentials:'same-origin'});
-    if(r.status===401){const gs=q.get('group_share');if(gs)localStorage.setItem('cime5GroupShare',gs);location.href='/';return;}
+    if(r.status===401){const gs=q.get('group_share'),iv=q.get('invite');if(gs)localStorage.setItem('cime5GroupShare',gs);if(iv)localStorage.setItem('cime5PendingInvite',iv);location.href='/';return;}
     if(!r.ok)throw new Error('Bootstrap HTTP '+r.status);
     const d=await r.json();
     window.__cimeBootstrap=d;
     window.cimeSessionUser=d.user||null;
     const pendingShare=q.get('group_share')||localStorage.getItem('cime5GroupShare');
-    if(pendingShare){
-      try{const rr=await originalFetch(apiUrlEarly('/api/groups/share/accept'),{method:'POST',headers:new Headers({'Content-Type':'application/json',...Object.fromEntries(authHeaders())}),body:JSON.stringify({token:pendingShare})});if(rr.ok){const dd=await rr.clone().json().catch(()=>({}));if(dd.group_id)localStorage.setItem('cime5AutoOpenGroup',String(dd.group_id));localStorage.removeItem('cime5GroupShare');history.replaceState({},'',location.pathname);}}catch(e){}
+    const pendingInvite=q.get('invite')||localStorage.getItem('cime5PendingInvite');
+    for(const [token,path,key] of [[pendingShare,'/api/groups/share/accept','cime5GroupShare'],[pendingInvite,'/api/invites/accept','cime5PendingInvite']]){
+      if(!token)continue;
+      try{const rr=await originalFetch(apiUrlEarly(path),{method:'POST',headers:new Headers({'Content-Type':'application/json',...Object.fromEntries(authHeaders())}),body:JSON.stringify({token})});if(rr.ok){const dd=await rr.clone().json().catch(()=>({}));if(dd.group_id)localStorage.setItem('cime5AutoOpenGroup',String(dd.group_id));localStorage.removeItem(key);history.replaceState({},'',location.pathname);}}
+      catch(e){console.warn('[Cime] Não foi possível aceitar o convite agora.',e);}
     }
   }catch(e){
-    const gs=q.get('group_share');if(gs)localStorage.setItem('cime5GroupShare',gs);
+    const gs=q.get('group_share'),iv=q.get('invite');if(gs)localStorage.setItem('cime5GroupShare',gs);if(iv)localStorage.setItem('cime5PendingInvite',iv);
     if(location.pathname.startsWith('/app')){console.error(e);}
   }
   window.cimeLogout=async()=>{try{await originalFetch(cimeApiUrl('/api/auth/logout'),{method:'POST',headers:authHeaders()})}catch(e){}localStorage.removeItem('cime5Token');location.href='/';};
@@ -853,7 +856,7 @@ function openDetails(a){
   while(cimeUseStore.size>24){cimeUseStore.delete(cimeUseStore.keys().next().value)}
   $('animeDetails').innerHTML=`<div class="anime-details">${cover?`<img src="${esc(cover)}" alt="Capa oficial encontrada" onerror="this.style.display='none'">`:''}<h2 class="details-title">${esc(a.title||a.name||'Anime')}</h2>${a.title_english?`<div class="details-subtitle">🇺🇸 ${esc(a.title_english)}</div>`:''}<div class="chips"><span class="chip">🎌 ${esc(typePT(a.type))}</span>${a.episodes!=null?`<span class="chip">📺 ${a.episodes} episódios</span>`:''}${a.year?`<span class="chip">📅 ${a.year}</span>`:''}${a.season_number?`<span class="chip">📺 Temporada ${esc(a.season_number)}</span>`:''}${a.score!=null?`<span class="chip">⭐ ${a.score}</span>`:''}</div>${genreBadges(a)}${a.synopsis_pt||a.synopsis?`<p class="synopsis">${esc(a.synopsis_pt||a.synopsis)}</p>`:''}<div class="actions"><button class="btn primary" data-use-key="${key}">✅ Usar este anime</button></div><div class="clear"></div></div>`;
 }
-function renderAnimePanel(x, selectedSeason, historyRows){
+function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
   const panel=$("detailsPanel");
   if(!panel)return;
   try{
@@ -881,7 +884,7 @@ function renderAnimePanel(x, selectedSeason, historyRows){
       return `<div class="season-item"><div style="display:flex;gap:10px;align-items:center">${seasonCover?`<img src="${esc(seasonCover)}" alt="Capa da temporada ${number}" style="width:44px;height:62px;object-fit:cover;border-radius:8px" loading="lazy" decoding="async" onerror="this.remove()">`:""}<div><b>${esc(season.name||("Temporada "+number))}</b><div class="muted">📺 ${season.episodes!=null?esc(String(season.episodes)):'⏳ Pendente: episódios'} · ⭐ ${season.score!=null?esc(String(season.score)):'⏳ Pendente: nota'} · ${season.status?esc(statusPT(season.status)):'⏳ Pendente: status'}${season.year?` · ${esc(String(season.year))}`:""}</div>${season.title_english?`<div class="muted">🌐 ${esc(season.title_english)}</div>`:""}${seasonSynopsis?`<div class="muted" style="margin-top:5px">${esc(seasonSynopsis)}</div>`:""}${season.watched_count?`<div class="muted">🕘 ${esc(String(season.watched_count))} registro(s) importado(s)</div>`:""}</div></div><button class="btn" data-panel-season="${esc(x.id)}" data-season="${number}">Abrir</button></div>`;
     }).join("")}</div>`:`<div class="note">⏳ Pendente: temporadas cadastradas</div>`;
     const history=Array.isArray(historyRows)?historyRows:[];
-    const historyMarkup=history.length?`<h3 class="section-title">🕘 Últimos episódios registrados</h3><div class="history-list">${history.slice(0,8).map(row=>`<div>📺 T${esc(row.season??"?")} · Episódio ${esc(row.episode??"?")} <span class="muted">· ${esc(row.watched_at||"")}</span></div>`).join("")}</div>`:"";
+    const historyMarkup=history.length?`<h3 class="section-title">🕘 Últimos episódios registrados</h3><div class="history-list">${history.slice(0,8).map(row=>`<div>📺 T${esc(row.season??"?")} · Episódio ${esc(row.episode??"?")} <span class="muted">· ${esc(row.watched_at||"")}</span></div>`).join("")}</div>`:historyError?`<div class="note danger" role="alert"><b>Não foi possível carregar temporadas e episódios agora.</b><div style="margin-top:6px">${esc(historyError)}</div><button class="btn mini" type="button" data-panel-retry="${esc(x.id)}" data-season="${Number(selectedSeason||0)}" style="margin-top:10px">↻ Tentar novamente</button></div>`:"";
     panel.innerHTML=`<div class="panel-toolbar"><span class="panel-kicker">🌌 Cime dos Mundos 5.0</span><button class="btn mini" type="button" data-panel-close title="Fechar painel" aria-label="Fechar painel">✕</button></div>
       <div class="panel-head">${coverMarkup}<div class="panel-info"><h2>${esc(x.name||"⏳ Pendente: nome")}</h2>${x.title_english?`<div class="sub">🌐 ${esc(x.title_english)}</div>`:""}<div class="chips">${x.status?`<span class="chip">${esc(statusPT(x.status))}</span>`:`<span class="chip">⏳ Pendente: status</span>`}${favorite?`<span class="chip">❤️ Favorito</span>`:""}<span class="chip">📺 ${sp.watched}/${sp.total||"?"} episódios conhecidos</span></div>${genreBadges(x)}<div class="synopsis" style="margin-top:12px;white-space:pre-wrap">${synopsis?esc(synopsis):"⏳ Pendente: sinopse"}</div>${alternateSynopsis?`<details class="note"><summary>Sinopse original</summary><div style="margin-top:8px;white-space:pre-wrap">${esc(alternateSynopsis)}</div></details>`:""}</div></div>
       <div class="panel-box"><div class="progress-row"><b>▶️ Progresso geral</b><b>${sp.total?sp.percent+"%":"⏳ Pendente: progresso"}</b></div><div class="progress"><i style="width:${sp.total?sp.percent:0}%"></i></div><div class="next-row"><span>Temporada ${currentSeason} · Episódio ${currentEp}/${currentTotal||"?"}</span>${next?`<button class="btn primary" data-panel-next="${esc(x.id)}" data-season="${Number(next.season||currentSeason)}" data-next-episode="${Number(next.episode||0)}">▶️ ${esc(next.label||"Próximo episódio")}</button>`:""}</div>${currentTotal?`<div class="episode-track"><div class="episode-track-title"><b>📺 Episódios da temporada atual</b><span class="muted">${currentEp}/${currentTotal}</span></div><div class="episode-list">${episodeButtons}</div>${currentTotal>120?`<div class="muted">Mostrando os primeiros 120 episódios; total cadastrado: ${currentTotal}.</div>`:""}</div>`:`<div class="note">⏳ Pendente: episódios da temporada atual</div>`}<div class="muted" style="margin-top:10px">🤖 Média automática: ${getRate()} episódio(s)/dia · ${sp.remaining?`aprox. ${Math.ceil(sp.remaining/getRate())} dia(s) para os episódios conhecidos restantes`:"sem episódios conhecidos restantes"}</div></div>
@@ -906,10 +909,14 @@ function openPanel(x, selectedSeason=null){
   api("/api/history/"+encodeURIComponent(x.id)).then(rows=>{
     if(panel.dataset.panelSequence!==String(sequence)||!dialog.open)return;
     renderAnimePanel(x,selectedSeason,rows);
-  }).catch(error=>console.warn("[Cime] Histórico do anime indisponível:",error));
+  }).catch(error=>{
+    console.warn("[Cime] Histórico do anime indisponível:",error);
+    if(panel.dataset.panelSequence!==String(sequence)||!dialog.open)return;
+    renderAnimePanel(x,selectedSeason,[],"Tente novamente em instantes.");
+  });
 }
 
-$("detailsPanel").onclick=async e=>{const close=e.target.closest('[data-panel-close]');if(close){closeDialog('detailsDlg');return;}const epb=e.target.closest('[data-panel-episode]'),n=e.target.closest('[data-panel-next]'),fav=e.target.closest('[data-panel-fav]'),ed=e.target.closest('[data-panel-edit]'),sb=e.target.closest('[data-panel-season]');if(sb&&!epb&&!n&&!fav&&!ed){const x=titles.find(a=>a.id==sb.dataset.panelSeason);if(x)openPanel(x,Number(sb.dataset.season||1));return;}if(epb){const x=titles.find(a=>a.id==epb.dataset.panelEpisode);if(x){const ep=Number(epb.dataset.episode||0),season=Number(epb.dataset.season||x.current_season||1);await patch(x.id,{current_episode:ep,current_season:season,status:ep>0?'Assistindo':x.status});await loadWatchRate();openPanel(titles.find(a=>a.id===x.id)||x,season);}}else if(n){const x=titles.find(a=>a.id==n.dataset.panelNext);if(x){const season=Number(n.dataset.season||x.current_season||1),ep=Number(n.dataset.nextEpisode||0)||1;await patch(x.id,{current_episode:ep,current_season:season,status:'Assistindo'});await loadWatchRate();openPanel(titles.find(a=>a.id===x.id)||x,season);}}else if(fav){const x=titles.find(a=>a.id==fav.dataset.panelFav);if(x){await patch(x.id,{favorite:x.favorite?0:1});openPanel(titles.find(a=>a.id===x.id)||x);}}else if(ed){const x=titles.find(a=>a.id==ed.dataset.panelEdit);if(x){closeDialog('detailsDlg');openEdit(x)}}};
+$("detailsPanel").onclick=async e=>{const close=e.target.closest('[data-panel-close]');if(close){closeDialog('detailsDlg');return;}const retry=e.target.closest('[data-panel-retry]');if(retry){const x=titles.find(a=>String(a.id)===String(retry.dataset.panelRetry));if(x)openPanel(x,Number(retry.dataset.season||0)||null);return;}const epb=e.target.closest('[data-panel-episode]'),n=e.target.closest('[data-panel-next]'),fav=e.target.closest('[data-panel-fav]'),ed=e.target.closest('[data-panel-edit]'),sb=e.target.closest('[data-panel-season]');if(sb&&!epb&&!n&&!fav&&!ed){const x=titles.find(a=>a.id==sb.dataset.panelSeason);if(x)openPanel(x,Number(sb.dataset.season||1));return;}if(epb){const x=titles.find(a=>a.id==epb.dataset.panelEpisode);if(x){const ep=Number(epb.dataset.episode||0),season=Number(epb.dataset.season||x.current_season||1);await patch(x.id,{current_episode:ep,current_season:season,status:ep>0?'Assistindo':x.status});await loadWatchRate();openPanel(titles.find(a=>a.id===x.id)||x,season);}}else if(n){const x=titles.find(a=>a.id==n.dataset.panelNext);if(x){const season=Number(n.dataset.season||x.current_season||1),ep=Number(n.dataset.nextEpisode||0)||1;await patch(x.id,{current_episode:ep,current_season:season,status:'Assistindo'});await loadWatchRate();openPanel(titles.find(a=>a.id===x.id)||x,season);}}else if(fav){const x=titles.find(a=>a.id==fav.dataset.panelFav);if(x){await patch(x.id,{favorite:x.favorite?0:1});openPanel(titles.find(a=>a.id===x.id)||x);}}else if(ed){const x=titles.find(a=>a.id==ed.dataset.panelEdit);if(x){closeDialog('detailsDlg');openEdit(x)}}};
 $("detailsPanel").addEventListener('touchend',e=>{const b=e.target.closest('button');if(b){e.preventDefault();b.click();}},{passive:false});
 
 readFilterState();
@@ -1127,30 +1134,30 @@ async function enrichSavedTitle(id){
 
 async function enrichLibrary(){
   const btn=$('enrichLibrary'), banner=$('enrichBanner'), text=$('enrichText'), bar=$('enrichBar');
-  if(btn){btn.disabled=true;btn.textContent='✨ Analisando...';} if(banner) banner.style.display='flex';
+  if(btn){btn.disabled=true;btn.textContent='🔎 Pesquisando...';} if(banner) banner.style.display='flex';
   let scanned=0, changed=0, cursor=0, guard=0;
   try{
     // Varre a biblioteca inteira por ID, sem repetir os mesmos títulos quando uma fonte não encontra correspondência.
     while(guard++<200){
-      const r=await api('/api/library/enrich?limit=6&after_id='+cursor);
+      const r=await api('/api/library/enrich?mode=names_synopses&limit=6&after_id='+cursor);
       const batch=r.results||[];
       scanned+=Number(r.processed||0);
       changed+=batch.filter(x=>x.changed).length;
       const nextCursor=Number(r.next_after_id||0);
-      if(text) text.textContent=`🧠 Análise profunda: ${scanned} título(s) verificados · ${changed} atualizado(s).`;
+      if(text) text.textContent=`🔎 Pesquisa de títulos: ${scanned} verificado(s) · ${changed} correção(ões) ou sinopse(s) adicionada(s). Avaliações preservadas.`;
       if(bar) bar.style.width=Math.min(98,Math.max(4,scanned%100))+'%';
       if(!batch.length || r.finished || nextCursor<=cursor) break;
       cursor=nextCursor;
       await load();
     }
     if(bar) bar.style.width='100%';
-    if(text) text.textContent=`✅ Análise concluída. ${scanned} título(s) verificados e ${changed} título(s) receberam dados novos.`;
-    showToast(`✨ Análise profunda concluída: ${changed} título(s) atualizados.`);
+    if(text) text.textContent=`✅ Pesquisa concluída: ${scanned} título(s) conferidos e ${changed} com nome ou sinopse atualizados. Suas avaliações foram preservadas.`;
+    showToast(`✅ ${changed} título(s) corrigidos. Avaliações preservadas.`);
     await load();
   }catch(e){
     if(text) text.textContent='⚠️ A análise foi interrompida, mas o que já foi salvo continua guardado.';
     showToast('⚠️ '+e.message);
-  }finally{if(btn){btn.disabled=false;btn.textContent='✨ Completar biblioteca';}}
+  }finally{if(btn){btn.disabled=false;btn.textContent='🔎 Pesquisar nomes e sinopses';}}
 }
 if($('enrichLibrary')) $('enrichLibrary').onclick=enrichLibrary;
 

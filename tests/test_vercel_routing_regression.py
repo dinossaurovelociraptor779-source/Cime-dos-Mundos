@@ -11,6 +11,8 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
         cls.app = (ROOT / "app.html").read_text(encoding="utf-8")
         cls.gateway = (ROOT / "api" / "cime.py").read_text(encoding="utf-8")
+        cls.worker = (ROOT / "service-worker.js").read_text(encoding="utf-8")
+        cls.server = (ROOT / "server_v5.py").read_text(encoding="utf-8")
 
     def test_frontend_uses_canonical_api_paths(self):
         start = self.index.index("function cimeBackendPath(path){")
@@ -40,6 +42,30 @@ class VercelRoutingRegressionTests(unittest.TestCase):
     def test_details_panel_uses_its_single_close_control(self):
         self.assertIn("data-panel-close", self.app)
         self.assertNotIn('$("closeDetails").onclick', self.app)
+
+    def test_logo_is_deployed_as_a_public_asset_and_cannot_block_sw_install(self):
+        self.assertTrue((ROOT / "public" / "cime-logo.svg").is_file())
+        self.assertIn("Promise.allSettled(OPTIONAL_SHELL", self.worker)
+        self.assertIn("/cime-logo.svg", self.worker)
+
+    def test_email_invite_survives_login_and_is_accepted(self):
+        self.assertIn('get("invite")', self.index)
+        self.assertIn("cime5PendingInvite", self.index)
+        self.assertIn("/api/invites/accept", self.app)
+        self.assertIn("public_app_base(self)}/?invite={raw}", self.server)
+        self.assertIn("public_app_base(self)}/?group_share={raw}", self.server)
+
+    def test_research_button_only_updates_names_and_missing_short_synopses(self):
+        self.assertIn("mode=names_synopses", self.app)
+        self.assertIn("match_score>=92", self.server)
+        self.assertIn("_simple_synopsis", self.server)
+        enrich = self.server[self.server.index("def _safe_enrich_title("):self.server.index("Gateway.read_body =")]
+        self.assertNotIn("updates['rating']", enrich)
+        self.assertIn("if not row.get('synopsis_pt')", enrich)
+
+    def test_panel_displays_retry_when_episode_history_fails(self):
+        self.assertIn("data-panel-retry", self.app)
+        self.assertIn("Não foi possível carregar temporadas e episódios agora.", self.app)
 
     def test_all_mutating_get_routes_are_persisted(self):
         self.assertIn("def _is_write_request(method, path):", self.gateway)

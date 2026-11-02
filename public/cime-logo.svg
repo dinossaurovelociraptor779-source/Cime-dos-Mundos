@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cime dos Mundos">
+  <defs>
+    <linearGradient id="space" x1="54" y1="40" x2="454" y2="476" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17143b"/>
+      <stop offset="1" stop-color="#07111f"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="104" y1="367" x2="399" y2="138" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a78bfa"/>
+      <stop offset=".52" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#f0abfc"/>
+    </linearGradient>
+    <linearGradient id="planet" x1="311" y1="139" x2="380" y2="208" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 177 -177 0 256 256)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5040a6" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#5040a6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="126" fill="url(#space)"/>
+  <circle cx="256" cy="256" r="190" fill="url(#glow)"/>
+  <circle cx="256" cy="256" r="177" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2"/>
+  <path d="M101 326c53 62 126 93 203 82 53-8 96-37 128-81" fill="none" stroke="url(#orbit)" stroke-linecap="round" stroke-width="17" transform="rotate(-27 256 256)"/>
+  <path d="M314 159a128 128 0 1 0 0 194" fill="none" stroke="#f5f3ff" stroke-linecap="round" stroke-width="42"/>
+  <path d="M224 198h104M224 256h78M224 314h104" fill="none" stroke="url(#orbit)" stroke-linecap="round" stroke-width="18"/>
+  <circle cx="349" cy="169" r="30" fill="url(#planet)"/>
+  <circle cx="349" cy="169" r="38" fill="none" stroke="#a5f3fc" stroke-opacity=".24" stroke-width="3"/>
+  <path d="m137 142 6 16 16 6-16 6-6 16-6-16-16-6 16-6 6-16Zm254 184 4 11 11 4-11 4-4 11-4-11-11-4 11-4 4-11Z" fill="#e0e7ff" fill-opacity=".9"/>
+  <circle cx="175" cy="105" r="5" fill="#67e8f9"/>
+  <circle cx="414" cy="245" r="4" fill="#c4b5fd"/>
+  <circle cx="102" cy="240" r="4" fill="#a5f3fc"/>
+</svg>
