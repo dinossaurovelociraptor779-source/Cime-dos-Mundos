@@ -254,7 +254,7 @@ dialog::backdrop{background:rgba(2,5,10,.72)}
   <section id="libraryView">
   <div class="library-heading"><div><div class="tiny">SUA COLEÇÃO</div><h2 style="margin:2px 0">📚 Minha biblioteca</h2></div><div class="library-heading-note">Tudo o que você acompanha, em um só lugar.</div></div>
   <div class="toolbar compact-toolbar">
-    <select class="filter" id="filter"><option value="all">Todos</option><option value="Quero assistir">Quero assistir</option><option value="Assistindo">Assistindo</option><option value="Concluído">Concluído</option><option value="Pausado">Pausado</option><option value="Abandonado">Abandonado</option><option value="favorite">❤️ Favoritos</option></select><select class="filter" id="genreFilter"><option value="all">🏷️ Todos os gêneros</option><option value="Romance">💗 Romance</option></select><select class="filter" id="sort"><option value="recent">Mais recentes</option><option value="name">Nome A–Z</option><option value="progress">Maior progresso</option><option value="rating">Maior nota</option><option value="episodes">Mais episódios</option></select>
+    <select class="filter" id="filter"><option value="all">Todos</option><option value="Quero assistir">Quero assistir</option><option value="Assistindo">Assistindo</option><option value="Concluído">Concluído</option><option value="Pausado">Pausado</option><option value="Abandonado">Abandonado</option><option value="Não informado">Não informado</option><option value="favorite">❤️ Favoritos</option></select><select class="filter" id="genreFilter"><option value="all">🏷️ Todos os gêneros</option><option value="Romance">💗 Romance</option></select><select class="filter" id="sort"><option value="recent">Mais recentes</option><option value="name">Nome A–Z</option><option value="progress">Maior progresso</option><option value="rating">Maior nota</option><option value="episodes">Mais episódios</option></select>
   </div>
   <section id="continueSection" style="display:none"><h2 class="section-title">▶️ Continuar assistindo</h2><div class="grid" id="continueGrid"></div></section>
   <h2 class="section-title">🎬 Seus títulos</h2><div class="grid" id="grid"></div>
@@ -283,8 +283,8 @@ dialog::backdrop{background:rgba(2,5,10,.72)}
 
 <dialog id="dlg"><div class="modal"><h2>＋ Adicionar à biblioteca</h2><div class="form-grid">
   <div class="field full"><label>Nome</label><input id="name"></div>
-  <div class="field"><label>Categoria</label><select id="category"><option>Anime</option><option>Série</option><option>Filme</option><option>Desenho</option></select></div>
-  <div class="field"><label>Status</label><select id="status"><option>Quero assistir</option><option>Assistindo</option><option>Concluído</option><option>Pausado</option><option>Abandonado</option><option>Aguardando</option></select></div>
+  <div class="field"><label>Categoria</label><select id="category"><option>Anime</option><option>Série</option><option>Filme</option><option>Desenho</option><option>Animação / Série</option><option>Filme de animação</option></select></div>
+  <div class="field"><label>Status</label><select id="status"><option>Quero assistir</option><option>Assistindo</option><option>Concluído</option><option>Pausado</option><option>Abandonado</option><option>Aguardando</option><option>Não informado</option></select></div>
   <div class="field"><label>Nota pessoal</label><input id="rating" type="number" min="0" max="10" step="0.1"></div>
   <div class="field"><label>Total de episódios</label><input id="episodes" type="number" min="0"></div>
   <div class="field"><label>Episódio atual</label><input id="currentEpisode" type="number" min="0" value="0"></div>
@@ -299,7 +299,7 @@ dialog::backdrop{background:rgba(2,5,10,.72)}
 
 <dialog id="detailsDlg"><div class="modal"><div id="detailsPanel"></div><div class="actions"><button class="btn" id="closeDetails">Fechar</button></div></div></dialog>
 <dialog id="settingsDlg"><div class="modal"><h2>⚙️ Ritmo automático</h2><p class="muted">O Cime calcula sozinho sua média de episódios por dia com base no histórico. Quanto mais você registra, mais precisa fica a previsão.</p><div class="panel-box"><div class="progress-row"><b>🤖 Média atual</b><b id="autoRateValue">Calculando...</b></div><div id="autoRateInfo" class="muted" style="margin-top:8px"></div></div><div class="note">📌 Você não precisa informar episódios por dia manualmente.</div><div class="actions"><button class="btn" id="backupSettings">💾 Fazer backup</button><button class="btn" id="openHistoryImport">📥 Importar histórico</button><button class="btn" id="cancelSettings">Fechar</button></div></div></dialog>
-<dialog id="historyImportDlg"><div class="modal"><h2>📥 Importar histórico</h2><p class="muted">Importe seu histórico sem informar senha. O Cime cria/associa os títulos na sua biblioteca, mantém a data assistida e evita duplicados.</p><div class="panel-box"><b>🎬 Netflix</b><div class="muted" style="margin:5px 0">No Netflix: Conta → Perfil → O que foi assistido → Baixar todos. Selecione o CSV aqui.</div><input id="netflixHistoryFile" type="file" accept=".csv,text/csv"></div><div class="panel-box"><b>🍅 Tomato</b><div class="muted" style="margin:5px 0">Selecione uma exportação de histórico do Tomato.</div><input id="tomatoHistoryFile" type="file" accept=".csv,.json,.txt,.html,.htm"></div><div id="historyImportMsg" class="note"></div><div id="importHistoryList" class="panel-box" style="max-height:220px;overflow:auto"><div class="muted">Nenhum histórico importado nesta conta.</div></div><div class="actions"><button class="btn primary" id="doHistoryImport">🚀 Importar agora</button><button class="btn" id="consolidateHistory">🧩 Juntar temporadas</button><button class="btn" id="refreshHistoryImport">↻ Atualizar</button><button class="btn" id="closeHistoryImport">Fechar</button></div></div></dialog><dialog id="imageDlg"><div class="modal"><h2>🧠 Identificação Ultra FAST — 1 foto → anime/série/filme + temporada</h2><p class="muted">📷 Envie uma única foto. O Cime mostra a foto na hora e começa visão + OCR em paralelo; pesquisa extra só entra quando necessário. ⚡ Caminho rápido: ~1–4s. Se houver dúvida, análise profunda: ~4–10s.</p><div id="visionStatus" class="note">🔎 Verificando IA Visual...</div><div class="upload-area" id="uploadArea">📷<br><br><b>Clique para escolher uma imagem</b><br><span class="muted">PNG, JPG ou WEBP</span></div><input type="file" id="imageInput" accept="image/*" hidden><img id="preview" class="preview"><div id="ocrStatus"></div><div id="results"></div><div id="animeDetails"></div><div class="actions"><button class="btn" id="closeImage">Fechar</button></div></div></dialog>
+<dialog id="historyImportDlg"><div class="modal"><h2>📥 Importar histórico</h2><p class="muted">Importe seu histórico sem informar senha. O Cime cria/associa os títulos na sua biblioteca, mantém a data assistida e evita duplicados.</p><div class="panel-box" id="gptReviewsImportBox"><b>🧠 Histórico GPT / Avaliações</b><div class="muted" style="margin:5px 0">Importe o JSON de avaliações exportado do ChatGPT. Ele preenche nota geral, notas por temporada, status, favorito, datas, tags e opinião sem misturar esse conteúdo com o histórico de episódios da Netflix/Tomato. O PDF é a versão para leitura; selecione o arquivo JSON para importar.</div><input id="gptReviewsFile" type="file" accept=".json,application/json"><div class="actions" style="justify-content:flex-start"><button class="btn primary" id="doGPTReviewsImport">🧠 Importar avaliações GPT</button></div><div id="gptReviewsImportMsg" class="note">Nenhum arquivo GPT importado nesta etapa.</div></div><div class="panel-box"><b>🎬 Netflix</b><div class="muted" style="margin:5px 0">No Netflix: Conta → Perfil → O que foi assistido → Baixar todos. Selecione o CSV aqui.</div><input id="netflixHistoryFile" type="file" accept=".csv,text/csv"></div><div class="panel-box"><b>🍅 Tomato</b><div class="muted" style="margin:5px 0">Selecione uma exportação de histórico do Tomato.</div><input id="tomatoHistoryFile" type="file" accept=".csv,.json,.txt,.html,.htm"></div><div id="historyImportMsg" class="note"></div><div id="importHistoryList" class="panel-box" style="max-height:220px;overflow:auto"><div class="muted">Nenhum histórico importado nesta conta.</div></div><div class="actions"><button class="btn primary" id="doHistoryImport">🚀 Importar agora</button><button class="btn" id="consolidateHistory">🧩 Juntar temporadas</button><button class="btn" id="refreshHistoryImport">↻ Atualizar</button><button class="btn" id="closeHistoryImport">Fechar</button></div></div></dialog><dialog id="imageDlg"><div class="modal"><h2>🧠 Identificação Ultra FAST — 1 foto → anime/série/filme + temporada</h2><p class="muted">📷 Envie uma única foto. O Cime mostra a foto na hora e começa visão + OCR em paralelo; pesquisa extra só entra quando necessário. ⚡ Caminho rápido: ~1–4s. Se houver dúvida, análise profunda: ~4–10s.</p><div id="visionStatus" class="note">🔎 Verificando IA Visual...</div><div class="upload-area" id="uploadArea">📷<br><br><b>Clique para escolher uma imagem</b><br><span class="muted">PNG, JPG ou WEBP</span></div><input type="file" id="imageInput" accept="image/*" hidden><img id="preview" class="preview"><div id="ocrStatus"></div><div id="results"></div><div id="animeDetails"></div><div class="actions"><button class="btn" id="closeImage">Fechar</button></div></div></dialog>
 
 <script>let lastUploadAsset=null;
 
@@ -373,6 +373,110 @@ async function importHistoryFiles(){const msg=$('historyImportMsg');msg.textCont
  const sum=results.reduce((a,x)=>({imported:a.imported+(x.imported||0),created:a.created+(x.created||0),linked:a.linked+(x.linked||0),skipped:a.skipped+(x.skipped||0),errors:a.errors+(x.errors||0)}),{imported:0,created:0,linked:0,skipped:0,errors:0});
  msg.innerHTML=`✅ <b>${sum.imported}</b> registro(s) importado(s). · 🆕 ${sum.created} título(s) criado(s) · 🔗 ${sum.linked} ligado(s) · ♻️ ${sum.skipped} já existente(s)${sum.groups_merged?` · 🧩 ${sum.groups_merged} grupo(s) de temporadas`:''}${sum.titles_removed?` · 🗂️ ${sum.titles_removed} títulos unidos`:''}${sum.errors?` · ⚠️ ${sum.errors} erro(s)`:''}`;await load();await loadImportedHistory();}
  catch(e){msg.textContent='❌ '+e.message;await loadImportedHistory();}}
+
+function gptReviewNorm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g,' ').trim();}
+function gptReviewNotes(oldNotes, rec){
+  const marker='[HISTÓRICO GPT - CIME 5.0]';
+  const old=String(oldNotes||'');
+  const base=(old.includes(marker)?old.slice(0,old.indexOf(marker)):old).trim();
+  const blocks=[
+    marker,
+    'Opinião completa:\n'+String(rec.notes||'').trim(),
+    rec.summary?'Resumo:\n'+String(rec.summary).trim():'',
+    rec.recommendation?'Recomendação: '+String(rec.recommendation):'Recomendação: Não informado',
+    rec.calculation?'Cálculo da nota: '+String(rec.calculation):'',
+    'Favorito: '+(rec.favorite===null||rec.favorite===undefined?'Não informado na avaliação':(rec.favorite?'Sim':'Não'))
+  ].filter(Boolean);
+  return [base,blocks.join('\n\n')].filter(Boolean).join('\n\n');
+}
+async function importGPTReviewFile(){
+  const msg=$('gptReviewsImportMsg');
+  const file=$('gptReviewsFile')?.files?.[0];
+  if(!file){msg.textContent='Selecione o arquivo JSON de avaliações do Histórico GPT.';return;}
+  msg.textContent='🔎 Conferindo o arquivo e preparando as avaliações…';
+  try{
+    const pack=JSON.parse(await file.text());
+    if(pack.format!=='cime-dos-mundos-5.0-gpt-reviews'||!Array.isArray(pack.reviews))throw new Error('Este JSON não é um pacote válido de avaliações do Cime dos Mundos 5.0.');
+    if(pack.reviews.length>300)throw new Error('O pacote excede o limite de 300 avaliações por importação.');
+    const current=await api('/api/titles');
+    titles=Array.isArray(current)?current:[];
+    let created=0,updatedCount=0,skipped=0,errors=0;
+    const problems=[];
+    for(const rec of pack.reviews){
+      try{
+        if(!rec||!String(rec.name||'').trim()){skipped++;continue;}
+        const key=gptReviewNorm(rec.name);
+        const english=gptReviewNorm(rec.title_english||'');
+        const existing=titles.find(t=>gptReviewNorm(t.name)===key||(english&&gptReviewNorm(t.title_english)===english))||null;
+        const oldSeasons=existing?seasonEntries(existing):[];
+        const oldBySeason=new Map(oldSeasons.map(s=>[Number(s.season||1),s]));
+        const incoming=Array.isArray(rec.seasons)?rec.seasons:[];
+        const seasonNumbers=[...new Set([...oldBySeason.keys(),...incoming.map(s=>Math.max(1,Number(s.season)||1))])].filter(Number.isFinite).sort((a,b)=>a-b);
+        if(!seasonNumbers.length)seasonNumbers.push(1);
+        const mergedSeasons=seasonNumbers.map(n=>{
+          const old=oldBySeason.get(n)||{};
+          const next=incoming.find(s=>Math.max(1,Number(s.season)||1)===n)||{};
+          const score=next.score!==null&&next.score!==undefined&&next.score!==''?next.score:(old.score??null);
+          const seasonStatus=next.status&&next.status!=='Não informado'?next.status:(old.status||next.status||'Não informado');
+          return {
+            ...old,...next,season:n,
+            episodes:next.episodes??old.episodes??null,
+            score,
+            status:seasonStatus
+          };
+        });
+        const knownStatus=rec.status&&rec.status!=='Não informado'?rec.status:(existing?.status||'Não informado');
+        const oldGenres=existing?genresArr(existing):[];
+        const newGenres=Array.isArray(rec.genres)?rec.genres:(rec.genres?String(rec.genres).split(',').map(x=>x.trim()).filter(Boolean):[]);
+        const genres=[...new Set([...oldGenres,...newGenres])];
+        const oldPhotos=existing?.local_cover_photos;
+        let photos=[];
+        try{photos=Array.isArray(rec.local_cover_photos)&&rec.local_cover_photos.length?rec.local_cover_photos:(Array.isArray(oldPhotos)?oldPhotos:(typeof oldPhotos==='string'?JSON.parse(oldPhotos||'[]'):[]));}catch(e){photos=[];}
+        const totalSeasons=rec.total_seasons??existing?.total_seasons??Math.max(1,mergedSeasons.length);
+        const data={
+          name:String(rec.name).trim(),
+          category:rec.category||existing?.category||'Anime',
+          status:knownStatus,
+          rating:rec.rating??existing?.rating??'',
+          episodes:rec.episodes??existing?.episodes??'',
+          current_episode:rec.current_episode??existing?.current_episode??0,
+          current_season:rec.current_season??existing?.current_season??1,
+          total_seasons:totalSeasons,
+          start_date:rec.start_date||existing?.start_date||'',
+          end_date:rec.end_date||existing?.end_date||'',
+          favorite:rec.favorite===null||rec.favorite===undefined?(existing?.favorite?1:0):(rec.favorite?1:0),
+          cover:rec.cover||existing?.cover||'',
+          title_english:rec.title_english||existing?.title_english||'',
+          title_japanese:rec.title_japanese||existing?.title_japanese||'',
+          synopsis:rec.synopsis||existing?.synopsis||'',
+          synopsis_pt:rec.synopsis_pt||existing?.synopsis_pt||'',
+          year:rec.year??existing?.year??'',
+          season:rec.season||existing?.season||'',
+          duration:rec.duration||existing?.duration||'',
+          genres:genres.join(', '),
+          source_id:rec.source_id||existing?.source_id||'',
+          local_cover_photos:photos,
+          seasons_json:JSON.stringify(mergedSeasons),
+          notes:gptReviewNotes(existing?.notes,rec)
+        };
+        if(existing){
+          await api('/api/titles/'+existing.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+          updatedCount++;
+        }else{
+          const createdItem=await api('/api/titles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+          if(createdItem&&createdItem.id)titles.push(createdItem);
+          created++;
+        }
+      }catch(err){errors++;problems.push(String(rec?.name||'Obra')+': '+err.message);}
+    }
+    await load();
+    const total=created+updatedCount;
+    msg.innerHTML='✅ <b>'+total+'</b> avaliação(ões) processada(s): 🆕 '+created+' criada(s) · 🔄 '+updatedCount+' atualizada(s) · ⏭️ '+skipped+' ignorada(s) · ⚠️ '+errors+' erro(s).'+(problems.length?'<br><small>'+problems.slice(0,5).map(esc).join('<br>')+'</small>':'');
+    if(errors===0)showToast('✅ Histórico GPT importado para sua biblioteca.');
+    await loadImportedHistory();
+  }catch(e){msg.textContent='❌ '+e.message;}
+}
+
 async function loadWatchRate(){try{const r=await api('/api/watch-rate');autoWatchRate=Number(r.rate||2);localStorage.setItem('cime_auto_rate',String(autoWatchRate));if($("autoRateValue"))$("autoRateValue").textContent=autoWatchRate+' episódio(s)/dia';if($("autoRateInfo"))$("autoRateInfo").textContent=r.episodes?('Calculada a partir de '+r.episodes+' episódios em '+r.days+' dia(s).'):'Ainda não há histórico suficiente; usando 2 episódios/dia como base.';render();}catch(e){}}
 const cimeCoreInflight=new Map();
 async function api(url,opt={}){const key=String(opt.method||'GET').toUpperCase()+' '+url;if((opt.method||'GET').toUpperCase()==='GET'&&cimeCoreInflight.has(key))return cimeCoreInflight.get(key);const controller=opt.signal?null:new AbortController(),timer=controller?setTimeout(()=>controller.abort(),20000):null;const req={...opt};if(controller)req.signal=controller.signal;const p=fetch(url,req).then(async r=>{let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||`Erro HTTP ${r.status}`);return d}).finally(()=>{if(timer)clearTimeout(timer);if((opt.method||'GET').toUpperCase()==='GET')cimeCoreInflight.delete(key)});if((opt.method||'GET').toUpperCase()==='GET')cimeCoreInflight.set(key,p);return p;}
@@ -399,7 +503,7 @@ function applyAdvancedFilterToList(list){const a=advancedFilters;if(a.category!=
 function render(){readFilterState();const f=$("filter").value,gf=$("genreFilter").value;let list=titles.slice();const q=($("librarySearch")?.value||"").trim().toLowerCase();if(q)list=list.filter(x=>[x.name,x.title_english,x.title_japanese,x.category,...genresArr(x)].filter(Boolean).join(" ").toLowerCase().includes(q));if(f!=="all")list=f==="favorite"?list.filter(x=>x.favorite):list.filter(x=>x.status===f);if(gf!=="all")list=list.filter(x=>hasGenre(x,gf));list=applyAdvancedFilterToList(list);const so=advancedFilters.sort!=="recent"?advancedFilters.sort:$("sort")?.value||"recent";if($("sort"))$("sort").value=so;list=sortList(list);updateFilterBadge();const cont=list.filter(x=>x.status==="Assistindo").slice(0,6);$("continueGrid").innerHTML=cont.map(card).join("");$("continueSection").style.display=cont.length?"block":"none";$("grid").innerHTML=list.length?list.map(card).join(""):"<div class=\"empty\">Nenhum título encontrado.</div>"}
 async function patch(id,data){await api('/api/titles/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});await load();}
 function franchiseCover(x){const covers=seasonCovers(x);const fallback=x.cover||"";const all=Array.from(new Set([...(covers||[]),...(fallback?[fallback]:[])].filter(Boolean))).slice(0,3);const fav=`<button class="fav ${x.favorite?'active':''}" data-fav="${x.id}" title="Favoritar">${x.favorite?'❤️':'🤍'}</button>`;if(!all.length)return `<div class="cover placeholder">🎬${fav}</div>`;if(all.length===1)return `<div class="cover"><img loading="lazy" decoding="async" src="${esc(all[0])}" onerror="this.parentElement.classList.add('placeholder');this.remove()" alt="Capa de ${esc(x.name)}">${fav}</div>`;return `<div class="cover collage c${all.length}">${all.map(u=>`<img loading="lazy" decoding="async" src="${esc(u)}" onerror="this.remove()" alt="Capa de ${esc(x.name)}">`).join('')}${fav}</div>`}
-function renderSeasonEditor(x){const ss=seasonEntries(x);if(!$('seasonEditor'))return;const list=ss.length?ss:[{season:x.current_season||1,episodes:x.episodes||0,score:x.rating||'',status:x.status||'Quero assistir'}];$('seasonEditor').innerHTML=list.map(e=>`<div class="season-edit-row" data-season="${Number(e.season||1)}"><b>T${Number(e.season||1)}</b><input data-season-episodes type="number" min="0" value="${e.episodes??''}" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" value="${e.score??''}" placeholder="Nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando'].map(v=>`<option ${String(e.status||'Quero assistir')===v?'selected':''}>${v}</option>`).join('')}</select><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button></div>`).join('')+`<button type="button" class="btn" id="addSeasonRow">＋ Adicionar temporada</button>`;$('seasonEditor').querySelector('#addSeasonRow').onclick=()=>{const nums=Array.from($('seasonEditor').querySelectorAll('.season-edit-row')).map(r=>Number(r.dataset.season||0));const n=(Math.max(0,...nums)+1)||1;const row=document.createElement('div');row.className='season-edit-row';row.dataset.season=n;row.innerHTML=`<b>T${n}</b><input data-season-episodes type="number" min="0" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" placeholder="Nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando'].map(v=>`<option>${v}</option>`).join('')}</select><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button>`;$('seasonEditor').insertBefore(row,$('addSeasonRow'));};$('seasonEditor').onclick=e=>{const b=e.target.closest('[data-remove-season]');if(b){const rows=$('seasonEditor').querySelectorAll('.season-edit-row');if(rows.length>1)b.closest('.season-edit-row')?.remove();else showToast('A série precisa ter pelo menos uma temporada.');}};}
+function renderSeasonEditor(x){const ss=seasonEntries(x);if(!$('seasonEditor'))return;const list=ss.length?ss:[{season:x.current_season||1,episodes:x.episodes||0,score:x.rating||'',status:x.status||'Quero assistir'}];$('seasonEditor').innerHTML=list.map(e=>`<div class="season-edit-row" data-season="${Number(e.season||1)}"><b>T${Number(e.season||1)}</b><input data-season-episodes type="number" min="0" value="${e.episodes??''}" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" value="${e.score??''}" placeholder="Nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option ${String(e.status||'Quero assistir')===v?'selected':''}>${v}</option>`).join('')}</select><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button></div>`).join('')+`<button type="button" class="btn" id="addSeasonRow">＋ Adicionar temporada</button>`;$('seasonEditor').querySelector('#addSeasonRow').onclick=()=>{const nums=Array.from($('seasonEditor').querySelectorAll('.season-edit-row')).map(r=>Number(r.dataset.season||0));const n=(Math.max(0,...nums)+1)||1;const row=document.createElement('div');row.className='season-edit-row';row.dataset.season=n;row.innerHTML=`<b>T${n}</b><input data-season-episodes type="number" min="0" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" placeholder="Nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option>${v}</option>`).join('')}</select><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button>`;$('seasonEditor').insertBefore(row,$('addSeasonRow'));};$('seasonEditor').onclick=e=>{const b=e.target.closest('[data-remove-season]');if(b){const rows=$('seasonEditor').querySelectorAll('.season-edit-row');if(rows.length>1)b.closest('.season-edit-row')?.remove();else showToast('A série precisa ter pelo menos uma temporada.');}};}
 function readSeasonEditor(){return Array.from(document.querySelectorAll('.season-edit-row')).map(r=>({season:Number(r.dataset.season||1),episodes:r.querySelector('[data-season-episodes]')?.value||'',score:r.querySelector('[data-season-score]')?.value||'',status:r.querySelector('[data-season-status]')?.value||'Quero assistir'}))}
 function openEdit(x){selectedCover=x.cover||"";selectedMeta={...x};$('save').dataset.id=x.id||"";$('name').value=x.name||"";$('category').value=x.category||"Anime";$('status').value=x.status||"Quero assistir";$('rating').value=x.rating??"";$('episodes').value=x.episodes??x.total_episodes??"";$('currentEpisode').value=x.current_episode??0;$('currentSeason').value=x.current_season??1;$('totalSeasons').value=x.total_seasons??"";$('start').value=x.start_date||"";$('end').value=x.end_date||"";$('favorite').value=x.favorite?"1":"0";$('genresInput').value=genresArr(x).map(g=>genrePT(g)).join(', ');renderSeasonEditor(x);openDialog('dlg')}
 function openDetails(a){if(!a)return;const cover=coverOf(a);$('animeDetails').innerHTML=`<div class="anime-details">${cover?`<img src="${esc(cover)}" alt="Capa" onerror="this.style.display='none'">`:''}<h2 class="details-title">${esc(a.title||a.name||'Anime')}</h2>${a.title_english?`<div class="details-subtitle">🇺🇸 ${esc(a.title_english)}</div>`:''}<div class="chips"><span class="chip">🎌 ${esc(typePT(a.type))}</span>${a.episodes!=null?`<span class="chip">📺 ${a.episodes} episódios</span>`:''}${a.year?`<span class="chip">📅 ${a.year}</span>`:''}${a.score!=null?`<span class="chip">⭐ ${a.score}</span>`:''}</div>${genreBadges(a)}${a.synopsis_pt||a.synopsis?`<p class="synopsis">${esc(a.synopsis_pt||a.synopsis)}</p>`:''}<div class="actions"><button class="btn primary" data-use-key="${(window.cimeUseStore.set('u'+(++window.cimeUseSeq),{...a}), 'u'+window.cimeUseSeq)}">➕ Usar este anime</button></div><div class="clear"></div></div>`;}
@@ -444,7 +548,7 @@ function diagnosticsHtml(d){
 }
 
 async function runDiscover(){const q=$('discoverInput').value.trim();if(!q)return;$('discoverStatus').innerHTML='<div class="loading">🔎 Pesquisando sem sair da tela...</div>';$('discoverResults').innerHTML='';try{const data=await api('/api/anime/search?q='+encodeURIComponent(q));const list=data.results||[];$('discoverStatus').innerHTML=(data.detected_title?`<div class="note ok">🎯 Título encontrado: <b>${esc(data.detected_title)}</b></div>`:'') + diagnosticsHtml(data.diagnostics);let html='';if(data.upcoming){const u=data.upcoming;html+=`<div class="upcoming-box"><b>🔔 Próxima temporada</b><div class="release-grid"><div class="release-card"><b>Temporada ${u.season}</b><span>${esc(u.title)}</span></div><div class="release-card"><b>📣 Situação</b><span>${esc(u.status)}</span></div><div class="release-card"><b>📅 Estreia</b><span>${u.release_date?esc(u.release_date):esc(u.release_text)}</span></div></div><div class="muted" style="margin-top:9px">Anunciada oficialmente em ${esc(u.announcement_date)}. A data de estreia ainda não foi divulgada.</div></div>`}if(!list.length){$('discoverResults').innerHTML=html+'<div class="empty">Nenhum resultado encontrado.</div>';return}html+='<h3 class="section-title">Resultados</h3>'+list.slice(0,8).map(discoverCard).join('');$('discoverResults').innerHTML=html}catch(e){$('discoverStatus').innerHTML='<div class="note danger">❌ '+esc(e.message)+'</div>'}}
-$('libraryTab').onclick=()=>showView('library');$('discoverTab').onclick=()=>showView('discover');$('statsTab').onclick=()=>showView('stats');$('discoverSearch').onclick=runDiscover;$('discoverInput').onkeydown=e=>{if(e.key==='Enter')runDiscover()};$('settingsBtn').onclick=async()=>{await loadWatchRate();openDialog('settingsDlg');};$('cancelSettings').onclick=()=>closeDialog('settingsDlg');$('openHistoryImport').onclick=async()=>{openDialog('historyImportDlg');await loadImportedHistory();};$('refreshHistoryImport').onclick=loadImportedHistory;$('consolidateHistory').onclick=async()=>{const msg=$('historyImportMsg');msg.textContent='🧩 Organizando temporadas importadas…';try{const r=await api('/api/import/history/consolidate',{method:'POST'});msg.innerHTML=`✅ ${r.groups_merged||0} grupo(s) organizado(s) · ${r.titles_removed||0} título(s) unido(s).`;await load();await loadImportedHistory();}catch(e){msg.textContent='❌ '+e.message}};$('closeHistoryImport').onclick=()=>closeDialog('historyImportDlg');$('doHistoryImport').onclick=importHistoryFiles;$('backupSettings').onclick=async()=>{try{const r=await fetch('/api/backup');if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Erro no backup')}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='CimeDosMundos_Backup_Cime dos Mundos 5.0 BETA SMART VISION.zip';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('✅ Backup criado com sucesso.')}catch(e){showToast('❌ Não foi possível fazer o backup: '+e.message)}};
+$('libraryTab').onclick=()=>showView('library');$('discoverTab').onclick=()=>showView('discover');$('statsTab').onclick=()=>showView('stats');$('discoverSearch').onclick=runDiscover;$('discoverInput').onkeydown=e=>{if(e.key==='Enter')runDiscover()};$('settingsBtn').onclick=async()=>{await loadWatchRate();openDialog('settingsDlg');};$('cancelSettings').onclick=()=>closeDialog('settingsDlg');$('openHistoryImport').onclick=async()=>{openDialog('historyImportDlg');await loadImportedHistory();};$('refreshHistoryImport').onclick=loadImportedHistory;$('consolidateHistory').onclick=async()=>{const msg=$('historyImportMsg');msg.textContent='🧩 Organizando temporadas importadas…';try{const r=await api('/api/import/history/consolidate',{method:'POST'});msg.innerHTML=`✅ ${r.groups_merged||0} grupo(s) organizado(s) · ${r.titles_removed||0} título(s) unido(s).`;await load();await loadImportedHistory();}catch(e){msg.textContent='❌ '+e.message}};$('closeHistoryImport').onclick=()=>closeDialog('historyImportDlg');$('doHistoryImport').onclick=importHistoryFiles;$('doGPTReviewsImport').onclick=importGPTReviewFile;$('backupSettings').onclick=async()=>{try{const r=await fetch('/api/backup');if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Erro no backup')}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='CimeDosMundos_Backup_Cime dos Mundos 5.0 BETA SMART VISION.zip';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('✅ Backup criado com sucesso.')}catch(e){showToast('❌ Não foi possível fazer o backup: '+e.message)}};
 
 // Fallback global de cliques: mantém os botões funcionais mesmo se algum listener individual falhar.
 document.addEventListener('click',function(e){const id=e.target.closest('[id]')?.id;if(!id)return;if(id==='libraryTab')showView('library');else if(id==='discoverTab')showView('discover');else if(id==='statsTab')showView('stats');else if(id==='add')openDialog('dlg');else if(id==='addImage')openDialog('imageDlg');else if(id==='settingsBtn'){loadWatchRate();openDialog('settingsDlg')}});
