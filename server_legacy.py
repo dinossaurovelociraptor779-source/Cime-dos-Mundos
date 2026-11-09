@@ -1418,7 +1418,7 @@ def record_watch_progress(title_id, season, old_episode, new_episode):
 
 def title_history(title_id):
     conn=db()
-    rows=conn.execute("SELECT season,episode,watched_at FROM watch_history WHERE title_id=? ORDER BY watched_at DESC LIMIT 20", (int(title_id),)).fetchall()
+    rows=conn.execute("SELECT season,episode,watched_at FROM watch_history WHERE title_id=? ORDER BY watched_at DESC LIMIT 1000", (int(title_id),)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -1556,10 +1556,10 @@ def update_title(title_id, data):
 
     new_episode = int(current_episode or 0)
     try:
-        # Registra avanço normal dentro da temporada.
+        # Registra avanço normal dentro da temporada atual.
         if int(current_season or 1) == old_season and new_episode > old_episode:
             record_watch_progress(title_id, old_season, old_episode, new_episode)
-        # Ao finalizar uma temporada e entrar na próxima, registre o episódio final da temporada antiga.
+        # Ao mudar de temporada, guarda o episódio final da anterior quando conhecido.
         elif int(current_season or 1) > old_season:
             old_info = _season_info(dict(atual), old_season)
             old_total = _int_or_none((old_info or {}).get("episodes"), None)
@@ -1567,6 +1567,10 @@ def update_title(title_id, data):
                 record_watch_progress(title_id, old_season, old_episode, old_total)
             elif old_total and old_episode == old_total:
                 record_watch_history(title_id, old_season, old_total)
+        # Também permite registrar um episódio em qualquer temporada escolhida
+        # no painel, mesmo quando ela não é a temporada atual do título.
+        if int(current_season or 1) != old_season and new_episode > 0:
+            record_watch_progress(title_id, int(current_season or 1), 0, new_episode)
     except Exception as e:
         print("Histórico ignorado:", e)
 
