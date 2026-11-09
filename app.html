@@ -891,9 +891,13 @@ function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
   if(!panel)return;
   try{
     const sp=seriesProgress(x),ss=seasonEntries(x);
+    const completed=/^(conclu[ií]do|completed|finished)$/i.test(String(x.status||"").trim());
+    const history=Array.isArray(historyRows)?historyRows:[];
+    const historyBySeason=new Map();
+    history.forEach(row=>{const n=Math.max(1,Number(row.season)||1),ep=Math.max(0,Number(row.episode)||0);historyBySeason.set(n,Math.max(historyBySeason.get(n)||0,ep));});
     const currentSeason=Math.max(1,Number(selectedSeason||x.current_season||1)||1);
     const currentTotal=currentSeasonEpisodeTotal(x,currentSeason);
-    const currentEp=Math.max(0,Number(currentSeason===Number(x.current_season||1)?x.current_episode||0:0)||0);
+    const currentEp=Math.max(0,Number(currentSeason===Number(x.current_season||1)?x.current_episode||0:0)||0,historyBySeason.get(currentSeason)||0,completed&&currentTotal?currentTotal:0);
     const overallTotal=Number(x.total_episodes||sp.total||x.episodes||0)||null;
     const watched=x.current_episode!=null?x.current_episode:(ss.length?sp.watched:null);
     const missing=value=>value==null||(typeof value==="string"&&!value.trim())||(Array.isArray(value)&&!value.length);
@@ -901,7 +905,6 @@ function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
     const synopsis=x.synopsis_pt||x.synopsis||"";
     const alternateSynopsis=x.synopsis&&x.synopsis_pt&&x.synopsis!==x.synopsis_pt?x.synopsis:"";
     const favorite=Number(x.favorite)===1||x.favorite===true;
-    const completed=/^(conclu[ií]do|completed|finished)$/i.test(String(x.status||"").trim());
     const covers=Array.from(new Set([...(seasonCovers(x)||[]),x.cover||""].filter(Boolean))).slice(0,3);
     const coverMarkup=!covers.length?`<div class="cover placeholder">🎬</div>`:covers.length===1?`<div class="cover"><img loading="eager" decoding="async" src="${esc(covers[0])}" alt="Capa de ${esc(x.name||"anime")}" onerror="const p=this.parentElement;this.remove();if(p){p.classList.add('placeholder');p.textContent='🎬 Capa indisponível'}"></div>`:`<div class="cover collage c${covers.length}">${covers.map(u=>`<img loading="lazy" decoding="async" src="${esc(u)}" alt="Capa de ${esc(x.name||"anime")}" onerror="this.remove()">`).join("")}</div>`;
     const episodeButtons=currentTotal?Array.from({length:Math.min(currentTotal,120)},(_,i)=>i+1).map(ep=>`<button class="episode-dot ${ep<=currentEp?'watched':''} ${ep===currentEp?'current':''}" data-panel-episode="${esc(x.id)}" data-season="${currentSeason}" data-episode="${ep}" aria-label="Temporada ${currentSeason}, episódio ${ep}">${ep}</button>`).join(""):"";
@@ -915,7 +918,6 @@ function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
       const meta=[season.episodes!=null?`${esc(String(season.episodes))} episódios`:'',season.score!=null?`⭐ ${esc(String(season.score))}`:'',seasonStatus].filter(Boolean).join(' · ');
       return `<div class="season-item"><div class="season-main">${seasonCover?`<img src="${esc(seasonCover)}" alt="Capa da temporada ${number}" class="season-thumb" loading="lazy" decoding="async" onerror="this.remove()">`:""}<div class="season-copy"><b>${esc(season.name||("Temporada "+number))}</b>${meta?`<div class="muted">${meta}</div>`:""}${seasonSynopsis?`<div class="muted season-synopsis">${esc(seasonSynopsis)}</div>`:""}</div></div><button class="btn" data-panel-season="${esc(x.id)}" data-season="${number}">${completed?'Ver temporada':'Registrar episódios'}</button></div>`;
     }).join("")}</div>`:`<div class="note">⏳ Pendente: temporadas cadastradas</div>`;
-    const history=Array.isArray(historyRows)?historyRows:[];
     const historyMarkup=history.length?`<h3 class="section-title">🕘 Últimos episódios registrados</h3><div class="history-list">${history.slice(0,8).map(row=>`<div>📺 T${esc(row.season??"?")} · Episódio ${esc(row.episode??"?")} <span class="muted">· ${esc(row.watched_at||"")}</span></div>`).join("")}</div>`:historyError?`<div class="note danger" role="alert"><b>Não foi possível carregar temporadas e episódios agora.</b><div style="margin-top:6px">${esc(historyError)}</div><button class="btn mini" type="button" data-panel-retry="${esc(x.id)}" data-season="${Number(selectedSeason||0)}" style="margin-top:10px">↻ Tentar novamente</button></div>`:"";
     panel.innerHTML=`<div class="panel-toolbar"><span class="panel-kicker">🌌 Cime dos Mundos 5.0</span><button class="btn mini" type="button" data-panel-close title="Fechar painel" aria-label="Fechar painel">✕</button></div>
       <div class="panel-head">${coverMarkup}<div class="panel-info"><h2>${esc(x.name||"⏳ Pendente: nome")}</h2>${x.title_english?`<div class="sub">🌐 ${esc(x.title_english)}</div>`:""}<div class="chips">${x.status?`<span class="chip">${esc(statusPT(x.status))}</span>`:`<span class="chip">⏳ Pendente: status</span>`}${favorite?`<span class="chip">❤️ Favorito</span>`:""}${completed?`<span class="chip">✅ Todas as temporadas concluídas</span>`:`<span class="chip">📺 ${sp.watched??"?"}/${sp.total??"?"} episódios</span>`}</div>${genreBadges(x)}<div class="synopsis" style="margin-top:12px;white-space:pre-wrap">${synopsis?esc(synopsis):"⏳ Pendente: sinopse"}</div>${alternateSynopsis?`<details class="note"><summary>Sinopse original</summary><div style="margin-top:8px;white-space:pre-wrap">${esc(alternateSynopsis)}</div></details>`:""}</div></div>
