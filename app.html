@@ -470,8 +470,6 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     <select class="filter" id="sort"><option value="recent">Mais recentes</option><option value="name">Nome A–Z</option><option value="progress">Maior progresso</option><option value="rating">Maior nota</option><option value="episodes">Mais episódios</option></select>
     <button class="bulk-btn" id="openFilters" title="Abrir filtros avançados">🔽 Filtros <span id="filterBadge" class="filter-badge" style="display:none">0</span></button>
     <button class="bulk-btn" id="openFunnel" title="Funil do histórico">⏷ Funil</button>
-    <button class="bulk-btn" id="importReviewsBtn" title="Importar histórico GPT de avaliações">🧠 Histórico GPT</button>
-    <input id="reviewsJsonFile" type="file" accept=".json,application/json" hidden>
   </div>
   <div class="select-mode-toolbar" id="selectionToolbar">
   <button class="bulk-btn" id="selectMode">☑️ Selecionar</button>
@@ -563,8 +561,8 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   <div id="netflixPreview" class="file-preview"></div></section>
   <section class="import-card tomato-card"><div class="import-card-top"><div class="source-icon tomato">🍅</div><div><div class="source-title">Tomato</div><div class="source-sub">Histórico exportado do Tomato</div></div><span class="source-badge neutral">FLEXÍVEL</span></div>
   <div class="import-steps"><span>1</span> Exporte o histórico no Tomato e escolha o arquivo salvo.</div>
-  <div class="import-help">Aceita <b>CSV, JSON, TXT e HTML</b>. O Cime tenta reconhecer nome, data, perfil, temporada e episódio.</div>
-  <label class="file-drop" for="tomatoHistoryFile"><span>🍅</span><b>Selecionar exportação do Tomato</b><small>CSV · JSON · TXT · HTML · até 50 MB</small><em id="tomatoFileName">Nenhum arquivo selecionado</em></label><input id="tomatoHistoryFile" type="file" accept=".csv,.json,.txt,.html,.htm" hidden>
+  <div class="import-help">Aceita CSV, JSON, TXT e HTML do Tomato. Também aceita o <b>JSON de avaliações do GPT</b> com notas, temporadas e opiniões completas.</div>
+  <label class="file-drop" for="tomatoHistoryFile"><span>🍅</span><b>Selecionar arquivo do Tomato ou avaliações GPT</b><small>CSV · JSON · TXT · HTML · até 50 MB</small><em id="tomatoFileName">Nenhum arquivo selecionado</em></label><input id="tomatoHistoryFile" type="file" accept=".csv,.json,.txt,.html,.htm" hidden>
   <div id="tomatoPreview" class="file-preview"></div></section>
 </div>
 <div class="import-safety"><span>🛡️</span><div><b>Importação segura</b><div>O Cime não apaga sua biblioteca. Repetidos são ignorados e as temporadas são organizadas automaticamente.</div></div></div>
@@ -717,6 +715,7 @@ async function importHistoryFiles(){
   if(!nf&&!tf){if(msg)msg.textContent='Selecione um arquivo da Netflix ou do Tomato primeiro.';return;}
   if(btn){btn.disabled=true;btn.textContent='⏳ Processando histórico…';}
   const batches=[];
+  let gptReviewRaw='';
   try{
     setHistoryImportProgress('Validando os arquivos antes de alterar sua biblioteca…',4);
     if(nf){
@@ -730,8 +729,14 @@ async function importHistoryFiles(){
       let entries=[];
       if(ext==='json'){
         let j;try{j=JSON.parse(raw);}catch(_){throw new Error('Tomato: o JSON não pôde ser lido.');}
-        const arr=Array.isArray(j)?j:(j.history||j.items||j.titles||j.watchHistory||j.data||[]);
-        entries=arr.map(x=>typeof x==='string'?{title:x}:{title:x.title||x.name||x.show||x.series||x.movie,watched_at:x.watched_at||x.date||x.watchedAt||x.updatedAt||'',profile:x.profile||x.profileName||x.user||'',season:x.season??x.seasonNumber,episode:x.episode??x.episodeNumber});
+        if(['cime-dos-mundos-5.0-gpt-reviews','cime-dos-mundos-5.0-reviews'].includes(String(j?.format||''))){
+          if(!Array.isArray(j.reviews)||!j.reviews.length)throw new Error('O JSON de avaliações não contém registros.');
+          if(j.reviews.length>30)throw new Error('O JSON de avaliações deve ter no máximo 30 títulos.');
+          gptReviewRaw=raw;
+        }else{
+          const arr=Array.isArray(j)?j:(j.history||j.items||j.titles||j.watchHistory||j.data||[]);
+          entries=arr.map(x=>typeof x==='string'?{title:x}:{title:x.title||x.name||x.show||x.series||x.movie,watched_at:x.watched_at||x.date||x.watchedAt||x.updatedAt||'',profile:x.profile||x.profileName||x.user||'',season:x.season??x.seasonNumber,episode:x.episode??x.episodeNumber});
+        }
       }else if(ext==='csv')entries=parseDelimitedHistory(raw);
       else if(ext==='html'||ext==='htm'){
         const doc=new DOMParser().parseFromString(raw,'text/html');
@@ -739,12 +744,14 @@ async function importHistoryFiles(){
         if(candidates.length)entries=candidates;
         else entries=[...doc.querySelectorAll('a,title,h1,h2,h3')].map(x=>({title:x.textContent.replace(/\s+/g,' ').trim()})).filter(x=>x.title);
       }else entries=raw.split(/\r?\n+/).map(x=>({title:x.trim()}));
-      entries=normalizeImportedRows(entries);
-      if(!entries.length)throw new Error('Tomato: nenhum título reconhecido no arquivo .'+ext+'.');
-      batches.push({source:'tomato',entries});
+      if(!gptReviewRaw){
+        entries=normalizeImportedRows(entries);
+        if(!entries.length)throw new Error('Tomato: nenhum título reconhecido no arquivo .'+ext+'.');
+        batches.push({source:'tomato',entries});
+      }
     }
 
-    const totalRecords=batches.reduce((n,b)=>n+b.entries.length,0);
+    const totalRecords=batches.reduce((n,b)=>n+b.entries.length,0)+(gptReviewRaw?JSON.parse(gptReviewRaw).reviews.length:0);
     const chunks=[];
     for(const batch of batches){
       for(let offset=0;offset<batch.entries.length;offset+=100){
@@ -765,6 +772,12 @@ async function importHistoryFiles(){
     const linked=results.reduce((a,r)=>a+Number(r.linked||0),0);
     const skipped=results.reduce((a,r)=>a+Number(r.skipped||0),0);
     const errors=results.reduce((a,r)=>a+Number(r.errors||0),0);
+    let gptSummary='';
+    if(gptReviewRaw){
+      setHistoryImportProgress('Importando notas, temporadas e opiniões do GPT…',76);
+      const reviewResult=await importReviewRecords({size:new Blob([gptReviewRaw]).size,text:async()=>gptReviewRaw});
+      gptSummary=' '+reviewResult.created+' avaliação(ões) adicionada(s), '+reviewResult.updated+' atualizada(s) e '+reviewResult.failed+' com erro.';
+    }
 
     let consolidation={groups_merged:0,titles_removed:0},consolidationWarning='';
     setHistoryImportProgress('Juntando temporadas e removendo duplicações…',82);
@@ -800,10 +813,10 @@ async function importHistoryFiles(){
     await loadImportedHistory();
 
     setHistoryImportProgress('Importação, organização e atualização concluídas.',100);
-    const summary=total+' registro(s) novo(s) · '+created+' título(s) criado(s) · '+linked+' relacionado(s) à biblioteca · '+skipped+' repetido(s) ignorado(s)'+(errors?' · '+errors+' erro(s)':'')+'.';
+    const summary=(batches.length?total+' registro(s) novo(s) · '+created+' título(s) criado(s) · '+linked+' relacionado(s) à biblioteca · '+skipped+' repetido(s) ignorado(s)'+(errors?' · '+errors+' erro(s)':'')+'.':'')+gptSummary;
     const coverSummary=coversChanged?' '+coversChanged+' capa(s) preenchida(s) automaticamente.':'';
     const mergeSummary=consolidation.groups_merged?' '+consolidation.groups_merged+' grupo(s) de temporadas organizados.':'';
-    if(msg)msg.textContent='Concluído! '+summary+mergeSummary+coverSummary+consolidationWarning+coverWarning;
+    if(msg)msg.textContent='Concluído! '+(summary||'Nenhum registro externo novo.')+mergeSummary+coverSummary+consolidationWarning+coverWarning;
     showToast('✅ Histórico importado e biblioteca atualizada.');
   }catch(e){
     console.error(e);
@@ -1049,7 +1062,7 @@ async function importReviewRecords(file){
   if(!file)return;
   if(file.size>1024*1024)throw new Error('O arquivo JSON ultrapassa o limite de 1 MB.');
   const parsed=JSON.parse(await file.text());
-  if(parsed?.format&&parsed.format!=='cime-dos-mundos-5.0-gpt-reviews')throw new Error('Formato de histórico GPT não reconhecido.');
+  if(parsed?.format&&!['cime-dos-mundos-5.0-gpt-reviews','cime-dos-mundos-5.0-reviews'].includes(parsed.format))throw new Error('Formato de avaliações não reconhecido.');
   const records=Array.isArray(parsed)?parsed:parsed?.reviews;
   if(!Array.isArray(records)||!records.length)throw new Error('O arquivo não contém uma lista de avaliações.');
   if(records.length>30)throw new Error('Importe no máximo 30 avaliações por arquivo.');
@@ -1117,6 +1130,16 @@ async function importReviewRecords(file){
     const oldPhotos=existing?.local_cover_photos;
     let photos=[];
     try{photos=Array.isArray(item.local_cover_photos)&&item.local_cover_photos.length?item.local_cover_photos:(Array.isArray(oldPhotos)?oldPhotos:(typeof oldPhotos==='string'?JSON.parse(oldPhotos||'[]'):[]));}catch(_){photos=[];}
+    let importedCover=String(item.cover||existing?.cover||'');
+    if(String(item.cover_data||'').startsWith('data:image/')){
+      try{
+        const imageResponse=await fetch(item.cover_data);
+        if(!imageResponse.ok)throw new Error('Imagem de capa inválida.');
+        const imageBlob=await imageResponse.blob();
+        const uploaded=await api('/api/cover-upload',{method:'POST',headers:{'Content-Type':imageBlob.type||'image/jpeg','X-Filename':name.replace(/[^a-z0-9_-]/gi,'_')+'_cover.jpg'},body:imageBlob});
+        if(uploaded?.path)importedCover=uploaded.path;
+      }catch(error){console.warn('[Cime] Falha ao guardar capa de '+name+':',error);}
+    }
     const payload={
       name,
       category:categories.includes(String(item.category||''))?String(item.category):(existing?.category||'Anime'),
@@ -1130,7 +1153,7 @@ async function importReviewRecords(file){
       start_date:item.start_date||existing?.start_date||'',
       end_date:item.end_date||existing?.end_date||'',
       favorite:item.favorite===null||item.favorite===undefined?(existing?.favorite?1:0):(item.favorite?1:0),
-      cover:String(item.cover||existing?.cover||''),
+      cover:importedCover,
       title_english:String(item.title_english||existing?.title_english||''),
       title_japanese:String(item.title_japanese||existing?.title_japanese||''),
       synopsis:String(item.synopsis||existing?.synopsis||''),
@@ -1158,17 +1181,9 @@ async function importReviewRecords(file){
   await load();
   showToast('✅ Histórico GPT: '+created+' criada(s), '+updated+' atualizada(s), '+failed+' com erro.'+(failures.length?' Confira o resultado da importação.':''));
   if(failures.length)console.warn('Falhas na importação do Histórico GPT:',failures);
+  return {created,updated,failed};
 }
 
-if($('importReviewsBtn')&&$('reviewsJsonFile')){
-  $('importReviewsBtn').onclick=()=>$('reviewsJsonFile').click();
-  $('reviewsJsonFile').onchange=async event=>{
-    const file=event.target.files?.[0];
-    try{await importReviewRecords(file);}
-    catch(error){showToast('❌ Não foi possível importar: '+(error?.message||'arquivo inválido'));}
-    finally{event.target.value='';}
-  };
-}
 async function handleCardInteraction(e){const cb=e.target.closest('[data-select-title]');if(cb){e.stopPropagation();toggleTitleSelected(cb.dataset.selectTitle,cb.checked);return;}const cardEl=e.target.closest('[data-card-id]');if(selectionMode&&cardEl&&!e.target.closest('button')){toggleTitleSelected(cardEl.dataset.cardId,!selectedTitleIds.has(String(cardEl.dataset.cardId)));render();return;}const fav=e.target.closest('[data-fav]');const plus=e.target.closest('[data-plus]');const minus=e.target.closest('[data-minus]');const open=e.target.closest('[data-open]');if(fav){const x=titles.find(a=>a.id==fav.dataset.fav);if(x)await patch(x.id,{favorite:x.favorite?0:1});}else if(plus||minus){const id=(plus||minus).dataset.plus||(plus||minus).dataset.minus;const x=titles.find(a=>a.id==id);if(x){if(plus){const np=nextPosition(x);if(np)await patch(x.id,{current_episode:np.episode,current_season:np.season,status:'Assistindo'});}else{let ep=Math.max(0,Number(x.current_episode||0)-1);await patch(x.id,{current_episode:ep,current_season:x.current_season||1,status:ep>0?'Assistindo':x.status});}}}else if(open){const x=titles.find(a=>a.id==open.dataset.open);if(x)openPanel(x)}};
 $("grid").onclick=handleCardInteraction;$("continueGrid").onclick=handleCardInteraction;
 $("grid").addEventListener('touchend',e=>{e.preventDefault();handleCardInteraction(e)},{passive:false});$("continueGrid").addEventListener('touchend',e=>{e.preventDefault();handleCardInteraction(e)},{passive:false});
