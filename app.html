@@ -1061,7 +1061,7 @@ $("filter").onchange=()=>{libraryVisible=36;render()};$("genreFilter").onchange=
 $("save").onclick=async()=>{if(manualCoverFile){const uploadedCover=await api('/api/cover-upload',{method:'POST',headers:{'Content-Type':manualCoverFile.type||'image/jpeg','X-Filename':manualCoverFile.name||'cime-cover.jpg'},body:manualCoverFile});selectedCover=uploadedCover.path||selectedCover;manualCoverFile=null;updateManualCoverPreview(selectedCover);}const id=$("save").dataset.id;const data={name:$("name").value,category:$("category").value,status:$("status").value,rating:$("rating").value,notes:$("reviewNotes").value.trim(),episodes:$("episodes").value,current_episode:$("currentEpisode").value,current_season:$("currentSeason").value,total_seasons:$("totalSeasons").value,start_date:$("start").value,end_date:$("end").value,favorite:$("favorite").value,cover:selectedCover,title_english:selectedMeta.title_english||"",title_japanese:selectedMeta.title_japanese||"",synopsis:selectedMeta.synopsis||"",synopsis_pt:selectedMeta.synopsis_pt||"",year:selectedMeta.year||"",season:selectedMeta.season||"",duration:selectedMeta.duration||"",genres:($("genresInput").value||((selectedMeta.genres||[]).join(", "))),source_id:selectedMeta.id||"",local_cover_photos:Array.isArray(selectedMeta.local_cover_photos)?selectedMeta.local_cover_photos:[],seasons_json:JSON.stringify(readSeasonEditor()),captured_at:$('photoDate')?.value||''}; try{if(id){await patch(id,data);}else{await api('/api/titles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}closeDialog("dlg");await load();if(!id){const key=String(data.name||'').trim().toLocaleLowerCase('pt-BR');const saved=titles.find(x=>String(x.name||'').trim().toLocaleLowerCase('pt-BR')===key);if(saved)void enrichSavedTitle(saved.id);}}catch(e){alert('❌ '+e.message)}};
 async function importReviewRecords(file){
   if(!file)return;
-  if(file.size>1024*1024)throw new Error('O arquivo JSON ultrapassa o limite de 1 MB.');
+  if(file.size>12*1024*1024)throw new Error('O arquivo JSON ultrapassa o limite de 12 MB.');
   const parsed=JSON.parse(await file.text());
   if(parsed?.format&&!['cime-dos-mundos-5.0-gpt-reviews','cime-dos-mundos-5.0-reviews'].includes(parsed.format))throw new Error('Formato de avaliações não reconhecido.');
   const records=Array.isArray(parsed)?parsed:parsed?.reviews;
@@ -1249,7 +1249,7 @@ let discoverItemSeq=0;
 const discoverItemStore=new Map();
 function discoverCard(a){
  const cover=coverOf(a),key='d'+(++discoverItemSeq);
- discoverItemStore.set(key,{...a});
+ discoverItemStore.set(key,{...a,_cimeDiscoverKey:key});
  while(discoverItemStore.size>50)discoverItemStore.delete(discoverItemStore.keys().next().value);
  return `<article class="discover-result"><div class="discover-cover">${cover?`<img src="${esc(cover)}" alt="Capa de ${esc(a.title||'obra')}" loading="lazy" decoding="async" onerror="this.remove()">`:'🎬'}</div><div class="discover-result-copy"><h3>${esc(a.title||'Título')}</h3>${a.title_english?`<div class="sub">🌐 ${esc(a.title_english)}</div>`:''}<div class="chips"><span class="chip">🎬 ${esc(a.category||typePT(a.type))}</span>${a.episodes!=null?`<span class="chip">📺 ${a.episodes} episódios</span>`:''}${a.year?`<span class="chip">📅 ${a.year}</span>`:''}${a.score!=null?`<span class="chip">⭐ ${a.score}</span>`:''}</div>${genreBadges(a)}<p class="synopsis">${esc(a.synopsis_pt||a.synopsis||'')}</p><button type="button" class="btn mini" data-discover-detail="${key}">Ver detalhes</button></div></article>`;
 }
@@ -3382,8 +3382,9 @@ let manualCoverPreviewUrl='';
 function updateManualCoverPreview(source){
   const box=document.getElementById('manualCoverPreview');
   if(!box)return;
-  if(manualCoverPreviewUrl){URL.revokeObjectURL(manualCoverPreviewUrl);manualCoverPreviewUrl='';}
   const value=String(source||'');
+  if(manualCoverPreviewUrl&&manualCoverPreviewUrl!==value){URL.revokeObjectURL(manualCoverPreviewUrl);manualCoverPreviewUrl='';}
+  if(value.startsWith('blob:'))manualCoverPreviewUrl=value;
   if(!value){box.innerHTML='<span>Escolha uma imagem para usar como capa</span>';return;}
   box.innerHTML='<img src="'+esc(value)+'" alt="Prévia da capa escolhida"><b>Capa selecionada</b>';
 }
