@@ -680,7 +680,6 @@ function seriesProgress(x){
       if(number===currentSeason){
         const rawEntryEpisode=Number(entry.current_episode),hasEntryEpisode=entry.current_episode!=null&&Number.isFinite(rawEntryEpisode);
         watched+=Math.max(0,hasEntryEpisode?rawEntryEpisode:currentEpisode);
-        if(!hasEntryEpisode&&!currentEpisodeKnown&&status==="Assistindo")watchedKnown=false;
         continue;
       }
       // Registros antigos não tinham status por temporada; mantém o cálculo anterior.
