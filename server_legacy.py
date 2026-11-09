@@ -2746,7 +2746,11 @@ def smart_search_title(title, aliases=None, category_hint="", diagnostics=None, 
     # No caminho rápido para identificação de anime, não bloqueie o usuário esperando
     # TMDB/TVMaze; capas/dados de Jikan/AniList são suficientes para o primeiro resultado.
     cat=normalizar_texto(category_hint)
-    if cat in {"filme","serie","desenho",""} and not fast_mode:
+    # Netflix/Tomato frequentemente não informam se o registro é filme ou série.
+    # "Filme/Série" precisa consultar TMDB e TVMaze também, senão os títulos
+    # importados ficam sem pôster mesmo quando a base possui uma imagem.
+    generic_media=("filme" in cat and "serie" in cat) or cat in {"video","filme ou serie","series e filmes"}
+    if (cat in {"filme","serie","desenho",""} or generic_media) and not fast_mode:
         for q in queries[:2]:
             for mt in ("movie","tv"):
                 arr=tmdb_search(q,mt); trace.append({"source":"TMDB","query":q,"status":"result" if arr else ("not_configured" if not TMDB_TOKEN else "no_result"),"count":len(arr)})
