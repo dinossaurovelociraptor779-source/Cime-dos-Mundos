@@ -56,6 +56,16 @@ KNOWN_ANIME_ALIASES = {
         "canonical": "Tsue to Tsurugi no Wistoria",
         "english": "Wistoria: Wand and Sword",
         "aliases": ["Tsue to Tsurugi no Wistoria", "Wistoria: Wand and Sword", "Wistoria"]
+    },
+    "shadows house": {
+        "canonical": "Shadows House",
+        "english": "SHADOWS HOUSE",
+        "aliases": ["Shadows House", "Shadow House", "シャドーハウス"]
+    },
+    "your name": {
+        "canonical": "Your Name.",
+        "english": "Your Name.",
+        "aliases": ["Your Name", "Your Name.", "Kimi no Na wa.", "Kimi no Na wa", "君の名は。"]
     }
 }
 
@@ -2437,6 +2447,12 @@ TITLE_ALIASES = {
     "shaman king": "Shaman King",
     "zatch bell": "Zatch Bell!",
     "pokemon horizons": "Pokémon Horizons",
+    "shadows house": "Shadows House",
+    "shadow house": "Shadows House",
+    "your name": "Your Name.",
+    "kimi no na wa": "Your Name.",
+    "kimi no na wa.": "Your Name.",
+    "your name kimi no na wa": "Your Name.",
 }
 
 def _compact(n): return re.sub(r"[^a-z0-9]", "", normalizar_texto(n))
@@ -2811,8 +2827,12 @@ KNOWN_UPCOMING = {
 
 def upcoming_info(query):
     nq=normalizar_texto(query)
+    # Só exibe um aviso quando a consulta realmente identifica a obra.
+    if len(nq)<4:
+        return None
     for key, info in KNOWN_UPCOMING.items():
-        if key in nq or key in normalizar_texto(info["title"]):
+        title=normalizar_texto(info.get("title") or "")
+        if nq==key or key in nq or nq==title or (len(nq)>=8 and nq in title):
             return info
     return None
 
@@ -3658,11 +3678,18 @@ class Handler(
         if path == "/api/anime/search":
             query=parse_qs(parsed.query).get("q",[""])[0].strip()
             if not query:return self.send_json({"error":"Informe o título."},400)
+            compact=re.sub(r"[^a-z0-9]","",normalizar_texto(query))
+            if len(compact)<3:
+                return self.send_json({"query":query,"detected_title":"","candidates":[],"attempts":[],"results":[],"upcoming":None,"ai_research":None,"diagnostics":{"attempted_sources":[],"steps":[{"source":"Busca","query":query,"status":"query_too_short","count":0,"detail":"Digite pelo menos 3 letras para pesquisar."}],"matched_source":None,"matched_score":None,"outcome":"query_too_short"}})
             diagnostics=[]
             candidatos=clean_anime_candidates(query) or [query]
             principal=canonical_title_from_text(query) or candidatos[0]
             deep=parse_qs(parsed.query).get("deep",["0"])[0]=="1"
             results,best=smart_search_title(principal,candidatos[1:6],"",diagnostics,fast_mode=not deep)
+            # "Reconhecimento local" é apenas um palpite para o fluxo OCR; não é
+            # uma correspondência de catálogo e não deve aparecer como anime encontrado.
+            if best and best.get("source")=="Reconhecimento local":
+                results=[]; best=None
             ai=None
             if deep and (not results or not best or best.get("_match_score",0)<82) and vision_configured():
                 ai=openai_web_research(principal,candidatos[1:6],"")
@@ -3936,6 +3963,31 @@ class Handler(
         # ----------------------------------------------------
         # UPLOAD + OCR
         # ----------------------------------------------------
+
+        if path == "/api/cover-upload":
+            try:
+                body=self.read_body()
+                if not body:
+                    return self.send_json({"error":"Selecione uma imagem para a capa."},400)
+                if len(body)>10*1024*1024:
+                    return self.send_json({"error":"A imagem ultrapassa 10 MB."},413)
+                try:
+                    image=ImageOps.exif_transpose(Image.open(BytesIO(body)))
+                    if image.format not in ("JPEG","PNG","WEBP"):
+                        return self.send_json({"error":"Use uma imagem JPG, PNG ou WEBP."},400)
+                    image=image.convert("RGB")
+                    image.thumbnail((1200,1800),Image.Resampling.LANCZOS)
+                    output=BytesIO()
+                    image.save(output,"JPEG",quality=86,optimize=True,progressive=True)
+                    optimized=output.getvalue()
+                except Exception:
+                    return self.send_json({"error":"O arquivo enviado não é uma imagem válida."},400)
+                Path(MEDIA).mkdir(parents=True,exist_ok=True)
+                filename=uuid.uuid4().hex+".jpg"
+                Path(MEDIA,filename).write_bytes(optimized)
+                return self.send_json({"success":True,"path":"/media/"+filename,"bytes":len(optimized)},201)
+            except Exception as e:
+                return self.send_json({"error":"Não foi possível salvar a capa: "+str(e)},500)
 
         if path == "/api/upload":
 
