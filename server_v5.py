@@ -1442,6 +1442,39 @@ def _safe_enrich_title(row, mode='full', force_cover=False):
                     break
 
     cover_source=cover_best or ({} if mode!='names_synopses' and generic_media else best)
+    # Combina gêneros confirmados por fontes equivalentes, sem apagar etiquetas
+    # pessoais já registradas (por exemplo, "Nostalgia").
+    discovered_genres=[]
+    if mode!='names_synopses':
+        candidates_for_genres=[best]+list(results or [])
+        seen_genres=set()
+        for candidate in candidates_for_genres:
+            try: genre_match=float(candidate.get('_match_score') or legacy._title_match_score(canonical,candidate))
+            except Exception: genre_match=0
+            if genre_match<80:
+                continue
+            if not cover_category_ok(candidate):
+                continue
+            values=candidate.get('genres') or []
+            if isinstance(values,str): values=[x.strip() for x in values.split(',') if x.strip()]
+            for value in values:
+                value=str(value or '').strip()
+                key=legacy.normalizar_texto(value)
+                if key and key not in seen_genres:
+                    seen_genres.add(key);discovered_genres.append(value)
+        old_genres=row.get('genres') or ''
+        if isinstance(old_genres,str): old_genres=[x.strip() for x in old_genres.split(',') if x.strip()]
+        if discovered_genres:
+            merged_genres=[]
+            for value in list(old_genres or [])+discovered_genres:
+                if value and legacy.normalizar_texto(value) not in {legacy.normalizar_texto(x) for x in merged_genres}:
+                    merged_genres.append(value)
+            if merged_genres:
+                updates_genres=', '.join(merged_genres)
+        else:
+            updates_genres=''
+    else:
+        updates_genres=''
     # Capas: além da capa principal, tenta preencher cada temporada individualmente.
     season_updates, season_changed = _refresh_season_covers(row, cover_source, diagnostics) if mode!='names_synopses' else ([],False)
     conn=legacy.db(); updates={}
@@ -1478,8 +1511,11 @@ def _safe_enrich_title(row, mode='full', force_cover=False):
     if mode!='names_synopses':
         for field,val in scalar_map.items():
             should_fill=(not row.get(field)) or (
-                field=='cover' and force_cover and not str(row.get('cover') or '').startswith('/media/')
+                field=='cover' and force_cover and not str(row.get('cover') or '').lstrip('/').startswith('media/')
             )
+            if field=='genres' and updates_genres:
+                updates[field]=updates_genres
+                continue
             if should_fill and val not in (None,'',[]):
                 if field in ('year','episodes'):
                     try: val=int(float(val))
