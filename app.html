@@ -857,7 +857,26 @@ async function apiBlob(url,opt={}){
   if(!r.ok){let d={};try{d=await r.json()}catch(_){}throw new Error(d.error||`Erro HTTP ${r.status}`);}
   return r.blob();
 }
-function openDialog(id){const d=$(id);if(!d)return;if(typeof d.showModal==='function'){try{d.showModal();return}catch(e){}}d.setAttribute('open','');d.style.display='block';}function closeDialog(id){const d=$(id);if(!d)return;if(typeof d.close==='function'){try{d.close();return}catch(e){}}d.removeAttribute('open');d.style.display='none';}
+const __cimeScrollLockKeys=new Set();
+let __cimeSavedScrollY=0;
+window.cimeSetScrollLock=function(key,enabled){
+  if(enabled)__cimeScrollLockKeys.add(String(key));else __cimeScrollLockKeys.delete(String(key));
+  const locked=__cimeScrollLockKeys.size>0;
+  if(locked&&!document.body.classList.contains('cime-scroll-locked')){
+    __cimeSavedScrollY=window.scrollY||window.pageYOffset||0;
+    document.body.classList.add('cime-scroll-locked');
+    document.body.style.position='fixed';document.body.style.top=(-__cimeSavedScrollY)+'px';
+    document.body.style.left='0';document.body.style.right='0';document.body.style.width='100%';document.body.style.overflow='hidden';
+  }else if(!locked&&document.body.classList.contains('cime-scroll-locked')){
+    document.body.classList.remove('cime-scroll-locked');
+    document.body.style.position='';document.body.style.top='';document.body.style.left='';document.body.style.right='';document.body.style.width='';document.body.style.overflow='';
+    window.scrollTo(0,__cimeSavedScrollY);
+  }
+};
+document.addEventListener('close',function(event){
+  if(event.target&&event.target.tagName==='DIALOG')window.cimeSetScrollLock('dialog:'+event.target.id,false);
+},true);
+function openDialog(id){const d=$(id);if(!d)return;if(typeof d.showModal==='function'){try{d.showModal();window.cimeSetScrollLock('dialog:'+id,true);return}catch(e){}}d.setAttribute('open','');d.style.display='block';window.cimeSetScrollLock('dialog:'+id,true);}function closeDialog(id){const d=$(id);if(!d)return;if(typeof d.close==='function'){try{d.close();window.cimeSetScrollLock('dialog:'+id,false);return}catch(e){}}d.removeAttribute('open');d.style.display='none';window.cimeSetScrollLock('dialog:'+id,false);}
 async function load(){
   try{
     const boot=window.__cimeBootstrap||(await api('/api/bootstrap'));
@@ -1761,8 +1780,8 @@ async function c5photoAdd(){
   q('#c5MobileAdd')?.addEventListener('click',()=>{try{openDialog('dlg')}catch(e){}});
   q('#c5MobileGroups')?.addEventListener('click',()=>{try{c5openGroups();q('#c5MobileGroupBadge').hidden=true}catch(e){}});
   const more=q('#c5MobileMore'), sheet=q('#c5MobileMoreSheet');
-  function closeMore(){if(sheet)sheet.hidden=true}
-  more?.addEventListener('click',()=>{if(sheet){sheet.hidden=!sheet.hidden;more.classList.toggle('active',!sheet.hidden)}});
+  function closeMore(){if(sheet)sheet.hidden=true;more?.classList.remove('active');window.cimeSetScrollLock?.('mobile-more',false)}
+  more?.addEventListener('click',()=>{if(sheet){sheet.hidden=!sheet.hidden;more.classList.toggle('active',!sheet.hidden);window.cimeSetScrollLock?.('mobile-more',!sheet.hidden)}});
   q('#c5CloseMore')?.addEventListener('click',closeMore);
   sheet?.addEventListener('click',e=>{if(e.target===sheet)closeMore()});
   q('#c5MobileStats')?.addEventListener('click',()=>{closeMore();view('stats')});
