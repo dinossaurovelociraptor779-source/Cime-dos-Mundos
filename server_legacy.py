@@ -3464,7 +3464,7 @@ class Handler(
                 memory=io.BytesIO()
                 cover_manifest=[]
                 asset_paths={}
-                asset_budget={"count":0,"bytes":0}
+                budget={"remote_bytes":0,"local_bytes":0,"count":0}
                 allowed_cover_hosts={
                     "image.tmdb.org","cdn.myanimelist.net","s4.anilist.co",
                     "media.kitsu.io","static.tvmaze.com","artworks.thetvdb.com",
@@ -3472,16 +3472,50 @@ class Handler(
                     "images-na.ssl-images-amazon.com","static.wikia.nocookie.net",
                     "img1.ak.crunchyroll.com"
                 }
-                def bundled_cover(url, title_id, label):
+
+                def optimize_backup_image(raw_image):
+                    try:
+                        image=ImageOps.exif_transpose(Image.open(BytesIO(raw_image))).convert("RGB")
+                        image.thumbnail((450,675),Image.Resampling.LANCZOS)
+                        out=BytesIO()
+                        image.save(out,"JPEG",quality=68,optimize=True,progressive=True)
+                        return out.getvalue()
+                    except Exception:
+                        return b""
+
+                def reserve_cover(raw_image,title_id,label,identity,kind):
+                    if identity in asset_paths:
+                        return asset_paths[identity]
+                    optimized=optimize_backup_image(raw_image)
+                    if not optimized:
+                        return ""
+                    max_remote=2_800_000
+                    max_local=500_000
+                    key="remote_bytes" if kind=="remote" else "local_bytes"
+                    limit=max_remote if kind=="remote" else max_local
+                    if budget["count"]>=400 or budget[key]+len(optimized)>limit:
+                        return ""
+                    digest=hashlib.sha256(str(identity).encode("utf-8")).hexdigest()[:10]
+                    safe_label=re.sub(r"[^a-z0-9_-]","_",str(label).lower())
+                    archive_path=f"covers/{int(title_id)}_{safe_label}_{digest}.jpg"
+                    asset_paths[identity]=archive_path
+                    budget[key]+=len(optimized)
+                    budget["count"]+=1
+                    return (archive_path,optimized)
+
+                def bundle_remote_cover(url,title_id,label):
                     url=str(url or "").strip()
-                    if not url or url in asset_paths:
-                        return asset_paths.get(url,"")
+                    if not url:
+                        return ""
+                    identity="url:"+url
+                    if identity in asset_paths:
+                        return asset_paths[identity]
                     try:
                         parsed=urlparse(url)
                         host=(parsed.hostname or "").lower()
                         if parsed.scheme!="https" or not any(host==h or host.endswith("."+h) for h in allowed_cover_hosts):
                             return ""
-                        if asset_budget["count"]>=300 or asset_budget["bytes"]>=80*1024*1024:
+                        if budget["remote_bytes"]>=2_800_000:
                             return ""
                         response=requests.get(url,headers={"User-Agent":USER_AGENT,"Accept":"image/*"},timeout=(3,10),stream=True,allow_redirects=True)
                         final=urlparse(response.url)
@@ -3498,7 +3532,7 @@ class Handler(
                             if not chunk:
                                 continue
                             size+=len(chunk)
-                            if size>5*1024*1024 or asset_budget["bytes"]+size>80*1024*1024:
+                            if size>5*1024*1024:
                                 response.close()
                                 return ""
                             chunks.append(chunk)
@@ -3506,38 +3540,54 @@ class Handler(
                         raw_image=b"".join(chunks)
                         if not raw_image:
                             return ""
-                        extension={"image/jpeg":".jpg","image/jpg":".jpg","image/png":".png","image/webp":".webp","image/gif":".gif","image/avif":".avif"}.get(content_type,".img")
-                        digest=hashlib.sha256(url.encode("utf-8")).hexdigest()[:10]
-                        archive_path=f"covers/{int(title_id)}_{re.sub(r'[^a-z0-9_-]','_',str(label).lower())}_{digest}{extension}"
-                        asset_paths[url]=archive_path
-                        asset_budget["count"]+=1
-                        asset_budget["bytes"]+=len(raw_image)
-                        return archive_path,raw_image
+                        return reserve_cover(raw_image,title_id,label,identity,"remote")
                     except Exception as exc:
-                        print("Backup capa ignorada:",str(exc)[:160])
+                        print("Backup capa remota ignorada:",str(exc)[:160])
                         return ""
-                with zipfile.ZipFile(memory, "w", zipfile.ZIP_DEFLATED) as z:
+
+                def bundle_local_cover(path,title_id,label):
+                    path=str(path or "").strip()
+                    if not path.startswith("/media/"):
+                        return ""
+                    identity="local:"+path
+                    if identity in asset_paths:
+                        return asset_paths[identity]
+                    try:
+                        source=_media_path(path)
+                        if not source or not source.exists() or not source.is_file():
+                            return ""
+                        if source.stat().st_size>15*1024*1024:
+                            return ""
+                        return reserve_cover(source.read_bytes(),title_id,label,identity,"local")
+                    except Exception as exc:
+                        print("Backup capa local ignorada:",str(exc)[:160])
+                        return ""
+
+                def write_cover(z,value):
+                    if isinstance(value,tuple):
+                        z.writestr(value[0],value[1],compress_type=zipfile.ZIP_STORED)
+                        return value[0]
+                    return value if isinstance(value,str) else ""
+
+                with zipfile.ZipFile(memory,"w",zipfile.ZIP_DEFLATED,compresslevel=8) as z:
                     conn=db()
                     titles=all_titles()
-                    export={"version":"5.0 BETA SMART VISION","created_at":datetime.now().isoformat(timespec="seconds"),"titles":titles,"watch_history":[dict(r) for r in conn.execute("SELECT * FROM watch_history ORDER BY watched_at DESC").fetchall()]}
-                    try:
-                        db_snapshot=conn.serialize()
-                    except Exception:
-                        db_snapshot=None
+                    export={
+                        "version":"5.0 BETA SMART VISION",
+                        "created_at":datetime.now().isoformat(timespec="seconds"),
+                        "titles":titles,
+                        "watch_history":[dict(r) for r in conn.execute("SELECT * FROM watch_history ORDER BY watched_at DESC").fetchall()],
+                        "imported_history":[dict(r) for r in conn.execute("SELECT * FROM imported_history ORDER BY created_at DESC").fetchall()]
+                    }
                     conn.close()
-                    if db_snapshot:
-                        z.writestr("cime.db",db_snapshot)
-                    z.writestr("library.json", json.dumps(export,ensure_ascii=False,indent=2))
+
                     for item in titles:
                         title_id=item.get("id") or 0
-                        mapping={"main":"","seasons":{}}
+                        mapping={"main":"","seasons":{},"local_photos":[]}
                         main=item.get("cover") or ""
-                        bundled=bundled_cover(main,title_id,"main")
-                        if isinstance(bundled,tuple):
-                            mapping["main"]=bundled[0]
-                            z.writestr(bundled[0],bundled[1],compress_type=zipfile.ZIP_STORED)
-                        elif isinstance(bundled,str):
-                            mapping["main"]=bundled
+                        main_asset=bundle_local_cover(main,title_id,"main") if str(main).startswith("/media/") else bundle_remote_cover(main,title_id,"main")
+                        mapping["main"]=write_cover(z,main_asset)
+
                         try:
                             seasons=json.loads(item.get("seasons_json") or "[]")
                         except Exception:
@@ -3547,34 +3597,38 @@ class Handler(
                                 continue
                             n=int(season.get("season") or 1)
                             cover_url=season.get("cover") or ""
-                            bundled=bundled_cover(cover_url,title_id,f"season_{n}")
-                            if isinstance(bundled,tuple):
-                                mapping["seasons"][str(n)]=bundled[0]
-                                z.writestr(bundled[0],bundled[1],compress_type=zipfile.ZIP_STORED)
-                            elif isinstance(bundled,str) and bundled:
-                                mapping["seasons"][str(n)]=bundled
+                            season_asset=bundle_local_cover(cover_url,title_id,f"season_{n}") if str(cover_url).startswith("/media/") else bundle_remote_cover(cover_url,title_id,f"season_{n}")
+                            saved=write_cover(z,season_asset)
+                            if saved:
+                                mapping["seasons"][str(n)]=saved
+
+                        for photo in _safe_local_photo_paths(item.get("local_cover_photos")):
+                            n=photo.get("season")
+                            local_asset=bundle_local_cover(photo.get("path"),title_id,f"local_s{n or 0}")
+                            saved=write_cover(z,local_asset)
+                            if saved:
+                                mapping["local_photos"].append({"season":n,"file":saved})
+
                         item["cover_files"]=mapping
-                        if mapping["main"] or mapping["seasons"]:
+                        if mapping["main"] or mapping["seasons"] or mapping["local_photos"]:
                             cover_manifest.append({"title_id":title_id,"title":item.get("name") or "","files":mapping})
-                    if os.path.isdir(MEDIA):
-                        for root,_,files in os.walk(os.fspath(MEDIA)):
-                            for filename in files:
-                                full=os.path.join(root,filename)
-                                arc=os.path.join("media",os.path.relpath(full,os.fspath(MEDIA)))
-                                try:
-                                    z.write(full,arc)
-                                except Exception as exc:
-                                    print("Backup mídia ignorada:",str(exc)[:160])
+
+                    z.writestr("library.json",json.dumps(export,ensure_ascii=False,separators=(",",":")))
                     z.writestr("cover_manifest.json",json.dumps(cover_manifest,ensure_ascii=False,indent=2))
-                    readme=("Cime dos Mundos 5.0 - backup da biblioteca\n"
-                            "Inclui library.json, um snapshot do banco (cime.db), capas remotas encontradas em covers/ "
-                            "e arquivos locais da pasta media/.\n"
-                            "O library.json mantém os endereços originais e acrescenta cover_files com o caminho "
-                            "da imagem dentro deste ZIP.\n"
-                            "Capas que não puderam ser baixadas continuam registradas pelos endereços originais.\n"
-                            f"Capas incluídas: {asset_budget['count']} · {asset_budget['bytes']} bytes.\n")
+                    readme=("Cime dos Mundos 5.0 - backup da biblioteca com capas\n"
+                            "Inclui library.json (títulos, progresso, notas, histórico de episódios e histórico importado), "
+                            "cover_manifest.json e imagens otimizadas em covers/.\n"
+                            "As capas originais continuam identificadas pelos endereços/caminhos no library.json; "
+                            "cover_files aponta para as imagens incluídas neste ZIP.\n"
+                            "Para manter o download compatível com a hospedagem, as capas incluídas são redimensionadas "
+                            "e compactadas. Capas que não couberam no limite ou não puderam ser acessadas permanecem "
+                            "referenciadas pelo endereço original.\n"
+                            f"Imagens incluídas: {budget['count']} · remotas: {budget['remote_bytes']} bytes · locais: {budget['local_bytes']} bytes.\n")
                     z.writestr("LEIA-ME-BACKUP.txt",readme)
+
                 raw=memory.getvalue()
+                if len(raw)>4_300_000:
+                    return self.send_json({"error":"O backup ficou grande demais para um único download. Reduza a quantidade de imagens locais e tente novamente."},413)
                 self.send_response(200)
                 self.send_header("Content-Type","application/zip")
                 self.send_header("Content-Disposition",'attachment; filename="CimeDosMundos_Backup_5.0_com_capas.zip"')
