@@ -582,6 +582,7 @@ class Gateway(BaseHTTPRequestHandler):
             limit=max(1,min(8,int(qs.get('limit',['4'])[0] or 4)))
             after_id=max(0,int(qs.get('after_id',['0'])[0] or 0))
             force=str(qs.get('force',['0'])[0] or '0')=='1'
+            force_cover=force
             titles=legacy.all_titles()
             def needs_cover(x):
                 if force: return True
@@ -593,7 +594,7 @@ class Gateway(BaseHTTPRequestHandler):
             titles=sorted(titles,key=lambda x:int(x.get('id') or 0))[:limit]
             out=[]
             for row in titles:
-                try: out.append(_safe_enrich_title(row))
+                try: out.append(_safe_enrich_title(row,force_cover=force_cover))
                 except Exception as e: out.append({'id':row.get('id'),'name':row.get('name'),'changed':False,'reason':'erro','detail':str(e)[:240]})
             next_after=int(titles[-1].get('id') or after_id) if titles else after_id
             return self.send_json({'success':True,'processed':len(out),'results':out,'after_id':after_id,'next_after_id':next_after,'finished':not bool(titles) or len(titles)<limit})
@@ -1324,8 +1325,10 @@ def _simple_synopsis(text, limit=320):
     return short
 
 
-def _safe_enrich_title(row, mode='full'):
-    """Research a title while leaving ratings and any user-written data untouched."""
+def _safe_enrich_title(row, mode='full', force_cover=False):
+    """Research a title while leaving ratings and any user-written data untouched.
+    force_cover refreshes external posters only; local/user-uploaded artwork is protected.
+    """
     name=_clean_text(row.get('name'))
     search_name=name or _clean_text(row.get('title_english')) or _clean_text(row.get('title_japanese'))
     if not search_name:
@@ -1375,13 +1378,15 @@ def _safe_enrich_title(row, mode='full'):
     if mode!='names_synopses':
         wanted=legacy.normalizar_texto(cat or best.get('category') or 'Anime')
         generic_media=("filme" in wanted and "serie" in wanted) or wanted in ("video","filme ou serie","series e filmes")
+        anime_film=any(term in wanted for term in ("filme de animacao","filme animado","filme de anime","animacao filme"))
         def cover_category_ok(item):
             source=str(item.get('source') or '').strip().lower()
             got=legacy.normalizar_texto(item.get('category') or '')
             kind=legacy.normalizar_texto(item.get('type') or '')
             if generic_media:
-                # Para registros sem tipo definido, não usar pôster de anime por engano.
                 return got in ('filme','serie','desenho') or source in ('tmdb','tvmaze')
+            if anime_film:
+                return got in ('anime','filme') or source in ('jikan','anilist','kitsu','tmdb')
             if wanted in ('filme','movie'):
                 return got=='filme' or (source=='tmdb' and kind in ('filme','movie'))
             if wanted in ('serie','series','tv'):
@@ -1408,7 +1413,7 @@ def _safe_enrich_title(row, mode='full'):
                     break
 
         # Para anime, AniList e Kitsu são fontes adicionais quando Jikan não tem poster.
-        if cover_best is None and wanted in ('anime','desenho'):
+        if cover_best is None and (wanted in ('anime','desenho') or anime_film):
             for source_name, lookup_name in (('AniList','anilist_search'),('Kitsu','kitsu_search')):
                 lookup=getattr(legacy,lookup_name,None)
                 if not callable(lookup):
@@ -1472,7 +1477,10 @@ def _safe_enrich_title(row, mode='full'):
     }
     if mode!='names_synopses':
         for field,val in scalar_map.items():
-            if not row.get(field) and val not in (None,'',[]):
+            should_fill=(not row.get(field)) or (
+                field=='cover' and force_cover and not str(row.get('cover') or '').startswith('/media/')
+            )
+            if should_fill and val not in (None,'',[]):
                 if field in ('year','episodes'):
                     try: val=int(float(val))
                     except Exception: continue
