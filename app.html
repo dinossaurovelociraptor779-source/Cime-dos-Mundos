@@ -1252,7 +1252,48 @@ function diagnosticsHtml(d){
  return `<details class="diagnostic"><summary>🧪 Como o Cime pesquisou</summary><div class="diag-small" style="margin:8px 0">Resultado: <b>${esc(d.outcome||'')}</b>${d.matched_source?` · Fonte: <b>${esc(d.matched_source)}</b>`:''}${d.matched_score!=null?` · Pontuação: <b>${esc(d.matched_score)}</b>`:''}</div>${steps||'<div class="diag-small">Nenhuma etapa registrada.</div>'}</details>`;
 }
 
-async function runDiscover(){const q=$('discoverInput').value.trim();if(!q)return;$('discoverStatus').innerHTML='<div class="loading">🔎 Pesquisando sem sair da tela...</div>';$('discoverResults').innerHTML='';try{const data=await api('/api/anime/search?q='+encodeURIComponent(q)+'&deep=0');const list=data.results||[];$('discoverStatus').innerHTML=(data.detected_title?`<div class="note ok">🎯 Título encontrado: <b>${esc(data.detected_title)}</b></div>`:'') + diagnosticsHtml(data.diagnostics);let html='';if(data.upcoming){const u=data.upcoming;html+=`<div class="upcoming-box"><b>🔔 Próxima temporada</b><div class="release-grid"><div class="release-card"><b>Temporada ${u.season}</b><span>${esc(u.title)}</span></div><div class="release-card"><b>📣 Situação</b><span>${esc(u.status)}</span></div><div class="release-card"><b>📅 Estreia</b><span>${u.release_date?esc(u.release_date):esc(u.release_text)}</span></div></div><div class="muted" style="margin-top:9px">Anunciada oficialmente em ${esc(u.announcement_date)}. A data de estreia ainda não foi divulgada.</div></div>`}if(!list.length){$('discoverResults').innerHTML=html+'<div class="empty">Nenhum resultado encontrado.</div>';return}html+='<h3 class="section-title">Resultados</h3>'+list.slice(0,8).map(discoverCard).join('');$('discoverResults').innerHTML=html}catch(e){$('discoverStatus').innerHTML='<div class="note danger">❌ '+esc(e.message)+'</div>'}}
+let discoverSearchTimer=null,discoverSearchSequence=0;
+async function runDiscover(queryOverride){
+ const query=String(queryOverride??$('discoverInput').value??'').trim();
+ if(query.length<3){
+   $('discoverStatus').textContent=query?'Digite mais algumas letras para pesquisar.':'Digite o nome de um anime, série ou filme.';
+   $('discoverResults').innerHTML='';return;
+ }
+ const sequence=++discoverSearchSequence;
+ $('discoverStatus').innerHTML='<div class="loading">🔎 Procurando capas e informações…</div>';
+ $('discoverResults').innerHTML='';
+ try{
+   const data=await api('/api/anime/search?q='+encodeURIComponent(query)+'&deep=0');
+   if(sequence!==discoverSearchSequence||query!==$('discoverInput').value.trim())return;
+   const list=data.results||[];
+   $('discoverStatus').textContent=list.length?'Resultados encontrados para “'+query+'”.':'Nenhuma correspondência confirmada para “'+query+'”.';
+   let html='';
+   if(data.upcoming&&list.length){
+     const u=data.upcoming;
+     html+='<div class="upcoming-box"><b>🔔 Próxima temporada</b><div class="release-grid"><div class="release-card"><b>Temporada '+u.season+'</b><span>'+esc(u.title)+'</span></div><div class="release-card"><b>📣 Situação</b><span>'+esc(u.status)+'</span></div><div class="release-card"><b>📅 Estreia</b><span>'+(u.release_date?esc(u.release_date):esc(u.release_text))+'</span></div></div><div class="muted" style="margin-top:9px">Anunciada oficialmente em '+esc(u.announcement_date)+'. A data de estreia ainda não foi divulgada.</div></div>';
+   }
+   if(!list.length){$('discoverResults').innerHTML=html+'<div class="empty">Tente escrever o nome completo ou uma parte maior do título.</div>';return;}
+   html+='<h3 class="section-title">Resultados</h3>'+list.slice(0,8).map(discoverCard).join('');
+   $('discoverResults').innerHTML=html;
+ }catch(e){
+   if(sequence!==discoverSearchSequence)return;
+   $('discoverStatus').innerHTML='<div class="note danger">❌ '+esc(e.message)+'</div>';
+ }
+}
+function scheduleDiscoverSearch(){
+ clearTimeout(discoverSearchTimer);
+ const value=$('discoverInput').value.trim();
+ if(value.length<3){
+   discoverSearchSequence++;
+   $('discoverStatus').textContent=value?'Digite mais algumas letras para pesquisar.':'Digite o nome de um anime, série ou filme.';
+   $('discoverResults').innerHTML='';return;
+ }
+ discoverSearchTimer=setTimeout(()=>runDiscover(value),360);
+}
+$('discoverInput').addEventListener('input',scheduleDiscoverSearch);
+$('discoverInput').addEventListener('keydown',e=>{if(e.key==='Enter'){clearTimeout(discoverSearchTimer);runDiscover();}});
+$('discoverSearch').onclick=()=>{clearTimeout(discoverSearchTimer);runDiscover();};
+
 
 async function enrichSavedTitle(id){
   if(!id)return;
@@ -2092,7 +2133,7 @@ img{max-width:100%}
   const home=document.createElement('section');
   home.id='c5MobileHomeView';
   home.setAttribute('aria-label','Início do Cime dos Mundos');
-  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeAdd">＋ Adicionar título</button><button type="button" id="c5HomeImage">📷 Identificar por imagem</button><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">📥 Importar histórico</button></div><div class="c5-mobile-home-categories" role="group" aria-label="Filtrar sua coleção"><button type="button" class="is-active" data-c5-home-category="all" aria-pressed="true">✦ Seu universo</button><button type="button" data-c5-home-category="Anime" aria-pressed="false">🎌 Animes</button><button type="button" data-c5-home-category="Série" aria-pressed="false">📺 Séries</button><button type="button" data-c5-home-category="Filme" aria-pressed="false">🎬 Filmes</button></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
+  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeAdd">＋ Adicionar título</button><button type="button" id="c5HomeImage">📷 Identificar por imagem</button><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">📥 Importar histórico</button></div><div class="c5-mobile-home-categories" role="group" aria-label="Filtrar sua coleção"><button type="button" class="is-active" data-c5-home-category="all" aria-pressed="true">✦ Seu universo</button><button type="button" data-c5-home-category="Anime" aria-pressed="false">🎌 Animes</button><button type="button" data-c5-home-category="Série" aria-pressed="false">📺 Séries</button><button type="button" data-c5-home-category="Filme" aria-pressed="false">🎬 Filmes</button></div><section id="c5PublicRecommendations" class="c5-public-recommendations" aria-label="Publicações e recomendações da comunidade"><div class="c5-public-rec-head"><div><b>🌐 Recomendações da comunidade</b><small>Descubra o que outras pessoas estão assistindo.</small></div><span>EM BREVE</span></div><div class="c5-public-rec-empty">Em breve, este espaço vai mostrar recomendações públicas em cartões compactos com capa, nota e uma frase. Seus grupos continuam privados.</div></section><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
   const main=q('main');
   if(main)main.insertBefore(home,main.firstChild);
   const header=q('header');
@@ -3350,5 +3391,17 @@ document.getElementById('manualCoverRemove')?.addEventListener('click',()=>{
 .cover-upload-field .manual-cover-preview{min-height:110px;padding:10px;display:flex;gap:12px;align-items:center;border:1px dashed #43516e;border-radius:14px;background:#0b1320;color:#9baac0;font-size:12px}
 .manual-cover-preview img{width:78px;height:112px;object-fit:cover;border-radius:9px;border:1px solid #44516a}
 .manual-cover-preview b{color:#dce6f7}
+</style>
+
+<style id="cime-community-feed-placeholder-v1">
+@media(max-width:760px){
+ #c5PublicRecommendations{margin:18px 0 6px;padding:13px;border:1px solid #2b3952;border-radius:17px;background:linear-gradient(145deg,#111b2c,#0b111d)}
+ .c5-public-rec-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+ .c5-public-rec-head b{display:block;font-size:14px}
+ .c5-public-rec-head small{display:block;margin-top:4px;color:#94a3b8;font-size:11px;line-height:1.4}
+ .c5-public-rec-head>span{flex:0 0 auto;padding:5px 7px;border:1px solid #55438d;border-radius:8px;color:#c4b5fd;font-size:9px;font-weight:900;letter-spacing:.08em}
+ .c5-public-rec-empty{margin-top:10px;padding:11px;border-radius:12px;background:#0a111c;color:#9eacc2;font-size:11px;line-height:1.5}
+}
+@media(min-width:761px){#c5PublicRecommendations{display:none}}
 </style>
 </body></html>
