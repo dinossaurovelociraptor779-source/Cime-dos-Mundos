@@ -668,12 +668,24 @@ function seriesProgress(x){
       ?Array.from({length:Math.min(declaredSeasons,100)},(_,i)=>bySeason.get(i+1)).every(e=>e&&Number(e.episodes)>0)
       :episodeCountsKnown;
     if(!totalKnown&&episodeCountsKnown&&seasonCoverageKnown){total=seasons.reduce((sum,e)=>sum+Number(e.episodes),0);totalKnown=total>0;}
-    for(let season=1;season<currentSeason;season++){
-      const entry=bySeason.get(season),episodes=Number(entry?.episodes);
-      if(!entry||!Number.isFinite(episodes)||episodes<=0){watchedKnown=false;continue;}
-      watched+=episodes;
+    watchedKnown=seasons.every(e=>{
+      const status=String(e.status||"").trim().toLowerCase();
+      return /^(conclu[ií]do|completed|finished|quero assistir|abandonado|dropado|pausado|aguardando|não informado)$/.test(status)
+        || e.current_episode!=null || currentEpisodeKnown;
+    });
+    for(const entry of seasons){
+      const number=Math.max(1,Number(entry.season)||1),episodes=Number(entry.episodes||0),status=String(entry.status||"").trim();
+      const done=/^(conclu[ií]do|completed|finished)$/i.test(status);
+      if(done){if(Number.isFinite(episodes)&&episodes>0)watched+=episodes;else watchedKnown=false;continue;}
+      if(number===currentSeason){
+        const rawEntryEpisode=Number(entry.current_episode),hasEntryEpisode=entry.current_episode!=null&&Number.isFinite(rawEntryEpisode);
+        watched+=Math.max(0,hasEntryEpisode?rawEntryEpisode:currentEpisode);
+        if(!hasEntryEpisode&&!currentEpisodeKnown&&status==="Assistindo")watchedKnown=false;
+        continue;
+      }
+      // Registros antigos não tinham status por temporada; mantém o cálculo anterior.
+      if(number<currentSeason&&!status){if(Number.isFinite(episodes)&&episodes>0)watched+=episodes;else watchedKnown=false;}
     }
-    watched+=currentEpisode;
   }
   const completed=/^(conclu[ií]do|completed|finished)$/i.test(String(x.status||"").trim());
   if(completed){
@@ -951,10 +963,10 @@ let libraryVisible=12;
 const cimeImageObserver=('IntersectionObserver' in window)?new IntersectionObserver((entries,observer)=>{for(const entry of entries){if(!entry.isIntersecting)continue;const img=entry.target;const src=img.getAttribute('data-cime-src');if(src){img.src=src;img.removeAttribute('data-cime-src');img.decoding='async';}observer.unobserve(img);}}, {rootMargin:'100px 0px'}):null;
 function optimizeVisibleImages(){const imgs=document.querySelectorAll('#grid img[data-cime-src],#continueGrid img[data-cime-src]');if(cimeImageObserver){imgs.forEach(img=>cimeImageObserver.observe(img));}else{imgs.forEach(img=>{const src=img.getAttribute('data-cime-src');if(src){img.src=src;img.removeAttribute('data-cime-src');}});}}
 function render(){readFilterState();const f=$("filter").value,gf=$("genreFilter").value;let list=titles.slice();const q=($("librarySearch")?.value||"").trim().toLowerCase();if(q)list=list.filter(x=>searchBlob(x).includes(q));if(f!=="all")list=f==="favorite"?list.filter(x=>x.favorite):list.filter(x=>x.status===f);if(gf!=="all")list=list.filter(x=>hasGenre(x,gf));list=applyAdvancedFilterToList(list);list=applyFunnelToList(list);const so=advancedFilters.sort!=="recent"?advancedFilters.sort:$("sort")?.value||"recent";if($("sort"))$("sort").value=so;list=sortList(list);updateFilterBadge();const cont=list.filter(x=>x.status==="Assistindo").slice(0,6);$("continueGrid").innerHTML=cont.map(x=>card(x,false)).join("");$("continueSection").style.display=cont.length?"block":"none";const slice=list.slice(0,libraryVisible);$("grid").innerHTML=list.length?slice.map((x,i)=>card(x,i<3)).join(""):"<div class=\"empty\">Nenhum título encontrado.</div>";const more=$("libraryMore"),info=$("libraryMoreInfo"),btn=$("libraryMoreBtn");if(more){more.style.display=list.length>slice.length?"block":"none";if(info)info.textContent=`Mostrando ${slice.length} de ${list.length} títulos`;if(btn)btn.onclick=()=>{libraryVisible+=12;render()}}optimizeVisibleImages();}
-async function patch(id,data){await api('/api/titles/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});await load();}
+async function patch(id,data,options={}){await api('/api/titles/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const index=titles.findIndex(t=>String(t.id)===String(id));if(index>=0){titles[index]={...titles[index],...data};saveLibraryCache();}if(options.render!==false){render();window.dispatchEvent(new Event('cime:library-updated'));}if($('statsView')?.style.display!=='none')void loadStats();return index>=0?titles[index]:null;}
 function franchiseCover(x){const covers=seasonCovers(x);const fallback=x.cover||"";const all=Array.from(new Set([...(covers||[]),...(fallback?[fallback]:[])].filter(Boolean))).slice(0,3);const fav=`<button class="fav ${x.favorite?'active':''}" data-fav="${x.id}" title="Favoritar">${x.favorite?'❤️':'🤍'}</button>`;if(!all.length)return `<div class="cover placeholder">🎬${fav}</div>`;if(all.length===1)return `<div class="cover"><img loading="lazy" decoding="async" src="${esc(all[0])}" onerror="this.parentElement.classList.add('placeholder');this.remove()" alt="Capa de ${esc(x.name)}">${fav}</div>`;return `<div class="cover collage c${all.length}">${all.map(u=>`<img loading="lazy" decoding="async" src="${esc(u)}" onerror="this.remove()" alt="Capa de ${esc(x.name)}">`).join('')}${fav}</div>`}
-function renderSeasonEditor(x){const ss=seasonEntries(x);if(!$('seasonEditor'))return;const photos=Array.isArray(x.local_cover_photos)?x.local_cover_photos:[];const list=ss.length?ss:[{season:x.current_season||1,episodes:x.episodes||0,score:x.rating||'',status:x.status||'Quero assistir'}];$('seasonEditor').innerHTML=list.map(e=>{const n=Number(e.season||1);const cover=e.cover||photos.find(p=>Number(p.season||0)===n)?.path||'';return `<div class="season-edit-row" data-season="${n}"><div style="display:flex;align-items:center;gap:8px;min-width:74px"><b>T${n}</b>${cover?`<img src="${esc(cover)}" style="width:34px;height:48px;object-fit:cover;border-radius:6px" loading="lazy" decoding="async" onerror="this.style.display='none'">`:''}</div><input data-season-episodes type="number" min="0" value="${e.episodes??''}" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" value="${e.score??''}" placeholder="Sua nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option ${String(e.status||'Quero assistir')===v?'selected':''}>${v}</option>`).join('')}</select><span class="muted" style="font-size:11px">${cover?'📸 capa OK':'📸 sem capa'}</span><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button></div>`}).join('')+`<div class="note" style="margin-top:8px">⭐ Cada temporada tem sua própria nota/status. 📸 Capas enviadas pela identificação podem ficar associadas à temporada.</div><button type="button" class="btn" id="addSeasonRow">＋ Adicionar temporada</button>`;$('seasonEditor').querySelector('#addSeasonRow').onclick=()=>{const nums=Array.from($('seasonEditor').querySelectorAll('.season-edit-row')).map(r=>Number(r.dataset.season||0));const n=(Math.max(0,...nums)+1)||1;const row=document.createElement('div');row.className='season-edit-row';row.dataset.season=n;row.innerHTML=`<div style="min-width:74px"><b>T${n}</b></div><input data-season-episodes type="number" min="0" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" placeholder="Sua nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option>${v}</option>`).join('')}</select><span class="muted" style="font-size:11px">📸 sem capa</span><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button>`;$('seasonEditor').insertBefore(row,$('addSeasonRow'));};$('seasonEditor').onclick=e=>{const b=e.target.closest('[data-remove-season]');if(b){const rows=$('seasonEditor').querySelectorAll('.season-edit-row');if(rows.length>1)b.closest('.season-edit-row')?.remove();else showToast('A série precisa ter pelo menos uma temporada.');}};}
-function readSeasonEditor(){return Array.from(document.querySelectorAll('.season-edit-row')).map(r=>({season:Number(r.dataset.season||1),episodes:r.querySelector('[data-season-episodes]')?.value||'',score:r.querySelector('[data-season-score]')?.value||'',status:r.querySelector('[data-season-status]')?.value||'Quero assistir'}))}
+function renderSeasonEditor(x){const ss=seasonEntries(x);if(!$('seasonEditor'))return;const photos=Array.isArray(x.local_cover_photos)?x.local_cover_photos:[];const list=ss.length?ss:[{season:x.current_season||1,episodes:x.episodes||0,score:x.rating||'',status:x.status||'Quero assistir'}];$('seasonEditor').innerHTML=list.map(e=>{const n=Number(e.season||1);const cover=e.cover||photos.find(p=>Number(p.season||0)===n)?.path||'';return `<div class="season-edit-row" data-season="${n}" data-current-episode="${Number(e.current_episode||0)}"><div style="display:flex;align-items:center;gap:8px;min-width:74px"><b>T${n}</b>${cover?`<img src="${esc(cover)}" style="width:34px;height:48px;object-fit:cover;border-radius:6px" loading="lazy" decoding="async" onerror="this.style.display='none'">`:''}</div><input data-season-episodes type="number" min="0" value="${e.episodes??''}" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" value="${e.score??''}" placeholder="Sua nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option ${String(e.status||'Quero assistir')===v?'selected':''}>${v}</option>`).join('')}</select><span class="muted" style="font-size:11px">${cover?'📸 capa OK':'📸 sem capa'}</span><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button></div>`}).join('')+`<div class="note" style="margin-top:8px">⭐ Cada temporada tem sua própria nota/status. 📸 Capas enviadas pela identificação podem ficar associadas à temporada.</div><button type="button" class="btn" id="addSeasonRow">＋ Adicionar temporada</button>`;$('seasonEditor').querySelector('#addSeasonRow').onclick=()=>{const nums=Array.from($('seasonEditor').querySelectorAll('.season-edit-row')).map(r=>Number(r.dataset.season||0));const n=(Math.max(0,...nums)+1)||1;const row=document.createElement('div');row.className='season-edit-row';row.dataset.season=n;row.dataset.currentEpisode='0';row.innerHTML=`<div style="min-width:74px"><b>T${n}</b></div><input data-season-episodes type="number" min="0" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" placeholder="Sua nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option>${v}</option>`).join('')}</select><span class="muted" style="font-size:11px">📸 sem capa</span><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button>`;$('seasonEditor').insertBefore(row,$('addSeasonRow'));};$('seasonEditor').onclick=e=>{const b=e.target.closest('[data-remove-season]');if(b){const rows=$('seasonEditor').querySelectorAll('.season-edit-row');if(rows.length>1)b.closest('.season-edit-row')?.remove();else showToast('A série precisa ter pelo menos uma temporada.');}};}
+function readSeasonEditor(){return Array.from(document.querySelectorAll('.season-edit-row')).map(r=>({season:Number(r.dataset.season||1),episodes:r.querySelector('[data-season-episodes]')?.value||'',score:r.querySelector('[data-season-score]')?.value||'',status:r.querySelector('[data-season-status]')?.value||'Quero assistir',current_episode:Number(r.dataset.currentEpisode||0)}))}
 function openEdit(x){selectedCover=x.cover||'';manualCoverFile=null;if($('manualCoverInput'))$('manualCoverInput').value='';updateManualCoverPreview(selectedCover);selectedMeta={...x};$('save').dataset.id=x.id||"";$('name').value=x.name||"";$('category').value=x.category||"Anime";$('status').value=x.status||"Quero assistir";$('rating').value=x.rating??"";$('reviewNotes').value=x.notes||"";$('episodes').value=x.episodes??x.total_episodes??"";$('currentEpisode').value=x.current_episode??0;$('currentSeason').value=x.current_season??1;$('totalSeasons').value=x.total_seasons??"";$('start').value=x.start_date||"";$('end').value=x.end_date||"";$('favorite').value=x.favorite?"1":"0";$('genresInput').value=genresArr(x).map(g=>genrePT(g)).join(', ');renderSeasonEditor(x);openDialog('dlg')}
 const cimeUseStore=new Map();
 let cimeUseSeq=0;
@@ -971,13 +983,17 @@ function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
   if(!panel)return;
   try{
     const sp=seriesProgress(x),ss=seasonEntries(x);
-    const completed=/^(conclu[ií]do|completed|finished)$/i.test(String(x.status||"").trim());
+    const allSeasonsCompleted=ss.length>0&&ss.every(season=>/^(conclu[ií]do|completed|finished)$/i.test(String(season.status||"").trim()));
+    const completed=/^(conclu[ií]do|completed|finished)$/i.test(String(x.status||"").trim())||allSeasonsCompleted;
+    const panelSeasons=ss.length?ss:[{season:Number(x.current_season||1),episodes:currentSeasonEpisodeTotal(x),score:x.rating,status:x.status||"Quero assistir"}];
     const history=Array.isArray(historyRows)?historyRows:[];
     const historyBySeason=new Map();
     history.forEach(row=>{const n=Math.max(1,Number(row.season)||1),ep=Math.max(0,Number(row.episode)||0);historyBySeason.set(n,Math.max(historyBySeason.get(n)||0,ep));});
     const currentSeason=Math.max(1,Number(selectedSeason||x.current_season||1)||1);
+    const selectedSeasonEntry=panelSeasons.find(entry=>Number(entry.season||1)===currentSeason)||{};
     const currentTotal=currentSeasonEpisodeTotal(x,currentSeason);
-    const currentEp=Math.max(0,Number(currentSeason===Number(x.current_season||1)?x.current_episode||0:0)||0,historyBySeason.get(currentSeason)||0,completed&&currentTotal?currentTotal:0);
+    const seasonCurrentEpisode=Number(selectedSeasonEntry.current_episode);
+    const currentEp=Math.max(0,Number.isFinite(seasonCurrentEpisode)?seasonCurrentEpisode:0,Number(currentSeason===Number(x.current_season||1)?x.current_episode||0:0)||0,historyBySeason.get(currentSeason)||0,(/^(conclu[ií]do|completed|finished)$/i.test(String(selectedSeasonEntry.status||''))||completed)&&currentTotal?currentTotal:0);
     const missing=value=>value==null||(typeof value==="string"&&!value.trim())||(Array.isArray(value)&&!value.length);
     const field=(label,value,display=value)=>missing(value)?'':`<div class="panel-field"><b>${esc(label)}</b><div class="muted">${esc(String(display))}</div></div>`;
     const synopsis=x.synopsis_pt||x.synopsis||"";
@@ -988,15 +1004,19 @@ function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
     const localNext=currentTotal&&currentEp<currentTotal?{season:currentSeason,episode:currentEp+1,label:"Episódio "+(currentEp+1)}:null;
     const franchiseNext=currentSeason===Number(x.current_season||1)?nextPosition(x):null;
     const next=localNext||franchiseNext;
-    const seasonsMarkup=ss.length?`<div class="season-list">${ss.map(season=>{
+    const seasonStatusOptions=[['Quero assistir','Quero assistir'],['Assistindo','Assistindo'],['Concluído','Concluído'],['Pausado','Pausado'],['Abandonado','Dropado'],['Aguardando','Aguardando'],['Não informado','Não informado']];
+    const seasonsMarkup=`<div class="season-list">${panelSeasons.map(season=>{
       const number=Number(season.season||1),photos=Array.isArray(x.local_cover_photos)?x.local_cover_photos:[],seasonCover=season.cover||photos.find(photo=>Number(photo.season||0)===number)?.path||"";
       const seasonSynopsis=season.synopsis_pt||season.synopsis||"";
-      const seasonStatus=completed?'Concluída':(season.status?statusPT(season.status):'');
-      const meta=[season.episodes!=null?`${esc(String(season.episodes))} episódios`:'',season.score!=null?`⭐ ${esc(String(season.score))}`:'',seasonStatus].filter(Boolean).join(' · ');
-      return `<div class="season-item"><div class="season-main">${seasonCover?`<img src="${esc(seasonCover)}" alt="Capa da temporada ${number}" class="season-thumb" loading="lazy" decoding="async" onerror="this.remove()">`:""}<div class="season-copy"><b>${esc(season.name||("Temporada "+number))}</b>${meta?`<div class="muted">${meta}</div>`:""}${seasonSynopsis?`<div class="muted season-synopsis">${esc(seasonSynopsis)}</div>`:""}</div></div><button class="btn" data-panel-season="${esc(x.id)}" data-season="${number}">${completed?'Ver temporada':'Registrar episódios'}</button></div>`;
-    }).join("")}</div>`:`<div class="note">⏳ Pendente: temporadas cadastradas</div>`;
-    const historyMarkup=history.length?`<h3 class="section-title">🕘 Últimos episódios registrados</h3><div class="history-list">${history.slice(0,8).map(row=>`<div>📺 T${esc(row.season??"?")} · Episódio ${esc(row.episode??"?")} <span class="muted">· ${esc(row.watched_at||"")}</span></div>`).join("")}</div>`:historyError?`<div class="note danger" role="alert"><b>Não foi possível carregar temporadas e episódios agora.</b><div style="margin-top:6px">${esc(historyError)}</div><button class="btn mini" type="button" data-panel-retry="${esc(x.id)}" data-season="${Number(selectedSeason||0)}" style="margin-top:10px">↻ Tentar novamente</button></div>`:"";
-    panel.innerHTML=`<div class="panel-toolbar"><span class="panel-kicker">🌌 Cime dos Mundos 5.0</span><button class="btn mini" type="button" data-panel-close title="Fechar painel" aria-label="Fechar painel">✕</button></div>
+      const fallbackStatus=completed?'Concluído':(number===currentSeason&&currentEp>0?'Assistindo':(x.status||'Quero assistir'));
+      const seasonStatus=season.status||fallbackStatus;
+      const seasonTotal=Number(season.episodes||currentSeasonEpisodeTotal(x,number)||0);
+      const seasonWatched=Number(season.current_episode??(number===currentSeason?currentEp:0))||0;
+      const seasonPercent=/^(conclu[ií]do|completed|finished)$/i.test(String(seasonStatus))?100:(seasonTotal>0?Math.min(100,Math.round(seasonWatched/seasonTotal*100)):0);
+      const meta=[season.episodes!=null?`${esc(String(season.episodes))} episódios`:'',season.score!=null?`⭐ ${esc(String(season.score))}`:''].filter(Boolean).join(' · ');
+      return `<div class="season-item"><div class="season-main">${seasonCover?`<img src="${esc(seasonCover)}" alt="Capa da temporada ${number}" class="season-thumb" loading="lazy" decoding="async" onerror="this.remove()">`:""}<div class="season-copy"><b>${esc(season.name||("Temporada "+number))}</b>${meta?`<div class="muted">${meta}</div>`:""}<div class="season-progress"><i style="width:${seasonPercent}%"></i></div><label class="season-status-label" for="seasonStatus-${esc(x.id)}-${number}">Status da temporada</label><select id="seasonStatus-${esc(x.id)}-${number}" class="season-status-select" data-panel-season-status="${esc(x.id)}" data-season="${number}">${seasonStatusOptions.map(([value,label])=>`<option value="${esc(value)}" ${String(seasonStatus)===value?'selected':''}>${esc(label)}</option>`).join('')}</select>${seasonSynopsis?`<div class="muted season-synopsis">${esc(seasonSynopsis)}</div>`:""}</div></div><button class="btn" data-panel-season="${esc(x.id)}" data-season="${number}">Ver temporada</button></div>`;
+    }).join("")}</div>`;    const historyMarkup=history.length?`<h3 class="section-title">🕘 Últimos episódios registrados</h3><div class="history-list">${history.slice(0,8).map(row=>`<div>📺 T${esc(row.season??"?")} · Episódio ${esc(row.episode??"?")} <span class="muted">· ${esc(row.watched_at||"")}</span></div>`).join("")}</div>`:historyError?`<div class="note danger" role="alert"><b>Não foi possível carregar temporadas e episódios agora.</b><div style="margin-top:6px">${esc(historyError)}</div><button class="btn mini" type="button" data-panel-retry="${esc(x.id)}" data-season="${Number(selectedSeason||0)}" style="margin-top:10px">↻ Tentar novamente</button></div>`:"";
+    panel.innerHTML=`<div class="panel-toolbar"><span class="panel-kicker">🌌 Cime dos Mundos 5.0</span><button class="btn mini" type="button" data-panel-close title="Voltar à biblioteca" aria-label="Voltar à biblioteca">← Voltar à biblioteca</button></div>
       <div class="panel-head">${coverMarkup}<div class="panel-info"><h2>${esc(x.name||"⏳ Pendente: nome")}</h2>${x.title_english?`<div class="sub">🌐 ${esc(x.title_english)}</div>`:""}<div class="chips">${x.status?`<span class="chip">${esc(statusPT(x.status))}</span>`:`<span class="chip">⏳ Pendente: status</span>`}${favorite?`<span class="chip">❤️ Favorito</span>`:""}${!completed?`<span class="chip">📺 ${sp.watched??"?"}/${sp.total??"?"} episódios</span>`:""}</div>${genreBadges(x)}<div class="synopsis" style="margin-top:12px;white-space:pre-wrap">${synopsis?esc(synopsis):""}</div></div></div>
       <div class="panel-box ${completed?"is-completed":""}"><div class="progress-row"><b>▶️ Progresso geral</b><b>${completed?'Concluído':sp.percent!=null?sp.percent+"%":"Não informado"}</b></div><div class="progress"><i style="width:${completed?100:(sp.percent??0)}%"></i></div><div class="next-row"><span>${completed?'Todas as temporadas marcadas como concluídas':`Temporada ${currentSeason} · Episódio ${currentEp}/${currentTotal||"?"}`}</span>${!completed&&next?`<button class="btn primary" data-panel-next="${esc(x.id)}" data-season="${Number(next.season||currentSeason)}" data-next-episode="${Number(next.episode||0)}">▶️ ${esc(next.label||"Próximo episódio")}</button>`:""}</div>${currentTotal?`<div class="episode-track"><div class="episode-track-title"><b>📺 Episódios da temporada selecionada</b><span class="muted">${currentEp}/${currentTotal}</span></div><div class="episode-list">${episodeButtons}</div>${currentTotal>120?`<div class="muted">Mostrando os primeiros 120 episódios; total cadastrado: ${currentTotal}.</div>`:""}</div>`:`<div class="note">O total de episódios desta temporada ainda não foi informado.</div>`}${!completed?`<div class="panel-episode-editor"><label for="panelEpisodeNumber">Registrar episódio assistido · Temporada ${currentSeason}</label><div class="panel-episode-entry"><input id="panelEpisodeNumber" type="number" min="0" max="${currentTotal||10000}" step="1" value="${currentEp}" inputmode="numeric" aria-label="Número do último episódio assistido"><button class="btn primary" type="button" data-panel-set-episode="${esc(x.id)}" data-season="${currentSeason}">Salvar episódio</button></div><small>Opcional: atualize somente quando quiser registrar até qual episódio assistiu.</small></div>`:`<div class="note">Todas as temporadas estão marcadas como concluídas. O registro manual fica disponível enquanto você estiver assistindo.</div>`}</div>
       <h3 class="section-title">📚 Temporadas</h3>${seasonsMarkup}
@@ -1005,8 +1025,16 @@ function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
       <div class="actions"><button class="btn" data-panel-fav="${esc(x.id)}">${favorite?"❤️ Remover favorito":"🤍 Favoritar"}</button><button class="btn" data-panel-edit="${esc(x.id)}">✏️ Editar</button></div>`;
   }catch(error){
     console.error("[Cime] Falha ao montar painel do anime:",error);
-    panel.innerHTML=`<div class="panel-toolbar"><span class="panel-kicker">🌌 Cime dos Mundos 5.0</span><button class="btn mini" type="button" data-panel-close title="Fechar painel" aria-label="Fechar painel">✕</button></div><div class="note danger"><b>Não foi possível exibir todos os dados deste anime.</b><div style="margin-top:6px">${esc(error?.message||"Tente abrir o painel novamente.")}</div></div>`;
+    panel.innerHTML=`<div class="panel-toolbar"><span class="panel-kicker">🌌 Cime dos Mundos 5.0</span><button class="btn mini" type="button" data-panel-close title="Voltar à biblioteca" aria-label="Voltar à biblioteca">← Voltar à biblioteca</button></div><div class="note danger"><b>Não foi possível exibir todos os dados deste anime.</b><div style="margin-top:6px">${esc(error?.message||"Tente abrir o painel novamente.")}</div></div>`;
   }
+}
+const cimePanelHistoryCache=new Map(),cimePanelHistoryInflight=new Map();
+function loadPanelHistory(id){
+  const key=String(id),hit=cimePanelHistoryCache.get(key);
+  if(hit&&Date.now()-hit.time<30000)return Promise.resolve(hit.rows);
+  if(cimePanelHistoryInflight.has(key))return cimePanelHistoryInflight.get(key);
+  const request=api("/api/history/"+encodeURIComponent(id)).then(rows=>{const safe=Array.isArray(rows)?rows:[];cimePanelHistoryCache.set(key,{time:Date.now(),rows:safe});return safe;}).finally(()=>cimePanelHistoryInflight.delete(key));
+  cimePanelHistoryInflight.set(key,request);return request;
 }
 function openPanel(x, selectedSeason=null){
   const panel=$("detailsPanel"),dialog=$("detailsDlg");
@@ -1015,8 +1043,9 @@ function openPanel(x, selectedSeason=null){
   window.__cimePanelLoadSequence=sequence;
   panel.dataset.panelSequence=String(sequence);
   openDialog("detailsDlg");
-  renderAnimePanel(x,selectedSeason,[]);
-  api("/api/history/"+encodeURIComponent(x.id)).then(rows=>{
+  const cached=cimePanelHistoryCache.get(String(x.id));
+  renderAnimePanel(x,selectedSeason,cached&&Date.now()-cached.time<30000?cached.rows:[]);
+  loadPanelHistory(x.id).then(rows=>{
     if(panel.dataset.panelSequence!==String(sequence)||!dialog.open)return;
     renderAnimePanel(x,selectedSeason,rows);
   }).catch(error=>{
@@ -1026,7 +1055,52 @@ function openPanel(x, selectedSeason=null){
   });
 }
 
-$("detailsPanel").onclick=async e=>{const close=e.target.closest('[data-panel-close]');if(close){closeDialog('detailsDlg');return;}const retry=e.target.closest('[data-panel-retry]');if(retry){const x=titles.find(a=>String(a.id)===String(retry.dataset.panelRetry));if(x)openPanel(x,Number(retry.dataset.season||0)||null);return;}const epb=e.target.closest('[data-panel-episode]'),n=e.target.closest('[data-panel-next]'),setEp=e.target.closest('[data-panel-set-episode]'),fav=e.target.closest('[data-panel-fav]'),ed=e.target.closest('[data-panel-edit]'),sb=e.target.closest('[data-panel-season]');if(sb&&!epb&&!n&&!fav&&!ed){const x=titles.find(a=>a.id==sb.dataset.panelSeason);if(x)openPanel(x,Number(sb.dataset.season||1));return;}if(setEp){const x=titles.find(a=>a.id==setEp.dataset.panelSetEpisode);const input=$('panelEpisodeNumber');const ep=Number(input?.value);const season=Number(setEp.dataset.season||x?.current_season||1);if(!x||!Number.isInteger(ep)||ep<0||ep>10000){showToast('Informe um número de episódio válido.');return;}await patch(x.id,{current_episode:ep,current_season:season,status:/^(conclu[ií]do|completed|finished)$/i.test(String(x.status||''))?x.status:(ep>0?'Assistindo':x.status)});openPanel(titles.find(a=>a.id===x.id)||x,season);}else if(epb){const x=titles.find(a=>a.id==epb.dataset.panelEpisode);if(x){const ep=Number(epb.dataset.episode||0),season=Number(epb.dataset.season||x.current_season||1);await patch(x.id,{current_episode:ep,current_season:season,status:/^(conclu[ií]do|completed|finished)$/i.test(String(x.status||''))?x.status:(ep>0?'Assistindo':x.status)});openPanel(titles.find(a=>a.id===x.id)||x,season);}}else if(n){const x=titles.find(a=>a.id==n.dataset.panelNext);if(x){const season=Number(n.dataset.season||x.current_season||1),ep=Number(n.dataset.nextEpisode||0)||1;await patch(x.id,{current_episode:ep,current_season:season,status:'Assistindo'});openPanel(titles.find(a=>a.id===x.id)||x,season);}}else if(fav){const x=titles.find(a=>a.id==fav.dataset.panelFav);if(x){await patch(x.id,{favorite:x.favorite?0:1});openPanel(titles.find(a=>a.id===x.id)||x);}}else if(ed){const x=titles.find(a=>a.id==ed.dataset.panelEdit);if(x){closeDialog('detailsDlg');openEdit(x)}}};
+function aggregateSeasonStatus(seasons){
+  const values=seasons.map(entry=>String(entry.status||'Quero assistir').trim());
+  if(values.length&&values.every(value=>/^(conclu[ií]do|completed|finished)$/i.test(value)))return 'Concluído';
+  if(values.some(value=>value==='Assistindo'))return 'Assistindo';
+  if(values.some(value=>value==='Pausado'))return 'Pausado';
+  if(values.length&&values.every(value=>/^(abandonado|dropado)$/i.test(value)))return 'Abandonado';
+  if(values.some(value=>value==='Aguardando'))return 'Aguardando';
+  return 'Quero assistir';
+}
+function buildSeasonTrackingUpdate(x,seasonNumber,episodeNumber){
+  const seasons=seasonEntries(x).map(entry=>({...entry}));
+  if(!seasons.length)seasons.push({season:seasonNumber,episodes:currentSeasonEpisodeTotal(x,seasonNumber)||x.episodes||'',status:'Quero assistir'});
+  let entry=seasons.find(item=>Number(item.season||1)===seasonNumber);
+  if(!entry){entry={season:seasonNumber,episodes:currentSeasonEpisodeTotal(x,seasonNumber)||'',status:'Quero assistir'};seasons.push(entry);}
+  entry.current_episode=episodeNumber;
+  const total=Number(entry.episodes||currentSeasonEpisodeTotal(x,seasonNumber)||0);
+  entry.status=total>0&&episodeNumber>=total?'Concluído':episodeNumber>0?'Assistindo':'Quero assistir';
+  return {current_episode:episodeNumber,current_season:seasonNumber,seasons_json:JSON.stringify(seasons),status:aggregateSeasonStatus(seasons)};
+}
+$("detailsPanel").onclick=async e=>{const close=e.target.closest('[data-panel-close]');if(close){closeDialog('detailsDlg');return;}const retry=e.target.closest('[data-panel-retry]');if(retry){const x=titles.find(a=>String(a.id)===String(retry.dataset.panelRetry));if(x)openPanel(x,Number(retry.dataset.season||0)||null);return;}const epb=e.target.closest('[data-panel-episode]'),n=e.target.closest('[data-panel-next]'),setEp=e.target.closest('[data-panel-set-episode]'),fav=e.target.closest('[data-panel-fav]'),ed=e.target.closest('[data-panel-edit]'),sb=e.target.closest('[data-panel-season]');if(sb&&!epb&&!n&&!fav&&!ed){const x=titles.find(a=>a.id==sb.dataset.panelSeason);if(x)openPanel(x,Number(sb.dataset.season||1));return;}if(setEp){
+  const x=titles.find(a=>a.id==setEp.dataset.panelSetEpisode),input=$('panelEpisodeNumber'),ep=Number(input?.value),season=Number(setEp.dataset.season||x?.current_season||1);
+  if(!x||!Number.isInteger(ep)||ep<0||ep>10000){showToast('Informe um número de episódio válido.');return;}
+  try{await patch(x.id,buildSeasonTrackingUpdate(x,season,ep),{render:false});openPanel(titles.find(a=>a.id===x.id)||x,season);}catch(error){showToast('Não foi possível salvar o episódio: '+error.message);}
+}else if(epb){
+  const x=titles.find(a=>a.id==epb.dataset.panelEpisode);
+  if(x){const ep=Number(epb.dataset.episode||0),season=Number(epb.dataset.season||x.current_season||1);try{await patch(x.id,buildSeasonTrackingUpdate(x,season,ep),{render:false});openPanel(titles.find(a=>a.id===x.id)||x,season);}catch(error){showToast('Não foi possível salvar o episódio: '+error.message);}}
+}else if(n){
+  const x=titles.find(a=>a.id==n.dataset.panelNext);
+  if(x){const season=Number(n.dataset.season||x.current_season||1),ep=Number(n.dataset.nextEpisode||0)||1;try{await patch(x.id,buildSeasonTrackingUpdate(x,season,ep),{render:false});openPanel(titles.find(a=>a.id===x.id)||x,season);}catch(error){showToast('Não foi possível salvar o episódio: '+error.message);}}
+}else if(fav){const x=titles.find(a=>a.id==fav.dataset.panelFav);if(x){await patch(x.id,{favorite:x.favorite?0:1});openPanel(titles.find(a=>a.id===x.id)||x);}}else if(ed){const x=titles.find(a=>a.id==ed.dataset.panelEdit);if(x){closeDialog('detailsDlg');openEdit(x)}}};
+$("detailsPanel").addEventListener('change',async e=>{
+  const select=e.target.closest('[data-panel-season-status]');if(!select)return;
+  const x=titles.find(title=>String(title.id)===String(select.dataset.panelSeasonStatus));if(!x)return;
+  const number=Math.max(1,Number(select.dataset.season||1)),status=String(select.value||'Quero assistir');
+  const seasons=seasonEntries(x).map(entry=>({...entry}));
+  if(!seasons.length)seasons.push({season:number,episodes:currentSeasonEpisodeTotal(x,number)||x.episodes||'',status:'Quero assistir'});
+  let entry=seasons.find(item=>Number(item.season||1)===number);
+  if(!entry){entry={season:number,episodes:currentSeasonEpisodeTotal(x,number)||'',status:'Quero assistir'};seasons.push(entry);}
+  entry.status=status;
+  if(status==='Concluído'&&Number(entry.episodes)>0)entry.current_episode=Number(entry.episodes);
+  const payload={seasons_json:JSON.stringify(seasons),status:aggregateSeasonStatus(seasons)};
+  if(status==='Assistindo'){payload.current_season=number;payload.current_episode=Number(entry.current_episode||0);}
+  select.disabled=true;
+  try{await patch(x.id,payload,{render:false});openPanel(titles.find(title=>String(title.id)===String(x.id))||x,number);showToast('✅ Status da temporada atualizado.');}
+  catch(error){select.disabled=false;showToast('Não foi possível atualizar: '+error.message);}
+});
 $("detailsPanel").addEventListener('touchend',e=>{const b=e.target.closest('button');if(b){e.preventDefault();b.click();}},{passive:false});
 
 readFilterState();
@@ -1244,7 +1318,7 @@ function cimeGoBack(){
  if(previous){showView(previous,true);return;}
  showView('library',true);
 }
-function showView(view){const lib=$('libraryView'),dis=$('discoverView'),st=$('statsView');lib.style.display=view==='library'?'block':'none';dis.style.display=view==='discover'?'block':'none';st.style.display=view==='stats'?'block':'none';$('libraryTab').classList.toggle('active-tab',view==='library');$('discoverTab').classList.toggle('active-tab',view==='discover');$('statsTab').classList.toggle('active-tab',view==='stats');if(view==='discover')setTimeout(()=>$('discoverInput').focus(),50);if(view==='stats')loadStats();}
+function showView(view,skipHistory=false){const lib=$('libraryView'),dis=$('discoverView'),st=$('statsView');const current=lib?.style.display!=='none'?'library':dis?.style.display!=='none'?'discover':st?.style.display!=='none'?'stats':'library';if(!skipHistory&&view!==current){cimeViewHistory.push(current);if(cimeViewHistory.length>40)cimeViewHistory.shift();}lib.style.display=view==='library'?'block':'none';dis.style.display=view==='discover'?'block':'none';st.style.display=view==='stats'?'block':'none';$('libraryTab').classList.toggle('active-tab',view==='library');$('discoverTab').classList.toggle('active-tab',view==='discover');$('statsTab').classList.toggle('active-tab',view==='stats');if(view==='discover')setTimeout(()=>$('discoverInput').focus(),50);if(view==='stats')loadStats();}
 let discoverItemSeq=0;
 const discoverItemStore=new Map();
 function discoverCard(a){
@@ -2267,14 +2341,16 @@ img{max-width:100%}
   }
   function openLibrary(filterValue,categoryValue){
     document.body.classList.remove('c5-mobile-home');
-    try{q('#resetFilters')&&q('#resetFilters').click();}catch(_){}
+    if(typeof advancedFilters!=='undefined'){advancedFilters={category:categoryValue&&categoryValue!=='all'?categoryValue:'all',status:'all',genre:'all',seasons:'all',favorite:'all',cover:'all',progress:'all',sort:'recent'};if(typeof writeFilterState==='function')writeFilterState();}
+    if(typeof funnelFilters!=='undefined'){funnelFilters={source:'all',status:'all',cover:'all',category:'all'};if(typeof writeFunnelState==='function')writeFunnelState();}
     const search=q('#librarySearch');if(search)search.value='';
     const genre=q('#genreFilter');if(genre)genre.value='all';
     const filter=q('#filter');if(filter)filter.value=filterValue||'all';
-    if(typeof advancedFilters!=='undefined'&&categoryValue&&categoryValue!=='all'){
-      advancedFilters.category=categoryValue;
-      if(typeof writeFilterState==='function')writeFilterState();
-    }
+    const sort=q('#sort');if(sort)sort.value='recent';
+    if(typeof selectedTitleIds!=='undefined')selectedTitleIds.clear();
+    if(typeof selectionMode!=='undefined'){selectionMode=false;document.body.classList.remove('selection-mode');}
+    const selectBtn=q('#selectMode');if(selectBtn){selectBtn.textContent='☑️ Selecionar';selectBtn.setAttribute('aria-pressed','false');}
+    if(typeof libraryVisible!=='undefined')libraryVisible=12;
     if(typeof showView==='function')showView('library');
     if(typeof render==='function')render();
     setActive(filterValue==='favorite'?'favorites':'library');
@@ -3496,4 +3572,13 @@ document.getElementById('manualCoverRemove')?.addEventListener('click',()=>{
  #libraryView .card .progress>i{transition:none!important}
 }
 @media(prefers-reduced-motion:reduce){#libraryView *,dialog::backdrop{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style><style id="cime-season-status-fast-v1">
+#detailsDlg .season-item{align-items:flex-start}
+#detailsDlg .season-copy{min-width:0;flex:1}
+#detailsDlg .season-status-label{display:block;margin:8px 0 4px;color:#99a8be;font-size:10px;font-weight:800}
+#detailsDlg .season-status-select{display:block;width:min(100%,230px);min-height:38px;padding:7px 9px;border:1px solid #34435d;border-radius:9px;background:#101a2a;color:#eef2ff;font-size:12px}
+#detailsDlg .season-progress{height:5px;max-width:230px;margin-top:8px;border-radius:99px;background:#202c42;overflow:hidden}
+#detailsDlg .season-progress i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8b5cf6,#22d3ee)}
+#detailsDlg .season-item>button{flex:0 0 auto}
+@media(max-width:700px){#detailsDlg .season-item{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}#detailsDlg .season-item>button{width:100%;min-height:40px}#detailsDlg .season-status-select{width:100%;max-width:none}#detailsDlg .season-progress{max-width:none}}
 </style></body></html>
