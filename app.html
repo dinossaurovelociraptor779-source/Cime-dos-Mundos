@@ -670,7 +670,7 @@ function seriesProgress(x){
     if(!totalKnown&&episodeCountsKnown&&seasonCoverageKnown){total=seasons.reduce((sum,e)=>sum+Number(e.episodes),0);totalKnown=total>0;}
     watchedKnown=seasons.every(e=>{
       const status=String(e.status||"").trim().toLowerCase();
-      return /^(conclu[ií]do|completed|finished|quero assistir|abandonado|dropado|pausado|aguardando|não informado)$/.test(status)
+      return /^(conclu[ií]do|completed|finished|quero assistir|assistindo|abandonado|dropado|pausado|aguardando|não informado)$/.test(status)
         || e.current_episode!=null || currentEpisodeKnown;
     });
     for(const entry of seasons){
