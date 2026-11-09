@@ -3458,31 +3458,125 @@ class Handler(
         if path == "/api/backup":
             try:
                 memory=io.BytesIO()
+                cover_manifest=[]
+                asset_paths={}
+                asset_budget={"count":0,"bytes":0}
+                allowed_cover_hosts={
+                    "image.tmdb.org","cdn.myanimelist.net","s4.anilist.co",
+                    "media.kitsu.io","static.tvmaze.com","artworks.thetvdb.com",
+                    "images.justwatch.com","m.media-amazon.com",
+                    "images-na.ssl-images-amazon.com","static.wikia.nocookie.net",
+                    "img1.ak.crunchyroll.com"
+                }
+                def bundled_cover(url, title_id, label):
+                    url=str(url or "").strip()
+                    if not url or url in asset_paths:
+                        return asset_paths.get(url,"")
+                    try:
+                        parsed=urlparse(url)
+                        host=(parsed.hostname or "").lower()
+                        if parsed.scheme!="https" or not any(host==h or host.endswith("."+h) for h in allowed_cover_hosts):
+                            return ""
+                        if asset_budget["count"]>=300 or asset_budget["bytes"]>=80*1024*1024:
+                            return ""
+                        response=requests.get(url,headers={"User-Agent":USER_AGENT,"Accept":"image/*"},timeout=(3,10),stream=True,allow_redirects=True)
+                        final=urlparse(response.url)
+                        final_host=(final.hostname or "").lower()
+                        if not response.ok or final.scheme!="https" or not any(final_host==h or final_host.endswith("."+h) for h in allowed_cover_hosts):
+                            response.close()
+                            return ""
+                        content_type=str(response.headers.get("Content-Type","")).split(";",1)[0].strip().lower()
+                        if not content_type.startswith("image/"):
+                            response.close()
+                            return ""
+                        chunks=[]; size=0
+                        for chunk in response.iter_content(64*1024):
+                            if not chunk:
+                                continue
+                            size+=len(chunk)
+                            if size>5*1024*1024 or asset_budget["bytes"]+size>80*1024*1024:
+                                response.close()
+                                return ""
+                            chunks.append(chunk)
+                        response.close()
+                        raw_image=b"".join(chunks)
+                        if not raw_image:
+                            return ""
+                        extension={"image/jpeg":".jpg","image/jpg":".jpg","image/png":".png","image/webp":".webp","image/gif":".gif","image/avif":".avif"}.get(content_type,".img")
+                        digest=hashlib.sha256(url.encode("utf-8")).hexdigest()[:10]
+                        archive_path=f"covers/{int(title_id)}_{re.sub(r'[^a-z0-9_-]','_',str(label).lower())}_{digest}{extension}"
+                        asset_paths[url]=archive_path
+                        asset_budget["count"]+=1
+                        asset_budget["bytes"]+=len(raw_image)
+                        return archive_path,raw_image
+                    except Exception as exc:
+                        print("Backup capa ignorada:",str(exc)[:160])
+                        return ""
                 with zipfile.ZipFile(memory, "w", zipfile.ZIP_DEFLATED) as z:
-                    if os.path.exists(DB):
-                        z.write(DB, "cime.db")
                     conn=db()
-                    export={"version":"5.0 BETA SMART VISION","created_at":datetime.now().isoformat(timespec="seconds"),"titles":all_titles(),"watch_history":[dict(r) for r in conn.execute("SELECT * FROM watch_history ORDER BY watched_at DESC").fetchall()]}
+                    titles=all_titles()
+                    export={"version":"5.0 BETA SMART VISION","created_at":datetime.now().isoformat(timespec="seconds"),"titles":titles,"watch_history":[dict(r) for r in conn.execute("SELECT * FROM watch_history ORDER BY watched_at DESC").fetchall()]}
+                    try:
+                        db_snapshot=conn.serialize()
+                    except Exception:
+                        db_snapshot=None
                     conn.close()
+                    if db_snapshot:
+                        z.writestr("cime.db",db_snapshot)
                     z.writestr("library.json", json.dumps(export,ensure_ascii=False,indent=2))
+                    for item in titles:
+                        title_id=item.get("id") or 0
+                        mapping={"main":"","seasons":{}}
+                        main=item.get("cover") or ""
+                        bundled=bundled_cover(main,title_id,"main")
+                        if isinstance(bundled,tuple):
+                            mapping["main"]=bundled[0]
+                            z.writestr(bundled[0],bundled[1])
+                        try:
+                            seasons=json.loads(item.get("seasons_json") or "[]")
+                        except Exception:
+                            seasons=[]
+                        for season in seasons if isinstance(seasons,list) else []:
+                            if not isinstance(season,dict):
+                                continue
+                            n=int(season.get("season") or 1)
+                            cover_url=season.get("cover") or ""
+                            bundled=bundled_cover(cover_url,title_id,f"season_{n}")
+                            if isinstance(bundled,tuple):
+                                mapping["seasons"][str(n)]=bundled[0]
+                                z.writestr(bundled[0],bundled[1])
+                        item["cover_files"]=mapping
+                        if mapping["main"] or mapping["seasons"]:
+                            cover_manifest.append({"title_id":title_id,"title":item.get("name") or "","files":mapping})
                     if os.path.isdir(MEDIA):
-                        for root,_,files in os.walk(MEDIA):
+                        for root,_,files in os.walk(os.fspath(MEDIA)):
                             for filename in files:
                                 full=os.path.join(root,filename)
-                                arc=os.path.join("media",os.path.relpath(full,MEDIA))
-                                z.write(full,arc)
-                    readme="Cime dos Mundos 5.0 BETA SMART VISION - backup\nInclui cime.db e library.json.\nO arquivo original nao deve ser sobrescrito durante testes.\n"
+                                arc=os.path.join("media",os.path.relpath(full,os.fspath(MEDIA)))
+                                try:
+                                    z.write(full,arc)
+                                except Exception as exc:
+                                    print("Backup mídia ignorada:",str(exc)[:160])
+                    z.writestr("cover_manifest.json",json.dumps(cover_manifest,ensure_ascii=False,indent=2))
+                    readme=("Cime dos Mundos 5.0 - backup da biblioteca\n"
+                            "Inclui library.json, um snapshot do banco (cime.db), capas remotas encontradas em covers/ "
+                            "e arquivos locais da pasta media/.\n"
+                            "O library.json mantém os endereços originais e acrescenta cover_files com o caminho "
+                            "da imagem dentro deste ZIP.\n"
+                            "Capas que não puderam ser baixadas continuam registradas pelos endereços originais.\n"
+                            f"Capas incluídas: {asset_budget['count']} · {asset_budget['bytes']} bytes.\n")
                     z.writestr("LEIA-ME-BACKUP.txt",readme)
                 raw=memory.getvalue()
                 self.send_response(200)
                 self.send_header("Content-Type","application/zip")
-                self.send_header("Content-Disposition",'attachment; filename="CimeDosMundos_Backup_5.0 BETA SMART VISION.zip"')
+                self.send_header("Content-Disposition",'attachment; filename="CimeDosMundos_Backup_5.0_com_capas.zip"')
                 self.send_header("Content-Length",str(len(raw)))
+                self.send_header("Cache-Control","no-store")
                 self.end_headers()
                 self.wfile.write(raw)
                 return
             except Exception as e:
-                return self.send_json({"error":"Não foi possível gerar o backup: "+str(e)},500)
+                return self.send_json({"error":"Não foi possível gerar o backup com capas: "+str(e)},500)
 
         if path == "/api/export":
             conn=db()
