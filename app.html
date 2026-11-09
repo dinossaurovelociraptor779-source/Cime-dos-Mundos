@@ -1280,19 +1280,24 @@ async function enrichLibrary(){
 if($('enrichLibrary')) $('enrichLibrary').onclick=enrichLibrary;
 
 async function refreshAllCovers(){
-  const btn=$('refreshCovers'); if(btn) btn.disabled=true;
+  const btn=$('refreshCovers');if(btn)btn.disabled=true;
   let cursor=0,scanned=0,changed=0,guard=0;
   try{
     while(guard++<200){
-      const r=await api('/api/library/covers?limit=3&after_id='+cursor+'&force=1');
-      const batch=r.results||[]; scanned+=Number(r.processed||0); changed+=batch.filter(x=>x.changed).length; const nextCursor=Number(r.next_after_id||0);
-      if(btn) btn.textContent=`🖼️ Capas ${scanned}...`; showToast(`🖼️ Capas: ${scanned} analisadas · ${changed} atualizadas`);
-      if(!batch.length||r.finished||nextCursor<=cursor) break;
+      // Só procura itens sem capa principal ou sem capa de alguma temporada.
+      const r=await api('/api/library/covers?limit=8&after_id='+cursor);
+      const batch=r.results||[];
+      scanned+=Number(r.processed||0);
+      changed+=batch.filter(x=>x.changed&&x.cover).length;
+      const nextCursor=Number(r.next_after_id||0);
+      if(btn)btn.textContent='🖼️ Capas '+scanned+'…';
+      if(!batch.length||r.finished||nextCursor<=cursor)break;
       cursor=nextCursor;
-      await load();
     }
-    await load(); showToast(`✅ Capas atualizadas: ${changed} título(s).`);
-  }catch(e){showToast('⚠️ Não foi possível atualizar todas as capas: '+e.message)}finally{if(btn){btn.disabled=false;btn.textContent='🖼️ Atualizar capas';}}
+    await load();
+    showToast('✅ Capas preenchidas: '+changed+' · títulos analisados: '+scanned+'.');
+  }catch(e){showToast('⚠️ Não foi possível atualizar todas as capas: '+e.message)}
+  finally{if(btn){btn.disabled=false;btn.textContent='🖼️ Atualizar capas';}}
 }
 if($('refreshCovers')) $('refreshCovers').onclick=refreshAllCovers;
 
