@@ -449,8 +449,6 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     <div class="c5-mobile-more-head"><div><b>Mais opções</b><span>Cime dos Mundos 5.0</span></div><button type="button" id="c5CloseMore" aria-label="Fechar">✕</button></div>
     <div class="c5-mobile-more-grid">
       <button type="button" id="c5MobileHistory" class="c5-more-history">📥<b>Importar histórico</b><span>Trazer seus títulos da Netflix ou do Tomato para sua biblioteca</span></button>
-      <button type="button" id="c5MobileAddOption">＋<b>Adicionar título</b><span>Incluir anime, série ou filme</span></button>
-      <button type="button" id="c5MobileImageOption">📷<b>Identificar por imagem</b><span>Encontrar um título usando uma imagem</span></button>
       <button type="button" id="c5MobileLibrary">📚<b>Minha biblioteca</b><span>Todos os títulos e filtros</span></button>
       <button type="button" id="c5MobileStats">📊<b>Estatísticas</b><span>Seu progresso</span></button>
       <button type="button" id="c5MobileSettings">⚙️<b>Configurações</b><span>Tema e conta</span></button>
@@ -1998,7 +1996,7 @@ img{max-width:100%}
   const home=document.createElement('section');
   home.id='c5MobileHomeView';
   home.setAttribute('aria-label','Início do Cime dos Mundos');
-  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeImage">📷 Identificar por imagem</button><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">📥 Importar histórico</button></div><div class="c5-mobile-home-categories" role="group" aria-label="Filtrar sua coleção"><button type="button" class="is-active" data-c5-home-category="all" aria-pressed="true">✦ Seu universo</button><button type="button" data-c5-home-category="Anime" aria-pressed="false">🎌 Animes</button><button type="button" data-c5-home-category="Série" aria-pressed="false">📺 Séries</button><button type="button" data-c5-home-category="Filme" aria-pressed="false">🎬 Filmes</button></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
+  home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeAdd">＋ Adicionar título</button><button type="button" id="c5HomeImage">📷 Identificar por imagem</button><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">📥 Importar histórico</button></div><div class="c5-mobile-home-categories" role="group" aria-label="Filtrar sua coleção"><button type="button" class="is-active" data-c5-home-category="all" aria-pressed="true">✦ Seu universo</button><button type="button" data-c5-home-category="Anime" aria-pressed="false">🎌 Animes</button><button type="button" data-c5-home-category="Série" aria-pressed="false">📺 Séries</button><button type="button" data-c5-home-category="Filme" aria-pressed="false">🎬 Filmes</button></div><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
   const main=q('main');
   if(main)main.insertBefore(home,main.firstChild);
   const header=q('header');
@@ -2123,6 +2121,7 @@ img{max-width:100%}
   home.addEventListener('click',function(ev){
     const categoryButton=ev.target.closest('[data-c5-home-category]');
     if(categoryButton){selectedHomeCategory=categoryButton.dataset.c5HomeCategory||'all';renderShelves();return;}
+    if(ev.target.closest('#c5HomeAdd')){const addButton=q('#add');if(addButton)addButton.click();return;}
     if(ev.target.closest('#c5HomeImage')){const imageButton=q('#addImage');if(imageButton)imageButton.click();return;}
     if(ev.target.closest('#c5HomeLibrary')){openLibrary('all');return;}
     if(ev.target.closest('#c5HomeHistory')){
@@ -2754,8 +2753,6 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
 (function(){
   const q=s=>document.querySelector(s);
   function close(){const sheet=q('#c5MobileMoreSheet'),more=q('#c5MobileMore');if(sheet)sheet.hidden=true;if(more)more.classList.remove('active');}
-  q('#c5MobileAddOption')?.addEventListener('click',()=>{close();q('#add')?.click();});
-  q('#c5MobileImageOption')?.addEventListener('click',()=>{close();q('#addImage')?.click();});
 })();
 </script>
 <style id="cime-mobile-home-image-and-groups-v1">
@@ -2763,12 +2760,12 @@ button:disabled{cursor:not-allowed;filter:saturate(.65);opacity:.7}
   .c5-mobile-header-search{right:12px!important}
   .c5-mobile-header-groups{position:absolute!important;display:flex!important;align-items:center!important;justify-content:center!important;right:62px!important;top:12px!important;width:42px!important;height:42px!important;min-height:42px!important;border-radius:14px!important;border:1px solid #2b3650!important;background:#111827!important;color:#f4f5fa!important;font-size:18px!important;padding:0!important}
   .c5-mobile-home-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-  .c5-mobile-home-actions #c5HomeImage{grid-column:1/-1!important;min-height:48px!important;background:linear-gradient(135deg,#43328a,#211d45)!important;border-color:#7160c3!important;font-size:12px!important}
+  .c5-mobile-home-actions #c5HomeAdd,.c5-mobile-home-actions #c5HomeImage{grid-column:auto!important;min-height:48px!important;background:linear-gradient(135deg,#43328a,#211d45)!important;border-color:#7160c3!important;font-size:12px!important}
   .c5-mobile-home-actions #c5HomeLibrary,.c5-mobile-home-actions #c5HomeHistory{min-height:46px!important}
 }
 @media(max-width:390px){
   .c5-mobile-home-actions{grid-template-columns:1fr 1fr!important}
-  .c5-mobile-home-actions #c5HomeImage{grid-column:1/-1!important}
+  .c5-mobile-home-actions #c5HomeAdd,.c5-mobile-home-actions #c5HomeImage{grid-column:auto!important}
   .c5-mobile-header-groups{right:60px!important}
 }
 @media(min-width:761px){.c5-mobile-header-groups{display:none!important}}
