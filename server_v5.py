@@ -1179,7 +1179,29 @@ def _tmdb_details_for_cover(item):
         )
         if not r.ok: return None
         d=r.json() or {}
-        poster=('https://image.tmdb.org/t/p/w780'+str(d.get('poster_path'))) if d.get('poster_path') else ''
+        poster_path=d.get('poster_path') or ''
+        # Algumas obras não devolvem poster_path no detalhe, mas possuem imagens
+        # cadastradas no endpoint /images. Busca uma capa alternativa nesse caso.
+        if not poster_path:
+            try:
+                ir=legacy.requests.get(
+                    f'https://api.themoviedb.org/3/{media}/{sid}/images',
+                    params={'include_image_language':'pt,en,null'},
+                    headers={'Authorization':'Bearer '+legacy.TMDB_TOKEN,'accept':'application/json','User-Agent':legacy.USER_AGENT},
+                    timeout=8
+                )
+                if ir.ok:
+                    posters=(ir.json() or {}).get('posters') or []
+                    posters.sort(key=lambda x:(
+                        str(x.get('iso_639_1') or '') in ('pt','en',''),
+                        float(x.get('vote_average') or 0),
+                        int(x.get('width') or 0)
+                    ),reverse=True)
+                    if posters:
+                        poster_path=posters[0].get('file_path') or ''
+            except Exception:
+                pass
+        poster=('https://image.tmdb.org/t/p/w780'+str(poster_path)) if poster_path else ''
         seasons=[]
         for season in d.get('seasons') or []:
             n=season.get('season_number')
