@@ -3531,12 +3531,14 @@ class Handler(
                         bundled=bundled_cover(main,title_id,"main")
                         if isinstance(bundled,tuple):
                             mapping["main"]=bundled[0]
-                            z.writestr(bundled[0],bundled[1])
+                            z.writestr(bundled[0],bundled[1],compress_type=zipfile.ZIP_STORED)
+                        elif isinstance(bundled,str):
+                            mapping["main"]=bundled
                         try:
                             seasons=json.loads(item.get("seasons_json") or "[]")
                         except Exception:
                             seasons=[]
-                        for season in seasons if isinstance(seasons,list) else []:
+                        for season in (seasons if isinstance(seasons,list) else []):
                             if not isinstance(season,dict):
                                 continue
                             n=int(season.get("season") or 1)
@@ -3544,7 +3546,9 @@ class Handler(
                             bundled=bundled_cover(cover_url,title_id,f"season_{n}")
                             if isinstance(bundled,tuple):
                                 mapping["seasons"][str(n)]=bundled[0]
-                                z.writestr(bundled[0],bundled[1])
+                                z.writestr(bundled[0],bundled[1],compress_type=zipfile.ZIP_STORED)
+                            elif isinstance(bundled,str) and bundled:
+                                mapping["seasons"][str(n)]=bundled
                         item["cover_files"]=mapping
                         if mapping["main"] or mapping["seasons"]:
                             cover_manifest.append({"title_id":title_id,"title":item.get("name") or "","files":mapping})
