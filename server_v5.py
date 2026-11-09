@@ -1374,10 +1374,14 @@ def _safe_enrich_title(row, mode='full'):
     cover_best=None
     if mode!='names_synopses':
         wanted=legacy.normalizar_texto(cat or best.get('category') or 'Anime')
+        generic_media=("filme" in wanted and "serie" in wanted) or wanted in ("video","filme ou serie","series e filmes")
         def cover_category_ok(item):
             source=str(item.get('source') or '').strip().lower()
             got=legacy.normalizar_texto(item.get('category') or '')
             kind=legacy.normalizar_texto(item.get('type') or '')
+            if generic_media:
+                # Para registros sem tipo definido, não usar pôster de anime por engano.
+                return got in ('filme','serie','desenho') or source in ('tmdb','tvmaze')
             if wanted in ('filme','movie'):
                 return got=='filme' or (source=='tmdb' and kind in ('filme','movie'))
             if wanted in ('serie','series','tv'):
@@ -1432,7 +1436,7 @@ def _safe_enrich_title(row, mode='full'):
                     diagnostics.append({'source':source_name,'query':canonical,'status':'cover_fallback','count':1})
                     break
 
-    cover_source=cover_best or best
+    cover_source=cover_best or ({} if mode!='names_synopses' and generic_media else best)
     # Capas: além da capa principal, tenta preencher cada temporada individualmente.
     season_updates, season_changed = _refresh_season_covers(row, cover_source, diagnostics) if mode!='names_synopses' else ([],False)
     conn=legacy.db(); updates={}
