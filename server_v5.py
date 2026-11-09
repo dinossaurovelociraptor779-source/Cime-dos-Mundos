@@ -1345,8 +1345,74 @@ def _safe_enrich_title(row, mode='full'):
         return {'id':row.get('id'),'name':search_name,'changed':False,'reason':'nao_encontrado','diagnostics':diagnostics[-14:]}
 
     best=_deep_verify_candidate(best,diagnostics)
+
+    # Escolhe a capa de uma fonte do mesmo tipo da obra. O ranking geral pode
+    # colocar um anime à frente de um filme/série com o mesmo nome; isso não
+    # deve impedir que a capa correta seja encontrada.
+    cover_best=None
+    if mode!='names_synopses':
+        wanted=legacy.normalizar_texto(cat or best.get('category') or 'Anime')
+        def cover_category_ok(item):
+            source=str(item.get('source') or '').strip().lower()
+            got=legacy.normalizar_texto(item.get('category') or '')
+            kind=legacy.normalizar_texto(item.get('type') or '')
+            if wanted in ('filme','movie'):
+                return got=='filme' or (source=='tmdb' and kind in ('filme','movie'))
+            if wanted in ('serie','series','tv'):
+                return got in ('serie','series') or source=='tvmaze' or (source=='tmdb' and kind in ('serie','tv','series'))
+            if wanted=='anime':
+                return got=='anime' or source in ('jikan','anilist','kitsu')
+            if wanted=='desenho':
+                return got in ('desenho','serie') or source in ('tvmaze','tmdb','jikan','anilist','kitsu')
+            return True
+
+        if cover_category_ok(best) and _cover_candidates(best):
+            cover_best=best
+        if cover_best is None:
+            # Reaproveita os outros resultados já pesquisados antes de fazer novas chamadas.
+            for candidate in sorted((results or []),key=lambda x:float(x.get('_match_score') or 0),reverse=True):
+                try: score=float(candidate.get('_match_score') or 0)
+                except Exception: score=0
+                if score<80 or not cover_category_ok(candidate):
+                    continue
+                verified=_deep_verify_candidate(candidate,diagnostics)
+                if _cover_candidates(verified):
+                    cover_best=verified
+                    diagnostics.append({'source':verified.get('source') or 'multi','query':canonical,'status':'cover_fallback','count':1})
+                    break
+
+        # Para anime, AniList e Kitsu são fontes adicionais quando Jikan não tem poster.
+        if cover_best is None and wanted in ('anime','desenho'):
+            for source_name, lookup_name in (('AniList','anilist_search'),('Kitsu','kitsu_search')):
+                lookup=getattr(legacy,lookup_name,None)
+                if not callable(lookup):
+                    continue
+                try:
+                    extra=lookup(canonical)
+                except Exception as e:
+                    diagnostics.append({'source':source_name,'query':canonical,'status':'error','detail':str(e)[:160]})
+                    continue
+                ranked_extra=[]
+                for candidate in extra or []:
+                    candidate=dict(candidate)
+                    candidate.setdefault('source',source_name)
+                    candidate.setdefault('category','Anime')
+                    if not _cover_candidates(candidate):
+                        continue
+                    try: score=float(legacy._title_match_score(canonical,candidate))
+                    except Exception: score=0
+                    if score>=80:
+                        candidate['_match_score']=score
+                        ranked_extra.append(candidate)
+                if ranked_extra:
+                    ranked_extra.sort(key=lambda x:float(x.get('_match_score') or 0),reverse=True)
+                    cover_best=ranked_extra[0]
+                    diagnostics.append({'source':source_name,'query':canonical,'status':'cover_fallback','count':1})
+                    break
+
+    cover_source=cover_best or best
     # Capas: além da capa principal, tenta preencher cada temporada individualmente.
-    season_updates, season_changed = _refresh_season_covers(row, best, diagnostics) if mode!='names_synopses' else ([],False)
+    season_updates, season_changed = _refresh_season_covers(row, cover_source, diagnostics) if mode!='names_synopses' else ([],False)
     conn=legacy.db(); updates={}
     category=cat or best.get('category') or 'Anime'
     if mode=='names_synopses':
@@ -1367,7 +1433,7 @@ def _safe_enrich_title(row, mode='full'):
                         updates['synopsis']=simple
     # Modo completo só preenche lacunas e nunca inclui avaliação pessoal.
     scalar_map={
-        'cover':_first_nonempty(best.get('cover'), ((best.get('images') or {}).get('jpg') or {}).get('large_image_url') if isinstance(best.get('images'),dict) else ''),
+        'cover':_first_nonempty(cover_source.get('cover'), ((cover_source.get('images') or {}).get('jpg') or {}).get('large_image_url') if isinstance(cover_source.get('images'),dict) else ''),
         'title_english':best.get('title_english'),
         'title_japanese':best.get('title_japanese'),
         'synopsis':best.get('synopsis'),
