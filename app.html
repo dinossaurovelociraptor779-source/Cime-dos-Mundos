@@ -1245,7 +1245,34 @@ function cimeGoBack(){
  showView('library',true);
 }
 function showView(view){const lib=$('libraryView'),dis=$('discoverView'),st=$('statsView');lib.style.display=view==='library'?'block':'none';dis.style.display=view==='discover'?'block':'none';st.style.display=view==='stats'?'block':'none';$('libraryTab').classList.toggle('active-tab',view==='library');$('discoverTab').classList.toggle('active-tab',view==='discover');$('statsTab').classList.toggle('active-tab',view==='stats');if(view==='discover')setTimeout(()=>$('discoverInput').focus(),50);if(view==='stats')loadStats();}
-function discoverCard(a){const cover=coverOf(a);return `<div class="discover-result"><div class="discover-cover">${cover?`<img src="${esc(cover)}" loading="lazy">`:'🎌'}</div><div><h3>${esc(a.title||'Título')}</h3>${a.title_english?`<div class="sub">🇺🇸 ${esc(a.title_english)}</div>`:''}<div class="chips"><span class="chip">🎌 ${esc(typePT(a.type))}</span>${a.episodes!=null?`<span class="chip">📺 ${a.episodes} episódios</span>`:''}${a.year?`<span class="chip">📅 ${a.year}</span>`:''}${a.score!=null?`<span class="chip">⭐ ${a.score}</span>`:''}</div>${genreBadges(a)}${a.season?`<div class="muted">🌸 ${esc(seasonPT(a.season))}</div>`:''}<p class="synopsis">${esc(a.synopsis_pt||a.synopsis||'Sinopse não disponível.')}</p></div></div>`}
+let discoverItemSeq=0;
+const discoverItemStore=new Map();
+function discoverCard(a){
+ const cover=coverOf(a),key='d'+(++discoverItemSeq);
+ discoverItemStore.set(key,{...a});
+ while(discoverItemStore.size>50)discoverItemStore.delete(discoverItemStore.keys().next().value);
+ return `<article class="discover-result"><div class="discover-cover">${cover?`<img src="${esc(cover)}" alt="Capa de ${esc(a.title||'obra')}" loading="lazy" decoding="async" onerror="this.remove()">`:'🎬'}</div><div class="discover-result-copy"><h3>${esc(a.title||'Título')}</h3>${a.title_english?`<div class="sub">🌐 ${esc(a.title_english)}</div>`:''}<div class="chips"><span class="chip">🎬 ${esc(a.category||typePT(a.type))}</span>${a.episodes!=null?`<span class="chip">📺 ${a.episodes} episódios</span>`:''}${a.year?`<span class="chip">📅 ${a.year}</span>`:''}${a.score!=null?`<span class="chip">⭐ ${a.score}</span>`:''}</div>${genreBadges(a)}<p class="synopsis">${esc(a.synopsis_pt||a.synopsis||'')}</p><button type="button" class="btn mini" data-discover-detail="${key}">Ver detalhes</button></div></article>`;
+}
+function openDiscoveryDetails(item){
+ if(!item)return;
+ const root=$('discoverResults');
+ let box=$('discoverDetailPanel');
+ if(!box){box=document.createElement('section');box.id='discoverDetailPanel';root.appendChild(box);}
+ const cover=coverOf(item),name=item.title||item.name||'Título';
+ box.innerHTML=`<div class="discover-detail-card"><div class="discover-detail-head">${cover?`<img src="${esc(cover)}" alt="Capa de ${esc(name)}" onerror="this.remove()">`:''}<div><span class="eyebrow">DETALHES DA OBRA</span><h3>${esc(name)}</h3>${item.title_english?`<div class="muted">🌐 ${esc(item.title_english)}</div>`:''}<div class="chips"><span class="chip">${esc(item.category||typePT(item.type))}</span>${item.year?`<span class="chip">${esc(item.year)}</span>`:''}${item.episodes!=null?`<span class="chip">${esc(item.episodes)} episódios</span>`:''}${item.duration?`<span class="chip">${esc(item.duration)}</span>`:''}${item.score!=null?`<span class="chip">⭐ ${esc(item.score)}</span>`:''}</div></div></div>${genreBadges(item)}${item.synopsis_pt||item.synopsis?`<p class="synopsis">${esc(item.synopsis_pt||item.synopsis)}</p>`:''}<div class="actions"><button class="btn primary" type="button" data-discover-add>＋ Adicionar à biblioteca</button><button class="btn" type="button" data-discover-close>Fechar detalhes</button></div></div>`;
+ box.dataset.discoverKey=String(item._cimeDiscoverKey||'');
+ window.scrollTo({top:Math.max(0,box.getBoundingClientRect().top+window.scrollY-90),behavior:'smooth'});
+}
+function addDiscoveryItemToLibrary(item){
+ const norm=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+ const wanted=norm(item.title||item.name),english=norm(item.title_english);
+ const existing=titles.find(t=>norm(t.name)===wanted||(english&&norm(t.title_english)===english));
+ const category=['Anime','Série','Filme','Desenho','Animação / Série','Filme de animação'].includes(item.category)?item.category:(String(item.type||'').toLowerCase()==='movie'?'Filme':'Anime');
+ const cover=coverOf(item);
+ const data=existing?{...existing,title_english:item.title_english||existing.title_english,synopsis:item.synopsis||existing.synopsis,synopsis_pt:item.synopsis_pt||existing.synopsis_pt,genres:genresArr(existing).length?genresArr(existing):(item.genres||[]),cover:existing.cover||cover,year:existing.year||item.year,duration:existing.duration||item.duration,source_id:existing.source_id||item.id}:{name:item.title||item.name||'',category,status:'Quero assistir',rating:'',notes:'',episodes:item.episodes??'',current_episode:0,current_season:1,total_seasons:1,start_date:'',end_date:'',favorite:0,cover,title_english:item.title_english||'',title_japanese:item.title_japanese||'',synopsis:item.synopsis||'',synopsis_pt:item.synopsis_pt||'',year:item.year||'',season:item.season||'',duration:item.duration||'',genres:item.genres||[],source_id:item.id||'',local_cover_photos:[],seasons_json:'[]'};
+ if(existing)data.id=existing.id;
+ openEdit(data);
+}
 function diagnosticsHtml(d){
  if(!d) return '';
  const steps=(d.steps||[]).map(s=>{const st=String(s.status||'');const cls=st==='found'||st==='result'||st==='cache_hit'||st==='known_local'?'ok':(st==='error'||st==='not_found'?'bad':'warn');return `<div class="diag-step"><span class="diag-dot ${cls}"></span><div><b>${esc(s.source||s.stage||'Etapa')}</b><div class="diag-small">${esc(s.query||'')}${s.count!=null?` · ${s.count} resultado(s)`:''} · ${esc(st)}</div>${s.detail?`<div class="diag-small">${esc(typeof s.detail==='string'?s.detail:JSON.stringify(s.detail))}</div>`:''}</div></div>`}).join('');
@@ -1293,6 +1320,12 @@ function scheduleDiscoverSearch(){
 $('discoverInput').addEventListener('input',scheduleDiscoverSearch);
 $('discoverInput').addEventListener('keydown',e=>{if(e.key==='Enter'){clearTimeout(discoverSearchTimer);runDiscover();}});
 $('discoverSearch').onclick=()=>{clearTimeout(discoverSearchTimer);runDiscover();};
+$('discoverResults').addEventListener('click',event=>{
+ const detail=event.target.closest('[data-discover-detail]');
+ if(detail){const item=discoverItemStore.get(detail.dataset.discoverDetail);if(item)openDiscoveryDetails(item);return;}
+ if(event.target.closest('[data-discover-close]')){$('discoverDetailPanel')?.remove();return;}
+ if(event.target.closest('[data-discover-add]')){const key=$('discoverDetailPanel')?.dataset.discoverKey;const item=discoverItemStore.get(key);if(item)addDiscoveryItemToLibrary(item);}
+});
 
 
 async function enrichSavedTitle(id){
@@ -3403,5 +3436,19 @@ document.getElementById('manualCoverRemove')?.addEventListener('click',()=>{
  .c5-public-rec-empty{margin-top:10px;padding:11px;border-radius:12px;background:#0a111c;color:#9eacc2;font-size:11px;line-height:1.5}
 }
 @media(min-width:761px){#c5PublicRecommendations{display:none}}
+</style>
+
+<style id="cime-discovery-details-v1">
+.discover-result{align-items:flex-start}
+.discover-result-copy{min-width:0}
+.discover-result-copy .synopsis{margin:9px 0;line-height:1.5}
+.discover-result-copy .btn{min-height:38px}
+.discover-detail-card{margin:16px 0;padding:16px;border:1px solid #394967;border-radius:18px;background:linear-gradient(145deg,#141f33,#0b1220);box-shadow:0 10px 26px rgba(0,0,0,.18)}
+.discover-detail-head{display:grid;grid-template-columns:100px minmax(0,1fr);gap:14px;align-items:start}
+.discover-detail-head img{width:100%;height:148px;object-fit:cover;border-radius:12px;background:#080f1a}
+.discover-detail-head h3{margin:5px 0 8px;overflow-wrap:anywhere}
+#discoverDetailPanel .chips{display:flex;flex-wrap:wrap;gap:5px}
+#discoverDetailPanel .actions{margin-top:12px}
+@media(max-width:520px){.discover-result{grid-template-columns:88px minmax(0,1fr);gap:11px;padding:12px}.discover-cover{height:132px!important}.discover-detail-head{grid-template-columns:82px minmax(0,1fr)}.discover-detail-head img{height:123px}}
 </style>
 </body></html>
