@@ -1258,7 +1258,22 @@ async function importReviewRecords(file){
   return {created,updated,failed};
 }
 
-async function handleCardInteraction(e){const cb=e.target.closest('[data-select-title]');if(cb){e.stopPropagation();toggleTitleSelected(cb.dataset.selectTitle,cb.checked);return;}const cardEl=e.target.closest('[data-card-id]');if(selectionMode&&cardEl&&!e.target.closest('button')){toggleTitleSelected(cardEl.dataset.cardId,!selectedTitleIds.has(String(cardEl.dataset.cardId)));render();return;}const fav=e.target.closest('[data-fav]');const plus=e.target.closest('[data-plus]');const minus=e.target.closest('[data-minus]');const open=e.target.closest('[data-open]');if(fav){const x=titles.find(a=>a.id==fav.dataset.fav);if(x)await patch(x.id,{favorite:x.favorite?0:1});}else if(plus||minus){const id=(plus||minus).dataset.plus||(plus||minus).dataset.minus;const x=titles.find(a=>a.id==id);if(x){if(plus){const np=nextPosition(x);if(np)await patch(x.id,{current_episode:np.episode,current_season:np.season,status:'Assistindo'});}else{let ep=Math.max(0,Number(x.current_episode||0)-1);await patch(x.id,{current_episode:ep,current_season:x.current_season||1,status:ep>0?'Assistindo':x.status});}}}else if(open){const x=titles.find(a=>a.id==open.dataset.open);if(x)openPanel(x)}};
+async function handleCardInteraction(e){
+  const cb=e.target.closest('[data-select-title]');
+  if(cb){e.stopPropagation();toggleTitleSelected(cb.dataset.selectTitle,cb.checked);return;}
+  const cardEl=e.target.closest('[data-card-id]');
+  if(selectionMode&&cardEl&&!e.target.closest('button')){toggleTitleSelected(cardEl.dataset.cardId,!selectedTitleIds.has(String(cardEl.dataset.cardId)));render();return;}
+  const fav=e.target.closest('[data-fav]'),plus=e.target.closest('[data-plus]'),minus=e.target.closest('[data-minus]'),open=e.target.closest('[data-open]');
+  if(fav){const x=titles.find(a=>a.id==fav.dataset.fav);if(x)await patch(x.id,{favorite:x.favorite?0:1});}
+  else if(plus||minus){
+    const id=(plus||minus).dataset.plus||(plus||minus).dataset.minus,x=titles.find(a=>a.id==id);
+    if(x){
+      const season=Number(x.current_season||1);
+      if(plus){const np=nextPosition(x);if(np)await patch(x.id,buildSeasonTrackingUpdate(x,Number(np.season||season),Number(np.episode||1)));}
+      else{const ep=Math.max(0,Number(x.current_episode||0)-1);await patch(x.id,buildSeasonTrackingUpdate(x,season,ep));}
+    }
+  }else if(open){const x=titles.find(a=>a.id==open.dataset.open);if(x)openPanel(x);}
+};
 $("grid").onclick=handleCardInteraction;$("continueGrid").onclick=handleCardInteraction;
 $("grid").addEventListener('touchend',e=>{e.preventDefault();handleCardInteraction(e)},{passive:false});$("continueGrid").addEventListener('touchend',e=>{e.preventDefault();handleCardInteraction(e)},{passive:false});
 $("continueGrid").onclick=$("grid").onclick;
