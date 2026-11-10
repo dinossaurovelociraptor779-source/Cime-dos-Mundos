@@ -1292,7 +1292,6 @@ def search_user_recognition_catalog(query, limit=8):
                  FROM imported_history ih WHERE ih.title_id=t.id) AS recognition_sources
             FROM titles t
             ORDER BY COALESCE(NULLIF(t.last_watched_at,''), t.created_at) DESC
-            LIMIT 4000
         """).fetchall()
     except Exception as error:
         print("Catálogo pessoal de reconhecimento indisponível:",error)
