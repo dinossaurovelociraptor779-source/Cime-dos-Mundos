@@ -440,6 +440,54 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
         return {"configured":True,"recognized":False,"error":str(error)[:320],"model":GEMINI_VISION_MODEL,"vision_mode":mode,"provider":"Gemini"}
 
 
+def trace_moe_identify(image_bytes):
+    """Reverse-search de cenas de anime. Funciona sem chave; exige screenshot/frame semelhante ao original."""
+    try:
+        response=requests.post(
+            "https://api.trace.moe/search",
+            params={"anilistInfo":"1","cutBorders":"1"},
+            files={"image":("cime-recognition.jpg",image_bytes,"image/jpeg")},
+            headers={"User-Agent":USER_AGENT,"Accept":"application/json"},
+            timeout=(3,8)
+        )
+        if not response.ok:
+            return {"configured":True,"recognized":False,"provider":"trace.moe","error":f"HTTP {response.status_code}"}
+        payload=response.json()
+        matches=payload.get("result") or []
+        if not matches:
+            return {"configured":True,"recognized":False,"provider":"trace.moe","reason":"Nenhuma cena compatível no catálogo visual."}
+        best=matches[0] if isinstance(matches[0],dict) else {}
+        try: similarity=max(0.0,min(1.0,float(best.get("similarity") or 0)))
+        except Exception: similarity=0.0
+        anilist=best.get("anilist") or {}
+        titles=anilist.get("title") or {}
+        english=str(titles.get("english") or "").strip()
+        romaji=str(titles.get("romaji") or "").strip()
+        native=str(titles.get("native") or "").strip()
+        title=english or romaji or native
+        if not title or similarity<0.88:
+            return {"configured":True,"recognized":False,"provider":"trace.moe","similarity":similarity,"reason":"A semelhança visual ficou abaixo do limite de confirmação."}
+        aliases=[name for name in (english,romaji,native) if name and name!=title]
+        filename=str(best.get("filename") or "")
+        season_hint=infer_season_from_title_text(filename)
+        season=season_hint.get("season") if season_hint.get("verified_hint") else None
+        return {
+            "configured":True,"recognized":True,"title":title,"title_raw":title,
+            "aliases":aliases[:5],"category":"Anime","confidence":similarity,
+            "season":season,"season_title":season_hint.get("season_title") or "",
+            "arc":season_hint.get("arc") or "","episode":best.get("episode"),
+            "season_evidence":filename,"evidence":f"Cena compatível ({similarity:.0%})",
+            "visible_title_text":"","alternatives":[],"model":"trace.moe",
+            "provider":"trace.moe","vision_mode":"reverse_scene_search",
+            "trace_similarity":similarity,"trace_episode":best.get("episode"),
+            "trace_anilist_id":anilist.get("id"),"trace_filename":filename
+        }
+    except requests.Timeout:
+        return {"configured":True,"recognized":False,"provider":"trace.moe","error":"A busca visual demorou mais que o limite."}
+    except Exception as error:
+        return {"configured":True,"recognized":False,"provider":"trace.moe","error":str(error)[:240]}
+
+
 # ============================================================
 # IA OPENAI — VISÃO + PESQUISA WEB EM UMA ÚNICA ETAPA
 # ============================================================
@@ -4182,24 +4230,29 @@ class Handler(
                 # ------------------------------------------------
                 t_pipeline=time.perf_counter()
                 deep_visual=False
+                anchor_text=""
                 if vision_configured():
-                    # Primeiro usa a visão OpenAI quando existe uma chave.
                     vision=openai_vision_analyze(body,"",False)
-                    anchor_text=""
-                    if not (vision.get("recognized") and float(vision.get("confidence",0) or 0)>=0.86):
-                        anchor_text=read_image_anchor_text(body)
                 elif gemini_vision_configured():
-                    # Gemini é o provedor visual padrão quando OpenAI não está configurada.
                     vision=gemini_vision_analyze(body,"",False)
-                    anchor_text=read_image_anchor_text(body)
-                    if (not vision.get("recognized")) or float(vision.get("confidence",0) or 0)<0.82:
-                        deep_vision=gemini_vision_analyze(body,anchor_text,True)
-                        if deep_vision.get("recognized") or float(deep_vision.get("confidence",0) or 0)>float(vision.get("confidence",0) or 0):
-                            vision=deep_vision
-                            deep_visual=True
                 else:
                     vision={"configured":False,"recognized":False,"title_raw":"","aliases":[],"category":"","season":None,"season_title":"","arc":"","confidence":0}
+
+                # Sem chave de IA, ou quando a visão não reconhece, procura a cena
+                # no catálogo visual antes de executar OCR pesado no celular.
+                if not vision.get("recognized"):
+                    trace_result=trace_moe_identify(body)
+                    if trace_result.get("recognized"):
+                        vision=trace_result
+                if not vision.get("recognized"):
                     anchor_text=read_image_anchor_text(body)
+
+                # Visão profunda só entra depois da busca de cena e do OCR auxiliar.
+                if gemini_vision_configured() and not vision.get("recognized"):
+                    deep_vision=gemini_vision_analyze(body,anchor_text,True)
+                    if deep_vision.get("recognized") or float(deep_vision.get("confidence",0) or 0)>float(vision.get("confidence",0) or 0):
+                        vision=deep_vision
+                        deep_visual=True
 
                 vconf=float(vision.get("confidence",0) or 0) if isinstance(vision,dict) else 0.0
                 fast_visual=bool(vision.get("recognized")) and vconf>=0.86
@@ -4433,6 +4486,8 @@ class Handler(
                 else:
                     final_title = canonical or final_title
                 vision_steps = [
+                    {"stage":"trace_moe","status":"recognized" if vision.get("provider")=="trace.moe" and vision.get("recognized") else ("no_match" if vision.get("provider")=="trace.moe" else "skipped"),
+                     "detail":vision.get("evidence") or vision.get("error") or vision.get("reason") or ""},
                     {"stage":"vision_fast","status":"recognized" if fast_visual else ("candidate" if vision.get("title_raw") else "not_recognized"),
                      "mode":vision.get("vision_mode","fast"),"detail":vision.get("evidence") or ""},
                     {"stage":"vision_deep","status":"used" if deep_visual else "skipped",
