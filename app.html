@@ -1296,15 +1296,42 @@ async function cimeLoadTesseractBrowser(){
   });
   try{return await window.__cimeTesseractLoad;}catch(error){window.__cimeTesseractLoad=null;throw error;}
 }
+async function cimePrepareOcrViews(file){
+  const bitmap=await createImageBitmap(file);
+  try{
+    const maxSide=1500,scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+    const width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
+    const base=document.createElement('canvas');base.width=width;base.height=height;
+    const baseCtx=base.getContext('2d',{alpha:false});
+    baseCtx.fillStyle='#fff';baseCtx.fillRect(0,0,width,height);baseCtx.drawImage(bitmap,0,0,width,height);
+    const views=[{name:'imagem inteira',canvas:base}];
+    const zones=height>=width
+      ?[{name:'título superior',top:0,bottom:.66},{name:'título inferior',top:.34,bottom:1}]
+      :[{name:'faixa central',top:.18,bottom:.82},{name:'faixa inferior',top:.42,bottom:1}];
+    for(const zone of zones){
+      const y=Math.round(height*zone.top),bottom=Math.round(height*zone.bottom),cropH=Math.max(1,bottom-y);
+      const factor=Math.min(1.35,1700/Math.max(width,cropH));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(width*factor));canvas.height=Math.max(1,Math.round(cropH*factor));
+      const ctx=canvas.getContext('2d',{alpha:false});
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.filter='grayscale(1) contrast(1.35)';
+      ctx.drawImage(base,0,y,width,cropH,0,0,canvas.width,canvas.height);
+      ctx.filter='none';
+      views.push({name:zone.name,canvas});
+    }
+    return views;
+  }finally{bitmap.close?.();}
+}
 async function cimeBrowserImageOcr(file,onProgress){
   const T=await cimeLoadTesseractBrowser();
   window.__cimeOcrProgress=onProgress;
   if(!window.__cimeOcrWorkerPromise){
-    window.__cimeOcrWorkerPromise=T.createWorker('eng',1,{
+    window.__cimeOcrWorkerPromise=T.createWorker(['eng','por'],1,{
       logger:message=>{
         const report=window.__cimeOcrProgress;
         if(message&&message.status==='recognizing text'&&typeof report==='function')
-          report('Lendo o texto da imagem: '+Math.round((message.progress||0)*100)+'%');
+          report('Lendo '+(window.__cimeOcrStage||'a capa')+': '+Math.round((message.progress||0)*100)+'%');
       }
     });
   }
@@ -1313,45 +1340,41 @@ async function cimeBrowserImageOcr(file,onProgress){
   try{
     worker=await Promise.race([
       pendingWorker,
-      new Promise((_,reject)=>{workerTimer=setTimeout(()=>reject(new Error('O leitor local demorou para iniciar.')),10000);})
+      new Promise((_,reject)=>{workerTimer=setTimeout(()=>reject(new Error('O leitor local demorou para iniciar.')),12000);})
     ]);
   }catch(error){
     window.__cimeOcrWorkerPromise=null;
     pendingWorker.then(instance=>instance?.terminate?.()).catch(()=>{});
     throw error;
   }finally{clearTimeout(workerTimer);}
-  let input=file;
+  let views=[];
+  try{views=await cimePrepareOcrViews(file);}catch(_){views=[{name:'imagem inteira',canvas:file}];}
+  try{await worker.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1',user_defined_dpi:'240'});}catch(_){}
+  const collected=[];
   try{
-    if(typeof createImageBitmap==='function'){
-      const bitmap=await createImageBitmap(file),max=1280;
-      const scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height));
-      if(scale<1){
-        const canvas=document.createElement('canvas');
-        canvas.width=Math.max(1,Math.round(bitmap.width*scale));
-        canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-        const ctx=canvas.getContext('2d',{alpha:false});
-        ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-        const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.9));
-        if(blob)input=blob;
-      }
-      bitmap.close?.();
+    for(let i=0;i<views.length;i++){
+      window.__cimeOcrStage=(views[i].name||'capa')+' ('+(i+1)+'/'+views.length+')';
+      let timer;
+      try{
+        const result=await Promise.race([
+          worker.recognize(views[i].canvas),
+          new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Uma etapa da leitura passou do limite de 8 segundos.')),8000);})
+        ]);
+        const text=String(result?.data?.text||'').trim();
+        if(text)collected.push(text);
+      }catch(error){
+        if(String(error?.message||'').includes('limite de 8 segundos')){
+          window.__cimeOcrWorkerPromise=null;
+          try{Promise.resolve(worker.terminate()).catch(()=>{});}catch(_){}
+          throw error;
+        }
+      }finally{clearTimeout(timer);}
     }
-  }catch(_){}
-  try{await worker.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1',user_defined_dpi:'220'});}catch(_){}
-  let recognizeTimer;
-  try{
-    const result=await Promise.race([
-      worker.recognize(input),
-      new Promise((_,reject)=>{recognizeTimer=setTimeout(()=>reject(new Error('A leitura local passou do limite de 12 segundos.')),12000);})
-    ]);
-    return String(result?.data?.text||'').trim();
-  }catch(error){
-    if(String(error?.message||'').includes('limite de 12 segundos')){
-      window.__cimeOcrWorkerPromise=null;
-      try{Promise.resolve(worker.terminate()).catch(()=>{});}catch(_){}
-    }
-    throw error;
-  }finally{clearTimeout(recognizeTimer);window.__cimeOcrProgress=null;}
+    return [...new Set(collected)].join('\n').trim();
+  }finally{
+    window.__cimeOcrProgress=null;window.__cimeOcrStage='';
+    views.forEach(view=>{if(view.canvas&&view.canvas!==file){view.canvas.width=1;view.canvas.height=1;}});
+  }
 }
 async function cimeBrowserOcrSearch(file,onProgress){
   const text=await cimeBrowserImageOcr(file,onProgress);
