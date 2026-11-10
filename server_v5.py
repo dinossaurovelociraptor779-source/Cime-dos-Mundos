@@ -730,7 +730,7 @@ class Gateway(BaseHTTPRequestHandler):
             stats=legacy.library_stats()
             rate=legacy.automatic_watch_rate()
             vision_configured=bool(legacy.vision_configured() or (hasattr(legacy,'gemini_vision_configured') and legacy.gemini_vision_configured()))
-            vision_provider='OpenAI Vision + Web Search' if legacy.vision_configured() else ('Gemini Vision + Jikan' if hasattr(legacy,'gemini_vision_configured') and legacy.gemini_vision_configured() else 'OCR do dispositivo')
+            vision_provider='OpenAI Vision + Web Search' if legacy.vision_configured() else ('Gemini Vision + Jikan' if hasattr(legacy,'gemini_vision_configured') and legacy.gemini_vision_configured() else 'trace.moe + OCR do aparelho')
             vision={'configured':vision_configured,'provider':vision_provider}
             payload={'version':'5.0','user':{'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']},'titles':titles,'stats':stats,'watch_rate':rate,'vision':vision}
             with _BOOTSTRAP_CACHE_LOCK:
@@ -850,7 +850,7 @@ class Gateway(BaseHTTPRequestHandler):
         if path=='/api/vision/status':
             openai_ready=bool(legacy.vision_configured())
             gemini_ready=bool(hasattr(legacy,'gemini_vision_configured') and legacy.gemini_vision_configured())
-            return self.send_json({'configured':openai_ready or gemini_ready,'provider':'OpenAI Vision + Web Search' if openai_ready else ('Gemini Vision + Jikan' if gemini_ready else 'OCR do dispositivo'),'openai_configured':openai_ready,'gemini_configured':gemini_ready})
+            return self.send_json({'configured':openai_ready or gemini_ready,'provider':'OpenAI Vision + Web Search' if openai_ready else ('Gemini Vision + Jikan' if gemini_ready else 'trace.moe + OCR do aparelho'),'openai_configured':openai_ready,'gemini_configured':gemini_ready})
         if path.startswith('/api/') or path.startswith('/media/'):
             if not require(self): return
             return legacy.Handler.do_GET(self)
