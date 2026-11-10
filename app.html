@@ -909,7 +909,7 @@ async function load(){
     window.cimeSessionUser=boot.user||window.cimeSessionUser||null;
     titles=Array.isArray(boot.titles)?boot.titles:[];
     populateGenreFilter();
-    if($('visionStatus'))$('visionStatus').textContent=boot.vision?.configured?`🟢 IA da OpenAI ativa · ${boot.vision.model||'Vision'}`:'🟡 IA da OpenAI não configurada · OCR local como plano B';
+    if($('visionStatus'))$('visionStatus').textContent=boot.vision?.configured?`🟢 ${boot.vision.provider||'IA visual ativa'}`:'🟡 IA visual indisponível · OCR do aparelho como plano B';
     const s=boot.stats||{};
     if($('stats'))$('stats').innerHTML=`<div class="stat"><b>${s.total??titles.length}</b><span>TÍTULOS</span></div><div class="stat"><b>${s.watching??0}</b><span>ASSISTINDO</span></div><div class="stat"><b>${s.done??0}</b><span>CONCLUÍDOS</span></div><div class="stat"><b>${s.wanted??0}</b><span>QUERO ASSISTIR</span></div><div class="stat"><b>${s.episodes_watched??0}</b><span>EPISÓDIOS VISTOS</span></div><div class="stat"><b>${s.completion??0}%</b><span>PROGRESSO MÉDIO</span></div><div class="stat"><b>${s.average_rating??'—'}</b><span>⭐ NOTA MÉDIA</span></div><div class="stat"><b>${s.favorites??0}</b><span>❤️ FAVORITOS</span></div>`;
     if($('statsExtra'))$('statsExtra').innerHTML=`📺 ${s.episodes_total??0} episódios cadastrados · ⭐ Nota média ${s.average_rating??'não informada'} · ❤️ ${s.favorites??0} favoritos`;
@@ -1437,7 +1437,7 @@ $("animeDetails").onclick=e=>{
  }catch(err){console.error(err);showToast('❌ Não foi possível abrir os dados encontrados. Tente identificar novamente.');}
 };
 
-async function loadVisionStatus(){try{const v=await api('/api/vision/status');if($('visionStatus'))$('visionStatus').textContent=v.configured?`🟢 IA da OpenAI ativa · ${v.model}`:'🟡 IA da OpenAI não configurada · OCR local como plano B';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR local ativo';}}
+async function loadVisionStatus(){try{const v=await api('/api/vision/status');if($('visionStatus'))$('visionStatus').textContent=v.configured?`🟢 ${v.provider||v.model||'IA visual ativa'}`:'🟡 IA visual indisponível · OCR do aparelho como plano B';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR local ativo';}}
 
 let cimeViewHistory=[];
 function showView(view,skipHistory=false){
