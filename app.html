@@ -1298,11 +1298,13 @@ async function cimeLoadTesseractBrowser(){
 }
 async function cimeBrowserImageOcr(file,onProgress){
   const T=await cimeLoadTesseractBrowser();
+  window.__cimeOcrProgress=onProgress;
   if(!window.__cimeOcrWorkerPromise){
     window.__cimeOcrWorkerPromise=T.createWorker('eng+por',1,{
       logger:message=>{
-        if(message&&message.status==='recognizing text'&&typeof onProgress==='function')
-          onProgress('Lendo o texto da imagem: '+Math.round((message.progress||0)*100)+'%');
+        const report=window.__cimeOcrProgress;
+        if(message&&message.status==='recognizing text'&&typeof report==='function')
+          report('Lendo o texto da imagem: '+Math.round((message.progress||0)*100)+'%');
       }
     });
   }
@@ -1326,8 +1328,10 @@ async function cimeBrowserImageOcr(file,onProgress){
       bitmap.close?.();
     }
   }catch(_){}
-  const result=await worker.recognize(input);
-  return String(result?.data?.text||'').trim();
+  try{
+    const result=await worker.recognize(input);
+    return String(result?.data?.text||'').trim();
+  }finally{window.__cimeOcrProgress=null;}
 }
 async function cimeBrowserOcrSearch(file,onProgress){
   const text=await cimeBrowserImageOcr(file,onProgress);
