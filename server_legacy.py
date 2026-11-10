@@ -73,6 +73,8 @@ KNOWN_ANIME_ALIASES = {
 USER_AGENT = "CimeDosMundos/5.0 BETA SMART VISION PT"
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_VISION_MODEL = os.getenv("GEMINI_VISION_MODEL", "gemini-2.5-flash").strip()
 OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-5.6-sol").strip()
 OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", "gpt-5.6-sol").strip()
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -339,6 +341,103 @@ def openai_vision_analyze(image_bytes, ocr_hint="", deep=False):
         return result
     except Exception as e:
         return {"configured":True,"recognized":False,"error":str(e),"model":OPENAI_VISION_MODEL,"vision_mode":mode}
+
+
+def gemini_vision_configured():
+    return bool(GEMINI_API_KEY)
+
+
+def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
+    """Fallback visual com Gemini quando OpenAI não está configurada."""
+    mode="gemini_deep" if deep else "gemini_fast"
+    if not gemini_vision_configured():
+        return {"configured":False,"recognized":False,"reason":"GEMINI_API_KEY não configurada.","vision_mode":mode}
+    cached=_vision_cache_get(image_bytes,mode)
+    if cached is not None:
+        cached["provider"]="Gemini"
+        return cached
+    try:
+        views=_prepare_vision_views(image_bytes,deep=deep)
+        prompt=(
+            "Você identifica animes, séries, filmes e desenhos em imagens. "
+            "Identifique a obra principal usando texto, logotipo, personagens, cenário e composição visual. "
+            "Não dependa somente de OCR: use as pistas visuais quando o título estiver ausente ou estilizado. "
+            "Não invente: se a evidência não sustentar uma identificação, retorne recognized=false e title vazio. "
+            "Preserve o título oficial; não traduza nem reescreva o nome. Ignore menus, nomes de perfis, legendas da interface e botões. "
+            "Tente identificar a temporada apenas quando houver pista visível ou inequívoca; caso contrário use null. "
+            "Responda APENAS com JSON válido neste formato: "
+            '{"recognized":false,"title":"","aliases":[],"category":"","confidence":0.0,'
+            '"season":null,"season_title":"","arc":"","episode":null,"evidence":"","visible_title_text":"","alternatives":[]} '
+            "category deve ser Anime, Série, Filme, Desenho ou string vazia. "
+            "confidence deve ser decimal entre 0 e 1 e representar a confiança real. "
+            "aliases deve conter no máximo 5 nomes oficiais alternativos. alternatives deve conter até 3 objetos "
+            'com "title" e "confidence".'
+        )
+        if deep:
+            prompt+=" Faça uma segunda análise mais cuidadosa das três vistas da mesma imagem e compare as pistas entre elas."
+        if ocr_hint:
+            prompt+="\nTexto OCR auxiliar (pode conter erros; use apenas como pista): "+str(ocr_hint)[:1500]
+        parts=[{"text":prompt}]
+        for name,data in views:
+            parts.append({"text":"Vista da imagem: "+name})
+            parts.append({"inline_data":{"mime_type":"image/jpeg","data":base64.b64encode(data).decode("ascii")}})
+        payload={
+            "contents":[{"role":"user","parts":parts}],
+            "generationConfig":{"temperature":0.1,"responseMimeType":"application/json"}
+        }
+        endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_VISION_MODEL+":generateContent"
+        response=requests.post(endpoint,headers={"x-goog-api-key":GEMINI_API_KEY,"Content-Type":"application/json"},json=payload,timeout=22 if deep else 16)
+        if not response.ok:
+            detail=""
+            try: detail=str((response.json().get("error") or {}).get("message") or "")[:240]
+            except Exception: pass
+            result={"configured":True,"recognized":False,"error":"Gemini Vision HTTP "+str(response.status_code)+((": "+detail) if detail else ""),"model":GEMINI_VISION_MODEL,"vision_mode":mode,"provider":"Gemini"}
+            return result
+        body=response.json()
+        text="\n".join(str(p.get("text") or "") for candidate in (body.get("candidates") or []) for p in ((candidate.get("content") or {}).get("parts") or []) if p.get("text"))
+        obj=_parse_json_from_text(text)
+        title=str(obj.get("title") or "").strip()
+        try: confidence=max(0.0,min(1.0,float(obj.get("confidence") or 0)))
+        except Exception: confidence=0.0
+        valid=_valid_ai_title(title)
+        recognized=bool(obj.get("recognized")) and valid and confidence>=0.68
+        aliases=[str(value).strip() for value in (obj.get("aliases") or []) if str(value).strip()][:5]
+        alternatives=[]
+        for item in (obj.get("alternatives") or [])[:3]:
+            if not isinstance(item,dict): continue
+            candidate_title=str(item.get("title") or "").strip()
+            try: candidate_confidence=max(0.0,min(1.0,float(item.get("confidence") or 0)))
+            except Exception: candidate_confidence=0.0
+            if _valid_ai_title(candidate_title):
+                alternatives.append({"title":candidate_title,"confidence":candidate_confidence,"evidence":""})
+        season=obj.get("season")
+        try:
+            if season is not None: season=max(1,min(99,int(season)))
+        except Exception: season=None
+        result={
+            "configured":True,"recognized":recognized,
+            "title":title if recognized else "",
+            "title_raw":title if valid else "",
+            "aliases":aliases,"category":str(obj.get("category") or ""),
+            "confidence":confidence,"season":season,
+            "season_title":str(obj.get("season_title") or ""),
+            "arc":str(obj.get("arc") or ""),
+            "episode":obj.get("episode"),
+            "season_evidence":"",
+            "evidence":str(obj.get("evidence") or ""),
+            "visible_title_text":str(obj.get("visible_title_text") or ""),
+            "alternatives":alternatives,
+            "model":GEMINI_VISION_MODEL,"cached":False,
+            "vision_mode":mode,"provider":"Gemini"
+        }
+        hint=infer_season_from_title_text(" ".join([title,result["season_title"],result["arc"],result["visible_title_text"]]))
+        if result["season"] is None and hint.get("verified_hint"): result["season"]=hint.get("season")
+        if not result["season_title"] and hint.get("season_title"): result["season_title"]=hint.get("season_title")
+        if not result["arc"] and hint.get("arc"): result["arc"]=hint.get("arc")
+        _vision_cache_put(image_bytes,result,mode)
+        return result
+    except Exception as error:
+        return {"configured":True,"recognized":False,"error":str(error)[:320],"model":GEMINI_VISION_MODEL,"vision_mode":mode,"provider":"Gemini"}
 
 
 # ============================================================
@@ -3955,7 +4054,12 @@ class Handler(
             try:
                 body=self.read_body()
                 if not body: return self.send_json({"error":"Imagem vazia."},400)
-                result=openai_vision_analyze(body,self.headers.get("X-OCR-Hint",""))
+                if vision_configured():
+                    result=openai_vision_analyze(body,self.headers.get("X-OCR-Hint",""))
+                elif gemini_vision_configured():
+                    result=gemini_vision_analyze(body,self.headers.get("X-OCR-Hint",""))
+                else:
+                    result={"configured":False,"recognized":False,"error":"Configure OPENAI_API_KEY ou GEMINI_API_KEY."}
                 return self.send_json(result,200 if result.get("configured") else 503)
             except Exception as e:
                 return self.send_json({"configured":vision_configured(),"recognized":False,"error":str(e)},500)
@@ -4078,12 +4182,20 @@ class Handler(
                 # ------------------------------------------------
                 t_pipeline=time.perf_counter()
                 if vision_configured():
-                    # Caminho turbo: visão primeiro. OCR local só é executado quando a visão não entrega
-                    # uma identificação confiável, evitando trabalho e atraso desnecessários no celular.
-                    vision=openai_vision_analyze(body, "", False)
+                    # Primeiro usa a visão OpenAI quando existe uma chave.
+                    vision=openai_vision_analyze(body,"",False)
                     anchor_text=""
                     if not (vision.get("recognized") and float(vision.get("confidence",0) or 0)>=0.86):
                         anchor_text=read_image_anchor_text(body)
+                elif gemini_vision_configured():
+                    # Gemini é o provedor visual padrão quando OpenAI não está configurada.
+                    vision=gemini_vision_analyze(body,"",False)
+                    anchor_text=read_image_anchor_text(body)
+                    if not vision.get("recognized") and not vision.get("title_raw"):
+                        deep_vision=gemini_vision_analyze(body,anchor_text,True)
+                        if deep_vision.get("recognized") or float(deep_vision.get("confidence",0) or 0)>float(vision.get("confidence",0) or 0):
+                            vision=deep_vision
+                            deep_visual=True
                 else:
                     vision={"configured":False,"recognized":False,"title_raw":"","aliases":[],"category":"","season":None,"season_title":"","arc":"","confidence":0}
                     anchor_text=read_image_anchor_text(body)
