@@ -90,7 +90,7 @@ class VercelRoutingRegressionTests(unittest.TestCase):
 
     def test_details_still_render_personal_rating_and_written_review(self):
         self.assertIn('field("Nota pessoal",x.rating', self.app)
-        self.assertIn('const notes=String(x.notes||"").replace(', self.app)
+        self.assertIn('const notes=String(x.notes||"").trim().replace(', self.app)
         self.assertIn('notes?esc(notes):"Nenhuma observação adicionada."', self.app)
         self.assertIn("📝 Minha avaliação</h3>", self.app)
 
