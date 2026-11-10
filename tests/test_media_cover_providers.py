@@ -143,6 +143,54 @@ class PublicCoverProviderTests(unittest.TestCase):
 
 
 class SeasonCoverRegressionTests(unittest.TestCase):
+    @patch.object(legacy, "cache_put")
+    @patch.object(legacy, "cache_get", return_value=None)
+    @patch.object(legacy, "jikan_request")
+    @patch.object(legacy, "anilist_search")
+    @patch.object(legacy, "kitsu_search")
+    def test_smart_search_falls_back_to_anilist_and_kitsu_when_jikan_has_no_poster(
+        self, mocked_kitsu, mocked_anilist, mocked_jikan, _cache_get, _cache_put
+    ):
+        mocked_jikan.return_value = {
+            "data": [{
+                "mal_id": 1,
+                "title": "Cowboy Bebop",
+                "title_english": "Cowboy Bebop",
+                "title_japanese": "カウボーイビバップ",
+                "images": {},
+                "episodes": 26,
+                "score": 8.7,
+                "year": 1998,
+                "type": "TV",
+            }]
+        }
+        mocked_anilist.return_value = [{
+            "id": 2,
+            "title": "Cowboy Bebop",
+            "title_english": "Cowboy Bebop",
+            "cover": "https://s4.anilist.co/cowboy-bebop.jpg",
+            "category": "Anime",
+            "source": "AniList",
+        }]
+        mocked_kitsu.return_value = [{
+            "id": "cowboy-bebop",
+            "title": "Cowboy Bebop",
+            "title_english": "Cowboy Bebop",
+            "cover": "https://media.kitsu.io/cowboy-bebop.jpg",
+            "category": "Anime",
+            "source": "Kitsu",
+        }]
+
+        results, best = legacy.smart_search_title(
+            "Cowboy Bebop", category_hint="Anime", fast_mode=True
+        )
+        sources = {item.get("source") for item in results}
+        self.assertIn("AniList", sources)
+        self.assertIn("Kitsu", sources)
+        self.assertTrue(best.get("cover"))
+        mocked_anilist.assert_called_once()
+        mocked_kitsu.assert_called_once()
+
     def test_missing_covers_are_requested_for_each_known_season(self):
         row = {
             "name": "Cime Test Anime",

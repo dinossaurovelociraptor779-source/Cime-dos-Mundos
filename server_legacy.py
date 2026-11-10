@@ -3041,6 +3041,118 @@ def smart_search_title(title, aliases=None, category_hint="", diagnostics=None, 
                 arr=tmdb_search(q,mt); trace.append({"source":"TMDB","query":q,"status":"result" if arr else ("not_configured" if not TMDB_TOKEN else "no_result"),"count":len(arr)})
                 all_results.extend(arr)
             arr=tvmaze_search(q); trace.append({"source":"TVMaze","query":q,"status":"result" if arr else "no_result","count":len(arr)}); all_results.extend(arr)
+    # Fallback de pôster anime: Jikan pode reconhecer o título sem devolver imagem.
+    # AniList e Kitsu são consultados também no caminho rápido quando a correspondência
+    # principal não tem capa; ambos fornecem posters sem exigir token do usuário.
+    def _item_cover_url(item):
+        if str(item.get("cover") or "").strip():
+            return str(item.get("cover")).strip()
+        images=item.get("images") or {}
+        if isinstance(images,dict):
+            for kind in ("jpg","webp"):
+                image=images.get(kind) or {}
+                if isinstance(image,dict):
+                    value=image.get("large_image_url") or image.get("image_url")
+                    if value:
+                        return str(value).strip()
+            kitsu=images.get("kitsu") or {}
+            if isinstance(kitsu,dict):
+                for key in ("large","original","medium"):
+                    if kitsu.get(key):
+                        return str(kitsu[key]).strip()
+        return ""
+
+    def _score_for_query(item):
+        return max([_title_match_score(title,item)]+[_title_match_score(alias,item) for alias in aliases])
+
+    has_confident_poster=any(
+        _item_cover_url(item) and _score_for_query(item)>=80
+        for item in all_results
+    )
+    anime_sources={"jikan","anilist","kitsu"}
+    has_anime_match=any(
+        str(item.get("source") or "").lower() in anime_sources and _score_for_query(item)>=80
+        for item in all_results
+    )
+    anime_context=(cat in {"anime","desenho",""}) or (generic_media and has_anime_match)
+    if anime_context and not has_confident_poster:
+        poster_queries=queries[:1 if fast_mode else 2]
+        for source_name,lookup_name,cache_prefix in (
+            ("AniList","anilist_search","anilist:"),
+            ("Kitsu","kitsu_search","kitsu:"),
+        ):
+            lookup=globals().get(lookup_name)
+            if not callable(lookup):
+                trace.append({"source":source_name,"status":"unavailable","count":0})
+                continue
+            for poster_query in poster_queries:
+                cache_key=cache_prefix+poster_query
+                try:
+                    provider_items=cache_get(cache_key)
+                except Exception:
+                    provider_items=None
+                if provider_items is None:
+                    try:
+                        provider_items=lookup(poster_query)
+                        cache_put(cache_key,provider_items or [])
+                    except Exception as error:
+                        trace.append({"source":source_name,"query":poster_query,"status":"error","count":0,"detail":str(error)[:160]})
+                        continue
+                accepted=0
+                for raw_item in provider_items or []:
+                    candidate=dict(raw_item)
+                    candidate.setdefault("source",source_name)
+                    candidate.setdefault("category","Anime")
+                    if not _item_cover_url(candidate):
+                        continue
+                    score=_score_for_query(candidate)
+                    if score<80:
+                        continue
+                    candidate["_match_score"]=round(score,2)
+                    all_results.append(candidate)
+                    accepted+=1
+                trace.append({
+                    "source":source_name,
+                    "query":poster_query,
+                    "status":"cover_fallback" if accepted else "no_cover_match",
+                    "count":accepted
+                })
+
+    # Em buscas rápidas de série, TVMaze continua sendo um fallback gratuito de pôster.
+    # Para filmes, TMDB só pode ser consultado quando um token estiver configurado.
+    wants_series=(cat in {"serie","series","desenho",""} or generic_media)
+    has_series_poster=any(
+        _item_cover_url(item) and str(item.get("source") or "").lower() in {"tvmaze","tmdb"}
+        and _score_for_query(item)>=80 for item in all_results
+    )
+    if fast_mode and wants_series and not has_series_poster:
+        for poster_query in queries[:1]:
+            try:
+                series_items=tvmaze_search(poster_query)
+                for candidate in series_items or []:
+                    score=_score_for_query(candidate)
+                    if score>=80 and _item_cover_url(candidate):
+                        candidate["_match_score"]=round(score,2)
+                        all_results.append(candidate)
+                trace.append({"source":"TVMaze","query":poster_query,"status":"cover_fallback" if series_items else "no_result","count":len(series_items or [])})
+            except Exception as error:
+                trace.append({"source":"TVMaze","query":poster_query,"status":"error","count":0,"detail":str(error)[:160]})
+        if TMDB_TOKEN and cat in {"filme","serie","series",""} or TMDB_TOKEN and generic_media:
+            media_types=("movie","tv") if generic_media or not cat else (("movie",) if cat=="filme" else ("tv",))
+            for poster_query in queries[:1]:
+                for media_type in media_types:
+                    try:
+                        media_items=tmdb_search(poster_query,media_type)
+                        accepted=0
+                        for candidate in media_items or []:
+                            score=_score_for_query(candidate)
+                            if score>=80 and _item_cover_url(candidate):
+                                candidate["_match_score"]=round(score,2)
+                                all_results.append(candidate);accepted+=1
+                        trace.append({"source":"TMDB","query":poster_query,"status":"cover_fallback" if accepted else "no_cover_match","count":accepted})
+                    except Exception as error:
+                        trace.append({"source":"TMDB","query":poster_query,"status":"error","count":0,"detail":str(error)[:160]})
+
     # Ranking global, independente da ordem da fonte.
     ranked=[]; seen_titles=set()
     for item in all_results:
