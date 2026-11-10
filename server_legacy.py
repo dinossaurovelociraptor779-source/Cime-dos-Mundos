@@ -4240,6 +4240,7 @@ class Handler(
 
                 # Sem chave de IA, ou quando a visão não reconhece, procura a cena
                 # no catálogo visual antes de executar OCR pesado no celular.
+                trace_result={"recognized":False,"provider":"trace.moe","reason":"A primeira visão já reconheceu o título."}
                 if not vision.get("recognized"):
                     trace_result=trace_moe_identify(body)
                     if trace_result.get("recognized"):
@@ -4486,8 +4487,8 @@ class Handler(
                 else:
                     final_title = canonical or final_title
                 vision_steps = [
-                    {"stage":"trace_moe","status":"recognized" if vision.get("provider")=="trace.moe" and vision.get("recognized") else ("no_match" if vision.get("provider")=="trace.moe" else "skipped"),
-                     "detail":vision.get("evidence") or vision.get("error") or vision.get("reason") or ""},
+                    {"stage":"trace_moe","status":"recognized" if trace_result.get("recognized") else ("error" if trace_result.get("error") else ("no_match" if trace_result.get("provider")=="trace.moe" else "skipped")),
+                     "detail":trace_result.get("evidence") or trace_result.get("error") or trace_result.get("reason") or ""},
                     {"stage":"vision_fast","status":"recognized" if fast_visual else ("candidate" if vision.get("title_raw") else "not_recognized"),
                      "mode":vision.get("vision_mode","fast"),"detail":vision.get("evidence") or ""},
                     {"stage":"vision_deep","status":"used" if deep_visual else "skipped",
