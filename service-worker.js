@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cime5-shell-v59-static-logo-history-retry';
+const CACHE_NAME = 'cime5-shell-v60-smart-vision-parallel-ocr';
 const REQUIRED_SHELL = ['/', '/index.html', '/manifest.json'];
 const OPTIONAL_SHELL = ['/cime-logo.svg'];
 const SHELL = [...REQUIRED_SHELL, ...OPTIONAL_SHELL];
