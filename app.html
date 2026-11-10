@@ -1327,7 +1327,7 @@ async function cimeBrowserImageOcr(file,onProgress){
   const T=await cimeLoadTesseractBrowser();
   window.__cimeOcrProgress=onProgress;
   if(!window.__cimeOcrWorkerPromise){
-    window.__cimeOcrWorkerPromise=T.createWorker(['eng','por'],1,{
+    window.__cimeOcrWorkerPromise=T.createWorker('eng',1,{
       logger:message=>{
         const report=window.__cimeOcrProgress;
         if(message&&message.status==='recognizing text'&&typeof report==='function')
@@ -1355,7 +1355,7 @@ async function cimeBrowserImageOcr(file,onProgress){
     for(let i=0;i<views.length;i++){
       window.__cimeOcrStage=(views[i].name||'capa')+' ('+(i+1)+'/'+views.length+')';
       let timer;
-      const timeoutMs=i===0?22000:14000;
+      const timeoutMs=i===0?26000:18000;
       try{
         const result=await Promise.race([
           worker.recognize(views[i].canvas),
@@ -1367,7 +1367,7 @@ async function cimeBrowserImageOcr(file,onProgress){
         if(String(error?.message||'').includes('limite de ')){
           window.__cimeOcrWorkerPromise=null;
           try{Promise.resolve(worker.terminate()).catch(()=>{});}catch(_){}
-          if(typeof onProgress==='function')onProgress('Uma parte da capa demorou no aparelho. Vou continuar com o texto que já foi lido.');
+          if(typeof onProgress==='function')onProgress('O leitor do aparelho demorou nesta parte. Vou usar os trechos já lidos e continuar a pesquisa pelo catálogo.');
           break;
         }
       }finally{clearTimeout(timer);}
