@@ -1275,6 +1275,96 @@ def _find_import_title_id(conn, title):
                 best_score=score; best=r['id']
     return best if best_score>=82 else None
 
+def search_user_recognition_catalog(query, limit=8):
+    """Busca títulos da biblioteca e nomes originais do histórico Netflix/Tomato da conta atual."""
+    query=str(query or "").strip()
+    if not query:
+        return []
+    conn=None
+    try:
+        conn=db()
+        rows=conn.execute("""
+            SELECT t.*,
+              (SELECT GROUP_CONCAT(source_title, char(31))
+                 FROM (SELECT DISTINCT source_title FROM imported_history ih
+                       WHERE ih.title_id=t.id AND source_title!='')) AS recognition_aliases,
+              (SELECT GROUP_CONCAT(DISTINCT lower(source))
+                 FROM imported_history ih WHERE ih.title_id=t.id) AS recognition_sources
+            FROM titles t
+            ORDER BY COALESCE(NULLIF(t.last_watched_at,''), t.created_at) DESC
+            LIMIT 4000
+        """).fetchall()
+    except Exception as error:
+        print("Catálogo pessoal de reconhecimento indisponível:",error)
+        return []
+    finally:
+        if conn is not None:
+            try: conn.close()
+            except Exception: pass
+
+    found=[]
+    for raw in rows:
+        row=dict(raw)
+        aliases=[]
+        for value in (row.get("name"),row.get("title_english"),row.get("title_japanese")):
+            value=str(value or "").strip()
+            if value and value not in aliases:
+                aliases.append(value)
+        for value in str(row.get("recognition_aliases") or "").split(chr(31)):
+            value=value.strip()
+            if value and value not in aliases:
+                aliases.append(value)
+        best=0.0
+        for alias in aliases:
+            score=_title_match_score(query,{"title":alias})
+            if score>best: best=score
+        if best < 82:
+            continue
+
+        sources={x.strip().lower() for x in str(row.get("recognition_sources") or "").split(",") if x.strip()}
+        source_labels=[]
+        if "netflix" in sources: source_labels.append("Netflix")
+        if "tomato" in sources: source_labels.append("Tomato")
+        source_label=("Histórico "+ " + ".join(source_labels)) if source_labels else "Biblioteca pessoal"
+        genres=row.get("genres") or []
+        if isinstance(genres,str):
+            try:
+                parsed=json.loads(genres)
+                genres=parsed if isinstance(parsed,list) else [x.strip() for x in genres.split(",") if x.strip()]
+            except Exception:
+                genres=[x.strip() for x in genres.split(",") if x.strip()]
+        seasons=row.get("seasons_json") or "[]"
+        try:
+            seasons=json.loads(seasons) if isinstance(seasons,str) else seasons
+        except Exception:
+            seasons=[]
+        found.append({
+            "id":"cime-library:"+str(row.get("id")),
+            "library_title_id":row.get("id"),
+            "title":row.get("name") or aliases[0],
+            "name":row.get("name") or aliases[0],
+            "title_english":row.get("title_english") or "",
+            "title_japanese":row.get("title_japanese") or "",
+            "episodes":row.get("episodes") or row.get("total_episodes"),
+            "status":row.get("status") or "",
+            "score":row.get("rating"),
+            "year":row.get("year"),
+            "type":row.get("category") or "Anime",
+            "category":row.get("category") or "Anime",
+            "cover":row.get("cover") or "",
+            "synopsis":row.get("synopsis") or "",
+            "synopsis_pt":row.get("synopsis_pt") or row.get("synopsis") or "",
+            "genres":genres if isinstance(genres,list) else [],
+            "season":row.get("season") or "",
+            "season_number":row.get("current_season") or 1,
+            "seasons":seasons if isinstance(seasons,list) else [],
+            "source":source_label,
+            "_match_score":round(float(best),2)
+        })
+    found.sort(key=lambda item:(item.get("_match_score",0),bool(item.get("cover"))),reverse=True)
+    return found[:max(1,min(12,int(limit or 8)))]
+
+
 def consolidate_imported_seasons():
     """Junta títulos importados que tenham marcador explícito de temporada."""
     conn=db()
@@ -3843,11 +3933,31 @@ class Handler(
             candidatos=clean_anime_candidates(query) or [query]
             principal=canonical_title_from_text(query) or candidatos[0]
             deep=parse_qs(parsed.query).get("deep",["0"])[0]=="1"
+            # A biblioteca e os nomes originais importados da Netflix/Tomato também
+            # servem como aliases privados para reconhecer títulos não pesquisados antes.
+            personal=search_user_recognition_catalog(query,8)
             results,best=smart_search_title(principal,candidatos[1:6],"",diagnostics,fast_mode=not deep)
-            # "Reconhecimento local" é apenas um palpite para o fluxo OCR; não é
-            # uma correspondência de catálogo e não deve aparecer como anime encontrado.
             if best and best.get("source")=="Reconhecimento local":
                 results=[]; best=None
+            # Quando Jikan não encontra (ou a coincidência é fraca), amplia para AniList,
+            # Kitsu, TVMaze e Wikidata. Isso inclui séries que não existem no catálogo anime.
+            if (not results or not best or float(best.get("_match_score",0) or 0)<82) and not deep:
+                try:
+                    expanded=search_anime(principal,diagnostics)
+                    if expanded:
+                        results=_merge_search_results(results,expanded)
+                        for item in results:
+                            item["_match_score"]=max(float(item.get("_match_score",0) or 0),float(_title_match_score(principal,item)))
+                        results.sort(key=lambda item:item.get("_match_score",0),reverse=True)
+                        best=results[0] if results else None
+                except Exception as expanded_error:
+                    diagnostics.append({"source":"Busca ampliada","query":principal,"status":"error","count":0,"detail":str(expanded_error)[:180]})
+            if personal:
+                results=_merge_search_results(personal,results)
+                results.sort(key=lambda item:float(item.get("_match_score",0) or 0),reverse=True)
+                if not best or (results and float(results[0].get("_match_score",0) or 0)>float(best.get("_match_score",0) or 0)):
+                    best=results[0]
+                diagnostics.append({"source":"Biblioteca + Histórico Netflix/Tomato","query":query,"status":"personal_match","count":len(personal)})
             ai=None
             if deep and (not results or not best or best.get("_match_score",0)<82) and vision_configured():
                 ai=openai_web_research(principal,candidatos[1:6],"")
