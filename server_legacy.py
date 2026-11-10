@@ -74,7 +74,7 @@ USER_AGENT = "CimeDosMundos/5.0 BETA SMART VISION PT"
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_VISION_MODEL = os.getenv("GEMINI_VISION_MODEL", "gemini-3.7-flash").strip()
+GEMINI_VISION_MODEL = os.getenv("GEMINI_VISION_MODEL", "gemini-3.8-flash").strip()
 OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-5.6-sol").strip()
 OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", "gpt-5.6-sol").strip()
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -3409,6 +3409,18 @@ def search_anime(name, diagnostics=None):
                 _trace_entry(trace,"AniList",q,"result" if arr else "no_result",len(arr))
             for item in arr:
                 item["category"]="Anime"; item["source"]="AniList"
+            collect(arr)
+            ranked=_decorate_and_filter(merged,canonical,"Anime")
+            if ranked: break
+
+    # Terceiro catálogo de anime sem chave. Aproveita títulos alternativos que
+    # podem não existir no Jikan/AniList antes de tentar localizar uma série.
+    if not ranked:
+        for q in variants[:2]:
+            arr=kitsu_search(q)
+            _trace_entry(trace,"Kitsu",q,"result" if arr else "no_result",len(arr))
+            for item in arr:
+                item["category"]="Anime"; item["source"]="Kitsu"
             collect(arr)
             ranked=_decorate_and_filter(merged,canonical,"Anime")
             if ranked: break
