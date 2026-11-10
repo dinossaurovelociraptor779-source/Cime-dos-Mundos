@@ -702,7 +702,9 @@ def _find_tesseract():
         pass
     return ""
 
-TESSERACT = _find_tesseract() or TESSERACT
+_TESSERACT_EXECUTABLE = _find_tesseract()
+TESSERACT = _TESSERACT_EXECUTABLE or TESSERACT
+TESSERACT_AVAILABLE = bool(_TESSERACT_EXECUTABLE)
 pytesseract.pytesseract.tesseract_cmd = TESSERACT
 
 def _ocr_language():
@@ -2142,6 +2144,8 @@ def read_image_anchor_text(image_bytes):
     Primeiro lê a imagem inteira em até 1280 px; só faz recortes extras
     quando o primeiro passe não encontrou uma pista forte.
     """
+    if not TESSERACT_AVAILABLE:
+        return ""
     cached=_ocr_cache_get(image_bytes,"anchor")
     if cached is not None:
         return str(cached)
@@ -2182,6 +2186,8 @@ def read_image_anchor_text(image_bytes):
 
 def read_image_candidates(image_bytes):
     """OCR multi-pass: regiões prováveis + variantes + ranking de título. Evita dezenas de passes redundantes."""
+    if not TESSERACT_AVAILABLE:
+        return []
     cached=_ocr_cache_get(image_bytes,"deep")
     if cached is not None:
         return list(cached) if isinstance(cached,list) else []
