@@ -1300,7 +1300,7 @@ async function cimeBrowserImageOcr(file,onProgress){
   const T=await cimeLoadTesseractBrowser();
   window.__cimeOcrProgress=onProgress;
   if(!window.__cimeOcrWorkerPromise){
-    window.__cimeOcrWorkerPromise=T.createWorker('eng+por',1,{
+    window.__cimeOcrWorkerPromise=T.createWorker('eng',1,{
       logger:message=>{
         const report=window.__cimeOcrProgress;
         if(message&&message.status==='recognizing text'&&typeof report==='function')
@@ -1308,9 +1308,18 @@ async function cimeBrowserImageOcr(file,onProgress){
       }
     });
   }
-  let worker;
-  try{worker=await window.__cimeOcrWorkerPromise;}
-  catch(error){window.__cimeOcrWorkerPromise=null;throw error;}
+  let worker,workerTimer;
+  const pendingWorker=window.__cimeOcrWorkerPromise;
+  try{
+    worker=await Promise.race([
+      pendingWorker,
+      new Promise((_,reject)=>{workerTimer=setTimeout(()=>reject(new Error('O leitor local demorou para iniciar.')),7000);})
+    ]);
+  }catch(error){
+    window.__cimeOcrWorkerPromise=null;
+    pendingWorker.then(instance=>instance?.terminate?.()).catch(()=>{});
+    throw error;
+  }finally{clearTimeout(workerTimer);}
   let input=file;
   try{
     if(typeof createImageBitmap==='function'){
@@ -1328,10 +1337,20 @@ async function cimeBrowserImageOcr(file,onProgress){
       bitmap.close?.();
     }
   }catch(_){}
+  let recognizeTimer;
   try{
-    const result=await worker.recognize(input);
+    const result=await Promise.race([
+      worker.recognize(input),
+      new Promise((_,reject)=>{recognizeTimer=setTimeout(()=>reject(new Error('A leitura local passou do limite de 7 segundos.')),7000);})
+    ]);
     return String(result?.data?.text||'').trim();
-  }finally{window.__cimeOcrProgress=null;}
+  }catch(error){
+    if(String(error?.message||'').includes('limite de 7 segundos')){
+      window.__cimeOcrWorkerPromise=null;
+      try{await worker.terminate();}catch(_){}
+    }
+    throw error;
+  }finally{clearTimeout(recognizeTimer);window.__cimeOcrProgress=null;}
 }
 async function cimeBrowserOcrSearch(file,onProgress){
   const text=await cimeBrowserImageOcr(file,onProgress);
