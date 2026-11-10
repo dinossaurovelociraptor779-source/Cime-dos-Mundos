@@ -4181,6 +4181,7 @@ class Handler(
                 # a visão inicial não alcança confiança suficiente.
                 # ------------------------------------------------
                 t_pipeline=time.perf_counter()
+                deep_visual=False
                 if vision_configured():
                     # Primeiro usa a visão OpenAI quando existe uma chave.
                     vision=openai_vision_analyze(body,"",False)
@@ -4191,7 +4192,7 @@ class Handler(
                     # Gemini é o provedor visual padrão quando OpenAI não está configurada.
                     vision=gemini_vision_analyze(body,"",False)
                     anchor_text=read_image_anchor_text(body)
-                    if not vision.get("recognized") and not vision.get("title_raw"):
+                    if (not vision.get("recognized")) or float(vision.get("confidence",0) or 0)<0.82:
                         deep_vision=gemini_vision_analyze(body,anchor_text,True)
                         if deep_vision.get("recognized") or float(deep_vision.get("confidence",0) or 0)>float(vision.get("confidence",0) or 0):
                             vision=deep_vision
@@ -4202,7 +4203,6 @@ class Handler(
 
                 vconf=float(vision.get("confidence",0) or 0) if isinstance(vision,dict) else 0.0
                 fast_visual=bool(vision.get("recognized")) and vconf>=0.86
-                deep_visual=False
                 # Só pagamos o custo da análise profunda quando o caminho rápido não é confiável.
                 need_deep = vision_configured() and (not fast_visual or not str(vision.get("title_raw") or vision.get("title") or "").strip())
                 if need_deep:
