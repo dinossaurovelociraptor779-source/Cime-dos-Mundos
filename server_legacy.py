@@ -4530,11 +4530,13 @@ class Handler(
                     identity_confidence = min(0.98, max(vconf, final_match/100))
                 elif final_match >= 84:
                     identity_confidence = min(0.96, max(vconf, final_match/100))
+                elif vision.get("provider")=="trace.moe" and vconf>=0.88:
+                    identity_confidence = min(0.98,vconf)
                 elif vconf >= 0.94:
                     identity_confidence = min(0.94, vconf)
                 else:
                     identity_confidence = min(0.70, max(vconf, final_match/100))
-                identity_verified = bool(offline_identity or (identity_confidence >= 0.86 and (best or combined_verify and combined_verify.get("found"))))
+                identity_verified = bool(offline_identity or (vision.get("provider")=="trace.moe" and vconf>=0.88) or (identity_confidence >= 0.86 and (best or combined_verify and combined_verify.get("found"))))
                 season_number = vision.get("season") if isinstance(vision,dict) else None
                 season_title = vision.get("season_title","") if isinstance(vision,dict) else ""
                 arc_title = vision.get("arc","") if isinstance(vision,dict) else ""
