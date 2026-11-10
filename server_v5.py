@@ -828,7 +828,12 @@ class Gateway(BaseHTTPRequestHandler):
             if not u:return
             _tls.user_id=u['id']
             try:
-                return self.send_json(legacy.imported_history_rows() if hasattr(legacy,'imported_history_rows') else [])
+                qs=parse_qs(p.query)
+                limit=max(1,min(100,int((qs.get('limit') or ['25'])[0] or 25)))
+                offset=max(0,int((qs.get('offset') or ['0'])[0] or 0))
+                if hasattr(legacy,'imported_history_rows'):
+                    return self.send_json(legacy.imported_history_rows(limit,offset))
+                return self.send_json({'rows':[],'total':0,'netflix':0,'tomato':0,'limit':limit,'offset':offset})
             finally:
                 _tls.__dict__.pop('user_id',None)
         if path=='/api/import/history':

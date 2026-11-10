@@ -45,8 +45,9 @@ class PublicCoverProviderTests(unittest.TestCase):
     def tearDown(self):
         legacy.TMDB_TOKEN = self.old_tmdb_token
 
+    @patch.object(legacy, "translate_synopsis", side_effect=lambda value: value)
     @patch.object(legacy.requests, "get")
-    def test_kitsu_returns_anime_poster_without_api_key(self, mocked_get):
+    def test_kitsu_returns_anime_poster_without_api_key(self, mocked_get, _translate):
         mocked_get.return_value = FakeResponse({
             "data": [{
                 "id": "cowboy-bebop",
@@ -84,8 +85,9 @@ class PublicCoverProviderTests(unittest.TestCase):
         self.assertEqual(result[0]["source"], "AniList")
         self.assertTrue(result[0]["cover"].endswith("/test.jpg"))
 
+    @patch.object(legacy, "translate_synopsis", side_effect=lambda value: value)
     @patch.object(legacy.requests, "get")
-    def test_tvmaze_returns_series_poster(self, mocked_get):
+    def test_tvmaze_returns_series_poster(self, mocked_get, _translate):
         mocked_get.return_value = FakeResponse([{
             "show": {
                 "id": 169,
