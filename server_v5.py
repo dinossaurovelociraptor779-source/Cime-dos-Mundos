@@ -862,7 +862,18 @@ class Gateway(BaseHTTPRequestHandler):
                 conn.close()
             except Exception as catalog_error:
                 print('Catálogo de reconhecimento não pôde ser contado:',catalog_error)
-            return self.send_json({'configured':openai_ready or gemini_ready,'provider':'OpenAI Vision + Web Search' if openai_ready else ('Gemini Vision + Jikan' if gemini_ready else 'trace.moe + OCR do aparelho'),'openai_configured':openai_ready,'gemini_configured':gemini_ready,'catalog':catalog})
+            return self.send_json({
+                'configured':openai_ready or gemini_ready,
+                'provider':'OpenAI Vision + Web Search' if openai_ready else ('Gemini Vision + Jikan' if gemini_ready else 'OCR + catálogo pessoal'),
+                'openai_configured':openai_ready,
+                'gemini_configured':gemini_ready,
+                'ocr_backend_available':bool(getattr(legacy,'TESSERACT_AVAILABLE',False)),
+                'browser_ocr_fallback':True,
+                'scene_search_available':True,
+                'scene_search_scope':'capturas de cenas de anime em proporção paisagem',
+                'cover_sources':['Jikan','AniList','Kitsu','TVMaze']+(['TMDB'] if getattr(legacy,'TMDB_TOKEN','') else []),
+                'catalog':catalog
+            })
         if path.startswith('/api/') or path.startswith('/media/'):
             if not require(self): return
             return legacy.Handler.do_GET(self)

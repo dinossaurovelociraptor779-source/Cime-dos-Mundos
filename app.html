@@ -1556,7 +1556,7 @@ $("animeDetails").onclick=e=>{
  }catch(err){console.error(err);showToast('❌ Não foi possível abrir os dados encontrados. Tente identificar novamente.');}
 };
 
-async function loadVisionStatus(){try{const v=await api('/api/vision/status'),c=v.catalog||{},base=v.configured?('🟢 '+(v.provider||v.model||'IA visual ativa')):'🟡 IA visual indisponível · OCR do aparelho';if($('visionStatus'))$('visionStatus').textContent=base+' · Base pessoal: '+Number(c.netflix||0)+' Netflix / '+Number(c.tomato||0)+' Tomato · '+Number(c.library||0)+' títulos';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR local ativo';}}
+async function loadVisionStatus(){try{const v=await api('/api/vision/status'),c=v.catalog||{},base=v.configured?('🟢 '+(v.provider||v.model||'IA visual ativa')):'🟡 OCR + catálogo pessoal · IA visual não configurada';const limits=v.configured?'':' · capas por texto/catálogo; cenas por busca visual';if($('visionStatus'))$('visionStatus').textContent=base+limits+' · Base: '+Number(c.netflix||0)+' Netflix / '+Number(c.tomato||0)+' Tomato / '+Number(c.library||0)+' título(s)';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR do aparelho + catálogo pessoal';}}
 
 let cimeViewHistory=[];
 function showView(view,skipHistory=false){

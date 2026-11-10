@@ -440,6 +440,21 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
         return {"configured":True,"recognized":False,"error":str(error)[:320],"model":GEMINI_VISION_MODEL,"vision_mode":mode,"provider":"Gemini"}
 
 
+def is_trace_moe_screenshot_candidate(image_bytes):
+    """Evita enviar pôsteres/capas verticais ao mecanismo de busca de cenas."""
+    try:
+        image=ImageOps.exif_transpose(Image.open(BytesIO(image_bytes)))
+        width,height=image.size
+        if width<320 or height<180:
+            return False
+        ratio=float(width)/max(1,float(height))
+        # Cenas originais costumam ser 16:9 ou 4:3. Capas verticais,
+        # thumbnails quadradas e banners panorâmicos não são bons candidatos.
+        return 1.20<=ratio<=2.15
+    except Exception:
+        return False
+
+
 def trace_moe_identify(image_bytes):
     """Busca reversa de cenas de anime; normaliza formatos e orientação antes do envio."""
     try:
@@ -4384,7 +4399,10 @@ class Handler(
                 # no catálogo visual antes de executar OCR pesado no celular.
                 trace_result={"recognized":False,"provider":"trace.moe","reason":"A primeira visão já reconheceu o título."}
                 if not vision.get("recognized"):
-                    trace_result=trace_moe_identify(body)
+                    if is_trace_moe_screenshot_candidate(body):
+                        trace_result=trace_moe_identify(body)
+                    else:
+                        trace_result={"recognized":False,"provider":"trace.moe","skipped":True,"reason":"Imagem com proporção de capa/pôster; priorizando OCR e catálogo."}
                     if trace_result.get("recognized"):
                         vision=trace_result
                 if not vision.get("recognized"):
