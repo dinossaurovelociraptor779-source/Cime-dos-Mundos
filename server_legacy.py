@@ -74,7 +74,7 @@ USER_AGENT = "CimeDosMundos/5.0 BETA SMART VISION PT"
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_VISION_MODEL = os.getenv("GEMINI_VISION_MODEL", "gemini-3.8-flash").strip()
+GEMINI_VISION_MODEL = os.getenv("GEMINI_VISION_MODEL", "gemini-3.7-flash").strip()
 OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-5.6-sol").strip()
 OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", "gpt-5.6-sol").strip()
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -441,12 +441,17 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
 
 
 def trace_moe_identify(image_bytes):
-    """Reverse-search de cenas de anime. Funciona sem chave; exige screenshot/frame semelhante ao original."""
+    """Busca reversa de cenas de anime; normaliza formatos e orientação antes do envio."""
     try:
+        source=ImageOps.exif_transpose(Image.open(BytesIO(image_bytes))).convert("RGB")
+        source.thumbnail((1600,1600),Image.Resampling.LANCZOS)
+        normalized=BytesIO()
+        source.save(normalized,format="JPEG",quality=88,optimize=True)
+        visual_bytes=normalized.getvalue()
         response=requests.post(
             "https://api.trace.moe/search",
             params={"anilistInfo":"1","cutBorders":"1"},
-            files={"image":("cime-recognition.jpg",image_bytes,"image/jpeg")},
+            files={"image":("cime-recognition.jpg",visual_bytes,"image/jpeg")},
             headers={"User-Agent":USER_AGENT,"Accept":"application/json"},
             timeout=(3,8)
         )
