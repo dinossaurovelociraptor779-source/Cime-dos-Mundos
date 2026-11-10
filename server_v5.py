@@ -848,9 +848,21 @@ class Gateway(BaseHTTPRequestHandler):
             finally:
                 _tls.__dict__.pop('user_id',None)
         if path=='/api/vision/status':
+            u=require(self)
+            if not u:return
             openai_ready=bool(legacy.vision_configured())
             gemini_ready=bool(hasattr(legacy,'gemini_vision_configured') and legacy.gemini_vision_configured())
-            return self.send_json({'configured':openai_ready or gemini_ready,'provider':'OpenAI Vision + Web Search' if openai_ready else ('Gemini Vision + Jikan' if gemini_ready else 'trace.moe + OCR do aparelho'),'openai_configured':openai_ready,'gemini_configured':gemini_ready})
+            catalog={'netflix':0,'tomato':0,'library':0}
+            try:
+                conn=legacy.db()
+                catalog['library']=int(conn.execute('SELECT COUNT(*) FROM titles').fetchone()[0] or 0)
+                for row in conn.execute("SELECT lower(source) AS source, COUNT(DISTINCT title_id) AS total FROM imported_history WHERE title_id IS NOT NULL GROUP BY lower(source)").fetchall():
+                    source=str(row['source'] or '')
+                    if source in ('netflix','tomato'):catalog[source]=int(row['total'] or 0)
+                conn.close()
+            except Exception as catalog_error:
+                print('Catálogo de reconhecimento não pôde ser contado:',catalog_error)
+            return self.send_json({'configured':openai_ready or gemini_ready,'provider':'OpenAI Vision + Web Search' if openai_ready else ('Gemini Vision + Jikan' if gemini_ready else 'trace.moe + OCR do aparelho'),'openai_configured':openai_ready,'gemini_configured':gemini_ready,'catalog':catalog})
         if path.startswith('/api/') or path.startswith('/media/'):
             if not require(self): return
             return legacy.Handler.do_GET(self)
