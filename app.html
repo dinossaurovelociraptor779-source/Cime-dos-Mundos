@@ -1379,19 +1379,50 @@ async function cimeBrowserImageOcr(file,onProgress){
 async function cimeBrowserOcrSearch(file,onProgress){
   const text=await cimeBrowserImageOcr(file,onProgress);
   if(!text)return {text:'',results:[],query:''};
-  const queries=[text.slice(0,1400)];
-  const lines=text.split(/\r?\n/).map(line=>line.replace(/\s+/g,' ').trim())
-    .filter(line=>line.length>=4&&line.length<=80&&line.split(/\s+/).length<=8);
-  lines.sort((a,b)=>{
-    const score=value=>{const words=value.split(/\s+/);return (words.length>=2&&words.length<=5?18:0)+Math.min(value.length,36)/4-(/episode|temporada|season|watch now|sign in|comentarios|curtir|biblioteca/i.test(value)?40:0)};
-    return score(b)-score(a);
-  });
-  for(const line of lines){if(!queries.some(q=>q.toLowerCase()===line.toLowerCase()))queries.push(line);if(queries.length>=4)break;}
+  const rawLines=text.split(/\r?\n/).map(line=>line.replace(/[|_]+/g,' ').replace(/\s+/g,' ').trim())
+    .filter(line=>line.length>=3&&line.length<=96&&line.split(/\s+/).length<=10&&/[a-záàâãéêíóôõúç]/i.test(line));
+  const ignored=/\b(episode|epis[oó]dio|temporada|season|watch now|sign in|log in|coment[aá]rios|curtir|biblioteca|netflix|crunchyroll|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio)\b/i;
+  const scoreLine=value=>{
+    const words=value.split(/\s+/),letters=(value.match(/[a-záàâãéêíóôõúç]/gi)||[]).length;
+    let score=0;
+    if(words.length>=2&&words.length<=5)score+=26;
+    else if(words.length===1&&letters>=4&&letters<=24)score+=18;
+    else if(words.length<=8)score+=8;
+    if(value.length>=5&&value.length<=38)score+=12;
+    if(value===value.toUpperCase())score+=7;
+    if(/^[A-Z][a-z]/.test(value))score+=4;
+    if(/\d{2,}/.test(value))score-=7;
+    if(ignored.test(value))score-=60;
+    if(letters/Math.max(1,value.length)<.42)score-=30;
+    return score;
+  };
+  const candidates=[];
+  for(let i=0;i<rawLines.length;i++){
+    candidates.push(rawLines[i]);
+    if(i+1<rawLines.length){
+      const combined=(rawLines[i]+' '+rawLines[i+1]).replace(/\s+/g,' ').trim();
+      if(combined.length<=96)candidates.push(combined);
+    }
+  }
+  const seen=new Set(),queries=[];
+  candidates.sort((a,b)=>scoreLine(b)-scoreLine(a));
+  for(const candidate of candidates){
+    const key=candidate.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+    if(!key||seen.has(key)||ignored.test(candidate)||scoreLine(candidate)<8)continue;
+    seen.add(key);queries.push(candidate);
+    if(queries.length>=6)break;
+  }
+  if(text.length>=5&&queries.length<6){
+    const compact=text.replace(/\s+/g,' ').trim().slice(0,180);
+    const key=compact.toLocaleLowerCase();
+    if(compact&&!seen.has(key))queries.push(compact);
+  }
+  if(!queries.length)return {text,results:[],query:''};
   const collected=new Map();
   let selectedQuery='';
   for(let index=0;index<queries.length;index++){
     const query=queries[index];
-    if(typeof onProgress==='function')onProgress(index===0?'Consultando o catálogo com o texto reconhecido…':'Testando outra linha reconhecida…');
+    if(typeof onProgress==='function')onProgress('Comparando o texto da capa com o catálogo ('+(index+1)+'/'+queries.length+')…');
     try{
       const data=await api('/api/anime/search?q='+encodeURIComponent(query)+'&deep=0');
       const list=Array.isArray(data.results)?data.results:[];
@@ -1403,10 +1434,10 @@ async function cimeBrowserOcrSearch(file,onProgress){
         if(!old||score>old._match_score)collected.set(key,{...item,_match_score:score});
       }
       if(list.length&&!selectedQuery)selectedQuery=query;
-      if(collected.size>=5)break;
+      if(collected.size>=8)break;
     }catch(_){}
   }
-  const results=[...collected.values()].sort((a,b)=>Number(b._match_score||0)-Number(a._match_score||0)).slice(0,8);
+  const results=[...collected.values()].sort((a,b)=>Number(b._match_score||0)-Number(a._match_score||0)).slice(0,10);
   return {text,results,query:selectedQuery||queries[0]||''};
 }
 $("imageInput").onchange=async()=>{const f=$("imageInput").files[0];if(!f)return;$("preview").src=URL.createObjectURL(f);$("preview").style.display='block';$("results").innerHTML='';$("animeDetails").innerHTML='';$("ocrStatus").innerHTML='<div class="loading">⚡ Foto carregada. Identificação iniciada...<br><span class="muted" id="visionTimer">⏱️ 0s · primeiro o caminho turbo; aprofundamento só se houver dúvida</span></div>';const _t0=performance.now();const _timer=setInterval(()=>{const s=Math.floor((performance.now()-_t0)/1000);const el=$("visionTimer");if(el)el.textContent=`⏱️ ${s}s · ⚡ turbo primeiro; aprofundamento só se necessário`},250);try{const recognitionBlob=await compressRecognitionImage(f);let localOcrRunning=true;const localOcrPromise=cimeBrowserOcrSearch(f,message=>{if(localOcrRunning)$('ocrStatus').innerHTML='<div class="loading">🔎 '+esc(message)+'</div>';}).then(result=>({ok:true,result}),error=>({ok:false,error}));let up;try{up=await api('/api/upload',{method:'POST',headers:{'X-Filename':f.name,'X-Recognition-Original-Name':f.name},body:recognitionBlob});}catch(error){up={success:false,upload_error:String(error?.message||error),results:[],canonical_title:'',identity_confidence:0,identity_verified:false,vision:{configured:false,recognized:false,provider:'OCR do aparelho'}};}clearInterval(_timer);localOcrRunning=false;const v=up.vision||{};let title=(v.recognized&&v.title)||up.canonical_title||'';let conf=up.identity_confidence!=null?Math.round(up.identity_confidence*100):(v.confidence?Math.round(v.confidence*100):0);let verified=up.identity_verified===true;let season=up.season??v.season??null;let seasonTitle=up.season_title||v.season_title||'';let arc=up.arc||v.arc||'';const capturedAt=up.captured_at||'';lastUploadAsset={path:null,season:season,captured_at:capturedAt};
