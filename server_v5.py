@@ -1400,7 +1400,12 @@ def _safe_enrich_title(row, mode='full', force_cover=False):
             got=legacy.normalizar_texto(item.get('category') or '')
             kind=legacy.normalizar_texto(item.get('type') or '')
             if generic_media:
-                return got in ('filme','serie','desenho') or source in ('tmdb','tvmaze')
+                if got in ('filme','serie','desenho') or source in ('tmdb','tvmaze'):
+                    return True
+                if source in ('jikan','anilist','kitsu'):
+                    try: return float(item.get('_match_score') or 0) >= 88
+                    except Exception: return False
+                return False
             if anime_film:
                 return got in ('anime','filme') or source in ('jikan','anilist','kitsu','tmdb')
             if wanted in ('filme','movie'):
@@ -1429,7 +1434,7 @@ def _safe_enrich_title(row, mode='full', force_cover=False):
                     break
 
         # Para anime, AniList e Kitsu são fontes adicionais quando Jikan não tem poster.
-        if cover_best is None and (wanted in ('anime','desenho') or anime_film):
+        if cover_best is None and (wanted in ('anime','desenho') or anime_film or generic_media):
             for source_name, lookup_name in (('AniList','anilist_search'),('Kitsu','kitsu_search')):
                 lookup=getattr(legacy,lookup_name,None)
                 if not callable(lookup):

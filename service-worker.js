@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cime5-shell-v63-all-history-light-ocr';
+const CACHE_NAME = 'cime5-shell-v64-complete-history-cover-scan';
 const REQUIRED_SHELL = ['/', '/index.html', '/manifest.json'];
 const OPTIONAL_SHELL = ['/cime-logo.svg'];
 const SHELL = [...REQUIRED_SHELL, ...OPTIONAL_SHELL];

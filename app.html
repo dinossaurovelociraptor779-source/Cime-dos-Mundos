@@ -699,24 +699,56 @@ function pct(x){return seriesProgress(x).percent;}
 function parseDelimitedHistory(text){
  text=String(text||'').replace(/^\uFEFF/,'');
  const first=(text.split(/\r?\n/,1)[0]||'');
- let delim=','; const candidates=[',',';','\t']; let best=-1;
- for(const d of candidates){let c=0,q=false;for(let i=0;i<first.length;i++){const ch=first[i];if(ch==='"'){if(q&&first[i+1]==='"'){i++;}else q=!q;}else if(ch===d&&!q)c++;}if(c>best){best=c;delim=d;}}
- const rows=[]; let row=[],cur='',q=false;
- for(let i=0;i<text.length;i++){const c=text[i]; if(c==='"'){if(q&&text[i+1]==='"'){cur+='"';i++;}else q=!q;}else if(c===delim&&!q){row.push(cur);cur='';}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cur);cur='';if(row.some(v=>String(v).trim()))rows.push(row);row=[];}else cur+=c;}
- if(cur||row.length){row.push(cur);rows.push(row)}
+ let delim=',',best=-1;
+ for(const d of [',',';','\t']){
+  let c=0,q=false;
+  for(let i=0;i<first.length;i++){const ch=first[i];if(ch==='"'){if(q&&first[i+1]==='"')i++;else q=!q;}else if(ch===d&&!q)c++;}
+  if(c>best){best=c;delim=d;}
+ }
+ const rows=[];let row=[],cur='',q=false;
+ for(let i=0;i<text.length;i++){
+  const ch=text[i];
+  if(ch==='"'){if(q&&text[i+1]==='"'){cur+='"';i++;}else q=!q;}
+  else if(ch===delim&&!q){row.push(cur);cur='';}
+  else if((ch==='\n'||ch==='\r')&&!q){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cur);cur='';if(row.some(v=>String(v).trim()))rows.push(row);row=[];}
+  else cur+=ch;
+ }
+ if(cur||row.length){row.push(cur);rows.push(row);}
  if(!rows.length)return [];
- const h=rows.shift().map(x=>String(x).trim().toLowerCase());
- const ti=h.findIndex(x=>/^(title|show|movie|name|video title|content title)/i.test(x)||/title|show|movie|name/.test(x));
- const di=h.findIndex(x=>/date|watched|view|activity/.test(x));
- const pi=h.findIndex(x=>/profile/.test(x));
- return rows.map(r=>({title:String(r[ti>=0?ti:0]||'').trim(),watched_at:String(r[di>=0?di:1]||'').trim(),profile:pi>=0?String(r[pi]||'').trim():''})).filter(x=>x.title);
+ const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
+ const h=rows[0].map(norm),find=(re,exclude)=>h.findIndex(x=>re.test(x)&&!(exclude&&exclude.test(x)));
+ let ti=find(/^(title|video title|content title|media title|show title|movie title|series title|name|media name)$/i,/profile|user|account/);
+ if(ti<0)ti=find(/title|show|movie|series|media name|^name$/i,/profile|user|account/);
+ const di=find(/^(start time|date|watched at|viewed at|view date|date watched|activity date|timestamp|datetime|updated at)$/i,/profile|account/);
+ const pi=find(/profile|profile name/i),si=find(/^(season|season number|season no)$/i),ei=find(/^(episode|episode number|episode no)$/i);
+ if(ti>=0||di>=0||pi>=0||si>=0||ei>=0)rows.shift();
+ const titleIndex=ti>=0?ti:0,dateIndex=di>=0?di:1;
+ const asNumber=v=>{const n=Number(String(v||'').replace(/[^0-9]/g,''));return Number.isFinite(n)&&n>0?n:null;};
+ return rows.map(r=>({title:String(r[titleIndex]||'').trim(),watched_at:String(r[dateIndex]||'').trim(),profile:pi>=0?String(r[pi]||'').trim():'',season:si>=0?asNumber(r[si]):null,episode:ei>=0?asNumber(r[ei]):null})).filter(x=>x.title&&!/^(title|name|show|movie)$/i.test(x.title));
 }
-async function loadImportedHistory(){try{const rows=await api('/api/import/history/list');const el=$('importHistoryList');if(!el)return;if(!rows.length){el.innerHTML='<div class="muted">Nenhum histórico importado nesta conta.</div>';return;}el.innerHTML='<b>🕘 Últimos importados</b>'+rows.slice(0,25).map(x=>`<div style="padding:7px 0;border-bottom:1px solid rgba(148,163,184,.12)"><b>${esc(x.source_title)}</b><span class="muted"> · ${esc(x.source||'')} ${x.watched_at?`· ${esc(x.watched_at)}`:''}${x.title_id?` · ID ${x.title_id}`:''}</span></div>`).join('')}catch(e){}}
+let importHistoryOffset=0;
+async function loadImportedHistory(offset=0){
+ try{
+  const el=$('importHistoryList');if(!el)return;
+  const pageSize=25,requested=Math.max(0,Number(offset)||0);
+  const data=await api('/api/import/history/list?limit='+pageSize+'&offset='+requested);
+  const rows=Array.isArray(data)?data:(data.rows||[]);
+  const total=Number(data.total||rows.length),netflix=Number(data.netflix||0),tomato=Number(data.tomato||0);
+  importHistoryOffset=Number(data.offset??requested);
+  if(!rows.length){el.innerHTML='<div class="muted">Nenhum registro importado nesta conta.</div>';return;}
+  const first=importHistoryOffset+1,last=importHistoryOffset+rows.length;
+  el.innerHTML='<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>🕘 Histórico completo importado</b><span class="muted">'+total+' registro(s) · Netflix '+netflix+' · Tomato '+tomato+'</span></div>'+
+   rows.map(x=>'<div style="padding:7px 0;border-bottom:1px solid rgba(148,163,184,.12)"><b>'+esc(x.source_title)+'</b><span class="muted"> · '+esc(x.source||'')+(x.watched_at?' · '+esc(x.watched_at):'')+(x.profile?' · '+esc(x.profile):'')+(x.title_id?' · ID '+x.title_id:'')+'</span></div>').join('')+
+   '<div class="actions" style="justify-content:space-between;align-items:center;margin-top:10px"><button class="btn" id="historyPrevPage" '+(importHistoryOffset<=0?'disabled':'')+'>← Anterior</button><span class="muted">'+first+'–'+last+' de '+total+'</span><button class="btn" id="historyNextPage" '+(last>=total?'disabled':'')+'>Próxima →</button></div>';
+  $('historyPrevPage')?.addEventListener('click',()=>loadImportedHistory(Math.max(0,importHistoryOffset-pageSize)));
+  $('historyNextPage')?.addEventListener('click',()=>loadImportedHistory(importHistoryOffset+pageSize));
+ }catch(e){}
+}
 function formatBytes(n){if(!Number.isFinite(n))return '';if(n<1024)return n+' B';if(n<1024*1024)return (n/1024).toFixed(1)+' KB';return (n/1024/1024).toFixed(1)+' MB'}
 function previewImportFile(inputId,nameId,previewId){const input=$(inputId),name=$(nameId),preview=$(previewId);if(!input||!name||!preview)return;input.onchange=()=>{const f=input.files[0];if(!f){name.textContent='Nenhum arquivo selecionado';preview.innerHTML='';return;}name.textContent=f.name;preview.innerHTML=`<div class="preview-pill">📎 <strong>${esc(f.name)}</strong><span>· ${formatBytes(f.size)}</span></div>`;};}
 previewImportFile('netflixHistoryFile','netflixFileName','netflixPreview');previewImportFile('tomatoHistoryFile','tomatoFileName','tomatoPreview');
 function validateImportFile(file,kind){if(!file)return null;if(file.size>50*1024*1024)throw new Error(`${kind}: o arquivo ultrapassa 50 MB.`);const ext=(file.name.split('.').pop()||'').toLowerCase();const allowed=kind==='Netflix'?['csv']:['csv','json','txt','html','htm'];if(!allowed.includes(ext))throw new Error(`${kind}: formato .${ext||'desconhecido'} não é aceito.`);return ext;}
-function normalizeImportedRows(entries){return (entries||[]).map(e=>({...e,title:String(e.title||e.name||'').trim()})).filter(e=>e.title).slice(0,10000)}
+function normalizeImportedRows(entries){return (Array.isArray(entries)?entries:[]).map(e=>({...e,title:String(e.title||e.name||e.show||e.series||e.movie||e.source_title||'').trim(),watched_at:String(e.watched_at||e.date||e.watchedAt||e.startTime||e.timestamp||''),profile:String(e.profile||e.profileName||e.user||''),season:e.season??e.seasonNumber??null,episode:e.episode??e.episodeNumber??null})).filter(e=>e.title);}
 function setHistoryImportProgress(label,percent){
   const msg=$('historyImportMsg');if(!msg)return;
   const value=Math.max(0,Math.min(100,Number(percent)||0));
@@ -752,7 +784,15 @@ async function importHistoryFiles(){
       }else if(ext==='csv')entries=parseDelimitedHistory(raw);
       else if(ext==='html'||ext==='htm'){
         const doc=new DOMParser().parseFromString(raw,'text/html');
-        const candidates=[...doc.querySelectorAll('tr')].map(tr=>{const t=[...tr.querySelectorAll('th,td')].map(x=>x.textContent.trim()).filter(Boolean);return {title:t[0]||''}}).filter(x=>x.title);
+        const table=doc.querySelector('table');
+        let candidates=[];
+        if(table){
+          const trs=[...table.querySelectorAll('tr')],labels=[...(trs[0]?.querySelectorAll('th,td')||[])].map(x=>x.textContent.trim().toLowerCase());
+          const ti=labels.findIndex(x=>/title|name|show|series|movie|media/.test(x)&&!/profile|user/.test(x));
+          const di=labels.findIndex(x=>/date|watched|view|time|timestamp/.test(x));
+          const pi=labels.findIndex(x=>/profile|user/.test(x));
+          candidates=trs.slice(1).map(tr=>{const t=[...tr.querySelectorAll('th,td')].map(x=>x.textContent.trim());return {title:t[ti>=0?ti:0]||'',watched_at:di>=0?(t[di]||''):'',profile:pi>=0?(t[pi]||''):''};}).filter(x=>x.title);
+        }
         if(candidates.length)entries=candidates;
         else entries=[...doc.querySelectorAll('a,title,h1,h2,h3')].map(x=>({title:x.textContent.replace(/\s+/g,' ').trim()})).filter(x=>x.title);
       }else entries=raw.split(/\r?\n+/).map(x=>({title:x.trim()}));
@@ -804,22 +844,26 @@ async function importHistoryFiles(){
     await load();
     await loadImportedHistory();
 
-    let coversScanned=0,coversChanged=0,coverWarning='';
+    let coversScanned=0,coversChanged=0,coverUnfilled=0,coverWarning='';
     try{
-      let cursor=0;
-      for(let pass=0;pass<2;pass++){
-        const coverResult=await api('/api/library/covers?limit=6&after_id='+cursor);
+      let cursor=0,coverPass=0,coverGuard=0;
+      while(coverGuard++<5000){
+        const coverResult=await api('/api/library/covers?limit=1&after_id='+cursor);
         const rows=coverResult.results||[];
         coversScanned+=Number(coverResult.processed||0);
         coversChanged+=rows.filter(x=>x.changed&&x.cover).length;
-        setHistoryImportProgress('Procurando capas ausentes · '+coversScanned+' título(s) analisado(s)…',92+pass*3);
+        coverUnfilled+=rows.filter(x=>!x.cover).length;
+        coverPass++;
+        if(coverPass%3===0)setHistoryImportProgress('Buscando capas em toda a biblioteca · '+coversScanned+' título(s) verificado(s)…',Math.min(98,92+Math.floor(coverPass/100)));
         const next=Number(coverResult.next_after_id||0);
         if(!rows.length||coverResult.finished||next<=cursor)break;
         cursor=next;
       }
+      if(coverPass>=5000)coverWarning=' A varredura de capas atingiu o limite de segurança; use “Atualizar capas” para continuar.';
+      else if(coverUnfilled)coverWarning=' Alguns títulos ainda não têm pôster disponível nas fontes consultadas.';
       if(coversScanned)await load();
     }catch(error){
-      coverWarning=' Algumas capas não puderam ser atualizadas agora.';
+      coverWarning=' A busca de capas foi interrompida; os registros já importados continuam salvos.';
       console.warn('[Cime] Busca de capas após importação:',error);
     }
     await loadImportedHistory();
@@ -839,7 +883,7 @@ async function importHistoryFiles(){
   }
 }
 
-const CIME_CACHE_VERSION='5.0-fast3';
+const CIME_CACHE_VERSION='5.0-history-complete-covers';
 function titleCacheKey(){return 'cime5:library:'+String(window.cimeSessionUser?.id||'local')+':'+CIME_CACHE_VERSION}
 function restoreLibraryCache(){try{const raw=localStorage.getItem(titleCacheKey());if(!raw)return false;const d=JSON.parse(raw);if(!Array.isArray(d)||!d.length)return false;titles=d;populateGenreFilter();libraryVisible=12;render();const b=$('enrichText');if(b)b.textContent='⚡ Biblioteca carregada do cache. Atualizando dados…';return true;}catch(e){return false;}}
 function saveLibraryCache(){try{if(!Array.isArray(titles)||titles.length>600)return;localStorage.setItem(titleCacheKey(),JSON.stringify(titles));}catch(e){try{localStorage.removeItem(titleCacheKey())}catch(_){}}}
@@ -862,7 +906,7 @@ async function api(url,opt={}){
     if(cimeGetInflight.has(key)) return cimeGetInflight.get(key);
   }
   const controller=opt.signal?null:new AbortController();
-  const timeoutMs=/\/api\/import\/history(?:\?|$)/.test(url)&&method==='POST'?55000:20000;
+  const timeoutMs=(method==='POST'&&/\/api\/import\/history(?:\?|$)/.test(url))||(method==='GET'&&/\/api\/library\/covers(?:\?|$)/.test(url))?55000:20000;
   const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
   const request={...opt}; if(controller) request.signal=controller.signal;
   const p=fetch(cimeApiUrl(url),request).then(async r=>{
@@ -1666,9 +1710,9 @@ async function refreshAllCovers(){
   const btn=$('refreshCovers');if(btn)btn.disabled=true;
   let cursor=0,scanned=0,changed=0,guard=0;
   try{
-    while(guard++<200){
+    while(guard++<5000){
       // Só procura itens sem capa principal ou sem capa de alguma temporada.
-      const r=await api('/api/library/covers?limit=8&after_id='+cursor+'&force=1');
+      const r=await api('/api/library/covers?limit=1&after_id='+cursor+'&force=1');
       const batch=r.results||[];
       scanned+=Number(r.processed||0);
       changed+=batch.filter(x=>x.changed&&x.cover).length;

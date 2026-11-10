@@ -1563,8 +1563,15 @@ def import_external_history(source, entries):
     except Exception: consolidation={'groups_merged':0,'titles_removed':0}
     return {'source':source,'imported':imported,'created':created,'linked':linked,'skipped':skipped,'errors':errors,'unique_titles':len(grouped),**consolidation}
 
-def imported_history_rows():
-    conn=db(); rows=[dict(r) for r in conn.execute('SELECT * FROM imported_history ORDER BY created_at DESC LIMIT 500').fetchall()]; conn.close(); return rows
+def imported_history_rows(limit=25, offset=0):
+    limit=max(1,min(100,int(limit or 25)))
+    offset=max(0,int(offset or 0))
+    conn=db()
+    total=int(conn.execute('SELECT COUNT(*) FROM imported_history').fetchone()[0] or 0)
+    counts={str(r['source'] or '').lower():int(r['n'] or 0) for r in conn.execute('SELECT lower(source) AS source, COUNT(*) AS n FROM imported_history GROUP BY lower(source)').fetchall()}
+    rows=[dict(r) for r in conn.execute('SELECT * FROM imported_history ORDER BY watched_at DESC, id DESC LIMIT ? OFFSET ?',(limit,offset)).fetchall()]
+    conn.close()
+    return {'rows':rows,'total':total,'netflix':counts.get('netflix',0),'tomato':counts.get('tomato',0),'limit':limit,'offset':offset}
 
 def add_title(data):
     name = str(data.get("name", "")).strip()
@@ -4198,7 +4205,10 @@ class Handler(
             except Exception as e: return self.send_json({'error':str(e)},400)
 
         if path == "/api/import/history/list":
-            return self.send_json(imported_history_rows())
+            qs=parse_qs(urlparse(self.path).query)
+            limit=max(1,min(100,int((qs.get('limit') or ['25'])[0] or 25)))
+            offset=max(0,int((qs.get('offset') or ['0'])[0] or 0))
+            return self.send_json(imported_history_rows(limit,offset))
 
         if path == "/api/import":
             try:
