@@ -3844,4 +3844,20 @@ document.getElementById('manualCoverRemove')?.addEventListener('click',()=>{
 #detailsDlg .season-progress i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8b5cf6,#22d3ee)}
 #detailsDlg .season-item>button{flex:0 0 auto}
 @media(max-width:700px){#detailsDlg .season-item{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}#detailsDlg .season-item>button{width:100%;min-height:40px}#detailsDlg .season-status-select{width:100%;max-width:none}#detailsDlg .season-progress{max-width:none}}
+</style><style id="cime-touch-render-smoothing">
+/* Reduz trabalho de composição em dispositivos touch; hover não é útil neles. */
+@media (hover:none) and (pointer:coarse){
+  header,.toolbar,.card,.modal,.panel-box,#cimeToast,.fav{
+    backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  }
+  .card,.discover-result,.cover img,.btn,.card-actions button,.episode-dot,
+  .result,.upload-area,.file-drop{
+    transition:none!important;
+  }
+  .card:hover,.discover-result:hover,.cover img:hover,.btn:hover,
+  .card-actions button:hover,.episode-dot:hover,.result:hover,
+  .upload-area:hover,.file-drop:hover{
+    transform:none!important;filter:none!important;
+  }
+}
 </style></body></html>
