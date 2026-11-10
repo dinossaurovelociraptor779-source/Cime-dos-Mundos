@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cime5-shell-v61-cover-title-ocr';
+const CACHE_NAME = 'cime5-shell-v62-history-catalog-ocr-retry';
 const REQUIRED_SHELL = ['/', '/index.html', '/manifest.json'];
 const OPTIONAL_SHELL = ['/cime-logo.svg'];
 const SHELL = [...REQUIRED_SHELL, ...OPTIONAL_SHELL];
