@@ -1436,7 +1436,7 @@ async function cimeBrowserOcrSearch(file,onProgress){
         if(!old||score>old._match_score)collected.set(key,{...item,_match_score:score});
       }
       if(list.length&&!selectedQuery)selectedQuery=query;
-      if(collected.size>=8)break;
+      if(collected.size>=8||([...collected.values()].some(item=>Number(item._match_score||0)>=88)))break;
     }catch(_){}
   }
   const results=[...collected.values()].sort((a,b)=>Number(b._match_score||0)-Number(a._match_score||0)).slice(0,10);
