@@ -1339,6 +1339,7 @@ def search_user_recognition_catalog(query, limit=8):
         source_labels=[]
         if "netflix" in sources: source_labels.append("Netflix")
         if "tomato" in sources: source_labels.append("Tomato")
+        if "crunchyroll" in sources: source_labels.append("Crunchyroll")
         source_label=("Histórico "+ " + ".join(source_labels)) if source_labels else "Biblioteca pessoal"
         genres=row.get("genres") or []
         if isinstance(genres,str):
@@ -4679,6 +4680,21 @@ class Handler(
                             best_score=float(best.get("_match_score",0)) if best else 0
                         except Exception:
                             pass
+
+                    # A biblioteca da própria conta e os nomes originais importados
+                    # (por exemplo, Netflix/Tomato) também são fontes de reconhecimento.
+                    personal_matches=[]
+                    for _personal_query in clean_candidates[:6]:
+                        try:
+                            personal_matches.extend(search_user_recognition_catalog(_personal_query,6))
+                        except Exception as _personal_error:
+                            print("Reconhecimento pelo histórico pessoal ignorado:",_personal_error)
+                    if personal_matches:
+                        results=_merge_search_results(personal_matches,results)
+                        results=sorted(results,key=lambda x:float(x.get("_match_score",0) or 0),reverse=True)[:12]
+                        if results and (not best or float(results[0].get("_match_score",0) or 0)>float(best.get("_match_score",0) or 0)):
+                            best=results[0]
+                        search_trace.append({"source":"Biblioteca + Histórico pessoal","query":canonical,"status":"personal_match","count":len(personal_matches)})
 
                     combined_verify = None
                     # Verificação multimodal só entra se ainda existir conflito.
