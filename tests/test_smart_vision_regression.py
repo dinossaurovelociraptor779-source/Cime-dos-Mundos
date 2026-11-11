@@ -18,6 +18,12 @@ class SmartVisionRegressionTests(unittest.TestCase):
         pipeline_pos = self.source.index("if canonical:", marker_pos)
         self.assertLess(marker_pos, pipeline_pos)
 
+
+    def test_local_ocr_supports_portuguese_and_more_catalog_candidates(self):
+        app = (ROOT / "app.html").read_text(encoding="utf-8")
+        self.assertIn("T.createWorker('eng+por',1,", app)
+        self.assertIn("if(queries.length>=7)break;", app)
+
     def test_backend_parses_as_python(self):
         ast.parse((ROOT / "server_v5.py").read_text(encoding="utf-8"))
         ast.parse((ROOT / "api" / "cime.py").read_text(encoding="utf-8"))

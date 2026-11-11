@@ -1371,7 +1371,7 @@ async function cimeBrowserImageOcr(file,onProgress){
   const T=await cimeLoadTesseractBrowser();
   window.__cimeOcrProgress=onProgress;
   if(!window.__cimeOcrWorkerPromise){
-    window.__cimeOcrWorkerPromise=T.createWorker('eng',1,{
+    window.__cimeOcrWorkerPromise=T.createWorker('eng+por',1,{
       logger:message=>{
         const report=window.__cimeOcrProgress;
         if(message&&message.status==='recognizing text'&&typeof report==='function')
@@ -1456,7 +1456,7 @@ async function cimeBrowserOcrSearch(file,onProgress){
     const key=candidate.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
     if(!key||seen.has(key)||ignored.test(candidate)||scoreLine(candidate)<8)continue;
     seen.add(key);queries.push(candidate);
-    if(queries.length>=4)break;
+    if(queries.length>=7)break;
   }
   if(text.length>=5&&queries.length<6){
     const compact=text.replace(/\s+/g,' ').trim().slice(0,180);
