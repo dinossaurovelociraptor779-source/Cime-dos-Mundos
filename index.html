@@ -136,6 +136,28 @@ main{max-width:1240px;margin:auto;padding:0 24px 56px}.portal{display:grid;grid-
 <script>const _q=new URLSearchParams(location.search),_g=_q.get("group_share"),_i=_q.get("invite");if(_g)localStorage.setItem("cime5GroupShare",_g);if(_i)localStorage.setItem("cime5PendingInvite",_i);</script><script>
 const $=id=>document.getElementById(id);
 
+function cimeRememberSession(data){
+  try{
+    if(data?.token)localStorage.setItem('cime5Token',data.token);
+    const user=data?.user;
+    if(!user||typeof user!=='object')return;
+    if(user.id!=null)localStorage.setItem('cime5LastUserId',String(user.id));
+    if(user.email){
+      localStorage.setItem('cime5LastEmail',String(user.email));
+      const field=$('le');if(field&&!field.value)field.value=String(user.email);
+    }
+    if(user.id!=null)localStorage.setItem('cime5LastUser',JSON.stringify({
+      id:user.id,email:user.email||'',display_name:user.display_name||'Conta',role:user.role||'beta',provider:user.provider||'local'
+    }));
+  }catch(_){}
+}
+(function cimeResumeLogin(){
+  try{
+    const email=localStorage.getItem('cime5LastEmail')||'';
+    const field=$('le');if(field&&email&&!field.value)field.value=email;
+    if(localStorage.getItem('cime5Token'))location.replace('/app');
+  }catch(_){}
+})();
 
 function setMsg(el,text,cls=''){
   if(!el)return;
@@ -166,7 +188,7 @@ async function googleCredentialLogin(response){
       body:JSON.stringify({credential})
     });
     if(!d.token)throw Error('O Google não devolveu a sessão do Cime.');
-    localStorage.setItem('cime5Token',d.token);
+    cimeRememberSession(d);
     setGoogleState('✅ Login realizado. Abrindo sua biblioteca…','ok');
     location.assign('/app');
   }catch(e){
@@ -258,7 +280,7 @@ async function goLogin(){
   try{
     const d=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
-    localStorage.setItem('cime5Token',d.token);
+    cimeRememberSession(d);
     setMsg($('lm'),'✅ Login realizado. Abrindo sua biblioteca…','ok');
     location.assign('/app');
   }catch(e){
@@ -275,7 +297,7 @@ async function goReg(){
   try{
     const d=await api('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,display_name:name})});
     if(!d.token)throw Error('O servidor não devolveu a sessão do Cime.');
-    localStorage.setItem('cime5Token',d.token);
+    cimeRememberSession(d);
     setMsg($('rm'),'✅ Conta criada. Abrindo sua biblioteca…','ok');
     setTimeout(()=>location.assign('/app'),250);
   }catch(e){
