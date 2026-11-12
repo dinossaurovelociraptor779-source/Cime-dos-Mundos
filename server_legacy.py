@@ -383,7 +383,7 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
             parts.append({"inline_data":{"mime_type":"image/jpeg","data":base64.b64encode(data).decode("ascii")}})
         payload={
             "contents":[{"role":"user","parts":parts}],
-            "generationConfig":{"temperature":0.1,"responseMimeType":"application/json"}
+            "generationConfig":{"responseMimeType":"application/json","thinkingConfig":{"thinkingLevel":"low" if not deep else "medium"}}
         }
         endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_VISION_MODEL+":generateContent"
         response=requests.post(endpoint,headers={"x-goog-api-key":GEMINI_API_KEY,"Content-Type":"application/json"},json=payload,timeout=22 if deep else 16)

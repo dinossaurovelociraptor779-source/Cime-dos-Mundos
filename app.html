@@ -421,7 +421,11 @@ html,body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 </style>
 </head>
 <body style="padding-top:48px"><div id="c5bar" style="position:fixed;top:0;left:0;right:0;z-index:20000;display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 12px;background:#0b1019eb;border-bottom:1px solid #ffffff12;font:13px system-ui"><span id="c5user">Conta</span><button onclick="c5openGroups()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">👥 Grupos</button><button onclick="c5feedback()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">🐞 Feedback</button><button onclick="cimeLogout()" style="padding:7px 9px;border-radius:9px;background:#192235;color:#fff;border:1px solid #30405b">Sair</button></div><script>let lastUploadAsset=null;
-async function cimeLogout(){try{await api('/api/auth/logout',{method:'POST'});}catch(e){}try{localStorage.removeItem('cime5Token');}catch(e){}window.cimeSessionUser=null;location.replace('/');}
+try{
+  const cachedUser=JSON.parse(localStorage.getItem('cime5LastUser')||'null');
+  if(cachedUser&&cachedUser.id!=null&&!window.cimeSessionUser)window.cimeSessionUser=cachedUser;
+}catch(_){}
+async function cimeLogout(){try{await api('/api/auth/logout',{method:'POST'});}catch(e){}try{localStorage.removeItem('cime5Token');localStorage.removeItem('cime5LastUserId');localStorage.removeItem('cime5LastUser');}catch(e){}window.cimeSessionUser=null;location.replace('/');}
 async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getElementById('c5user').textContent='👤 '+d.display_name+(d.role==='creator'?' · Criador':' · Beta tester');return}const r=await fetch(cimeApiUrl('/api/auth/status'));const x=await r.json();if(x.user)document.getElementById('c5user').textContent='👤 '+x.user.display_name+(x.user.role==='creator'?' · Criador':' · Beta tester')}catch(e){}}async function c5feedback(){let dlg=document.getElementById('c5feedbackDlg');if(!dlg){dlg=document.createElement('dialog');dlg.id='c5feedbackDlg';dlg.innerHTML=`<div class="modal" style="min-width:min(520px,92vw)"><h2>💬 Enviar feedback</h2><p class="muted">Conte o que aconteceu ou uma melhoria que você gostaria de ver.</p><select id="c5fk" class="c5gi"><option value="bug">🐞 Problema / erro</option><option value="idea">💡 Sugestão</option><option value="ui">🎨 Interface</option><option value="performance">⚡ Velocidade</option></select><input id="c5ft" class="c5gi" placeholder="Título"><textarea id="c5fd" class="c5gt" rows=5 placeholder="Explique com detalhes…"></textarea><div class="actions"><button class="btn" id="c5fc">Cancelar</button><button class="btn primary" id="c5fs">Enviar feedback</button></div><div id="c5fm" class="muted"></div></div>`;document.body.appendChild(dlg);dlg.querySelector('#c5fc').onclick=()=>dlg.close();dlg.querySelector('#c5fs').onclick=async()=>{const title=dlg.querySelector('#c5ft').value.trim(),description=dlg.querySelector('#c5fd').value.trim();if(!title||!description){dlg.querySelector('#c5fm').textContent='Preencha título e descrição.';return}const b=dlg.querySelector('#c5fs');b.disabled=true;try{const r=await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:dlg.querySelector('#c5fk').value,title,description,page:location.pathname})});if(r.ok){dlg.close();showToast('✅ Feedback enviado. Obrigado!')}else{dlg.querySelector('#c5fm').textContent='❌ Não foi possível enviar.'}}catch(e){dlg.querySelector('#c5fm').textContent='❌ '+e.message}finally{b.disabled=false}};}dlg.showModal();}c5me();</script>
 <header>
   <div class="brand">
@@ -591,11 +595,18 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     const startupToken=localStorage.getItem('cime5Token')||'';
     const bootstrapUrl=startupToken?('/api/bootstrap?token='+encodeURIComponent(startupToken)):'/api/bootstrap';
     const r=await originalFetch(apiUrlEarly(bootstrapUrl),{headers:authHeaders(),cache:'no-store',credentials:'same-origin'});
-    if(r.status===401){const gs=q.get('group_share'),iv=q.get('invite');if(gs)localStorage.setItem('cime5GroupShare',gs);if(iv)localStorage.setItem('cime5PendingInvite',iv);location.href='/';return;}
+    if(r.status===401){const gs=q.get('group_share'),iv=q.get('invite');if(gs)localStorage.setItem('cime5GroupShare',gs);if(iv)localStorage.setItem('cime5PendingInvite',iv);localStorage.removeItem('cime5Token');location.href='/';return;}
     if(!r.ok)throw new Error('Bootstrap HTTP '+r.status);
     const d=await r.json();
     window.__cimeBootstrap=d;
-    window.cimeSessionUser=d.user||null;
+    window.cimeSessionUser=d.user||window.cimeSessionUser||null;
+    if(window.cimeSessionUser?.id!=null){
+      try{
+        localStorage.setItem('cime5LastUserId',String(window.cimeSessionUser.id));
+        if(window.cimeSessionUser.email)localStorage.setItem('cime5LastEmail',String(window.cimeSessionUser.email));
+        localStorage.setItem('cime5LastUser',JSON.stringify(window.cimeSessionUser));
+      }catch(_){}
+    }
     const pendingShare=q.get('group_share')||localStorage.getItem('cime5GroupShare');
     const pendingInvite=q.get('invite')||localStorage.getItem('cime5PendingInvite');
     for(const [token,path,key] of [[pendingShare,'/api/groups/share/accept','cime5GroupShare'],[pendingInvite,'/api/invites/accept','cime5PendingInvite']]){
@@ -607,7 +618,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     const gs=q.get('group_share'),iv=q.get('invite');if(gs)localStorage.setItem('cime5GroupShare',gs);if(iv)localStorage.setItem('cime5PendingInvite',iv);
     if(location.pathname.startsWith('/app')){console.error(e);}
   }
-  window.cimeLogout=async()=>{try{await originalFetch(cimeApiUrl('/api/auth/logout'),{method:'POST',headers:authHeaders()})}catch(e){}localStorage.removeItem('cime5Token');location.href='/';};
+  window.cimeLogout=async()=>{try{await originalFetch(cimeApiUrl('/api/auth/logout'),{method:'POST',headers:authHeaders()})}catch(e){}localStorage.removeItem('cime5Token');localStorage.removeItem('cime5LastUserId');localStorage.removeItem('cime5LastUser');window.cimeSessionUser=null;location.href='/';};
 })();</script><script>
 let titles=[]; let selectedCover=""; let selectedMeta={}; const $=id=>document.getElementById(id);
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
@@ -884,8 +895,20 @@ async function importHistoryFiles(){
 }
 
 const CIME_CACHE_VERSION='5.0-history-complete-covers';
-function titleCacheKey(){return 'cime5:library:'+String(window.cimeSessionUser?.id||'local')+':'+CIME_CACHE_VERSION}
-function restoreLibraryCache(){try{const raw=localStorage.getItem(titleCacheKey());if(!raw)return false;const d=JSON.parse(raw);if(!Array.isArray(d)||!d.length)return false;titles=d;populateGenreFilter();libraryVisible=12;render();const b=$('enrichText');if(b)b.textContent='⚡ Biblioteca carregada do cache. Atualizando dados…';return true;}catch(e){return false;}}
+function titleCacheKey(){
+  let uid=window.cimeSessionUser?.id;
+  try{if(uid==null)uid=localStorage.getItem('cime5LastUserId');}catch(_){}
+  return 'cime5:library:'+String(uid||'local')+':'+CIME_CACHE_VERSION;
+}
+function restoreLibraryCache(){
+  try{
+    const raw=localStorage.getItem(titleCacheKey());if(raw===null)return false;
+    const d=JSON.parse(raw);if(!Array.isArray(d))return false;
+    titles=d;window.__cimeOfflineCacheRestored=true;populateGenreFilter();libraryVisible=12;render();
+    const b=$('enrichText');if(b)b.textContent='⚡ Última biblioteca sincronizada carregada.';
+    return true;
+  }catch(e){return false;}
+}
 function saveLibraryCache(){try{if(!Array.isArray(titles)||titles.length>600)return;localStorage.setItem(titleCacheKey(),JSON.stringify(titles));}catch(e){try{localStorage.removeItem(titleCacheKey())}catch(_){}}}
 const cimeGetCache=new Map(),cimeGetInflight=new Map();
 function cimeApiUrl(url){
@@ -947,10 +970,18 @@ document.addEventListener('close',function(event){
 },true);
 function openDialog(id){const d=$(id);if(!d)return;if(typeof d.showModal==='function'){try{d.showModal();window.cimeSetScrollLock('dialog:'+id,true);return}catch(e){}}d.setAttribute('open','');d.style.display='block';window.cimeSetScrollLock('dialog:'+id,true);}function closeDialog(id){const d=$(id);if(!d)return;if(typeof d.close==='function'){try{d.close();window.cimeSetScrollLock('dialog:'+id,false);return}catch(e){}}d.removeAttribute('open');d.style.display='none';window.cimeSetScrollLock('dialog:'+id,false);}
 async function load(){
+  if(!navigator.onLine&&window.__cimeOfflineCacheRestored){cimeShowOfflineBanner();return;}
   try{
     const boot=window.__cimeBootstrap||(await api('/api/bootstrap'));
     window.__cimeBootstrap=null;
     window.cimeSessionUser=boot.user||window.cimeSessionUser||null;
+    if(window.cimeSessionUser?.id!=null){
+      try{
+        localStorage.setItem('cime5LastUserId',String(window.cimeSessionUser.id));
+        if(window.cimeSessionUser.email)localStorage.setItem('cime5LastEmail',String(window.cimeSessionUser.email));
+        localStorage.setItem('cime5LastUser',JSON.stringify(window.cimeSessionUser));
+      }catch(_){}
+    }
     titles=Array.isArray(boot.titles)?boot.titles:[];
     populateGenreFilter();
     if($('visionStatus'))$('visionStatus').textContent=boot.vision?.configured?`🟢 ${boot.vision.provider||'IA visual ativa'}`:'🟡 IA visual indisponível · OCR do aparelho como plano B';
@@ -959,10 +990,27 @@ async function load(){
     if($('statsExtra'))$('statsExtra').innerHTML=`📺 ${s.episodes_total??0} episódios cadastrados · ⭐ Nota média ${s.average_rating??'não informada'} · ❤️ ${s.favorites??0} favoritos`;
     saveLibraryCache();
     libraryVisible=12;
+    cimeHideOfflineBanner();
     render();
-  }catch(e){console.error('[Cime] Falha ao carregar biblioteca:',e);const detalhe=String(e&&e.message||e||'Erro desconhecido').slice(0,180);showToast('Não foi possível carregar a biblioteca: '+detalhe);const root=$('grid');if(root&&!root.children.length)root.innerHTML='<div class="empty"><b>Não foi possível carregar a biblioteca.</b><p style="color:#9aa8bd">'+(typeof esc==='function'?esc(detalhe):detalhe)+'</p><button class="btn" type="button" onclick="load()">Tentar novamente</button></div>';}
+  }catch(e){
+    console.error('[Cime] Falha ao carregar biblioteca:',e);
+    if(window.__cimeOfflineCacheRestored){cimeShowOfflineBanner();showToast('Modo offline: mostrando a última biblioteca sincronizada. Para salvar alterações e pesquisar títulos, conecte-se à internet.');return;}
+    const detalhe=String(e&&e.message||e||'Erro desconhecido').slice(0,180);showToast('Não foi possível carregar a biblioteca: '+detalhe);const root=$('grid');if(root&&!root.children.length)root.innerHTML='<div class="empty"><b>Não foi possível carregar a biblioteca.</b><p style="color:#9aa8bd">'+(typeof esc==='function'?esc(detalhe):detalhe)+'</p><button class="btn" type="button" onclick="load()">Tentar novamente</button></div>';}
 }
 
+function cimeShowOfflineBanner(){
+  let banner=$('cimeOfflineBanner');
+  if(!banner){
+    banner=document.createElement('div');banner.id='cimeOfflineBanner';
+    banner.setAttribute('role','status');banner.setAttribute('aria-live','polite');
+    banner.style.cssText='position:fixed;top:54px;left:12px;right:12px;z-index:19000;padding:10px 14px;border:1px solid #d6a94b55;border-radius:12px;background:#211b10;color:#f8df9b;font:12px/1.45 system-ui;box-shadow:0 8px 24px #0005;text-align:center';
+    document.body.appendChild(banner);
+  }
+  banner.textContent='Modo offline: exibindo a última biblioteca sincronizada. Salvar alterações, pesquisar e identificar imagens exige internet.';
+}
+function cimeHideOfflineBanner(){const banner=$('cimeOfflineBanner');if(banner)banner.remove();}
+window.addEventListener('offline',()=>{if(window.__cimeOfflineCacheRestored)cimeShowOfflineBanner();});
+window.addEventListener('online',()=>{cimeHideOfflineBanner();load();});
 function showToast(msg){let t=document.getElementById('cimeToast');if(!t){t=document.createElement('div');t.id='cimeToast';t.style='position:fixed;right:18px;bottom:18px;z-index:9999;max-width:360px;padding:12px 15px;border-radius:12px;background:#171f32;border:1px solid #34445f;color:#fff;box-shadow:0 15px 40px #0008';document.body.appendChild(t)}t.textContent=msg;t.style.opacity='1';clearTimeout(window.__cimeToast);window.__cimeToast=setTimeout(()=>t.style.opacity='0',3200)}
 async function loadStats(){try{const s=await api('/api/stats');$('stats').innerHTML=`<div class="stat"><b>${s.total}</b><span>TÍTULOS</span></div><div class="stat"><b>${s.watching}</b><span>ASSISTINDO</span></div><div class="stat"><b>${s.done}</b><span>CONCLUÍDOS</span></div><div class="stat"><b>${s.wanted}</b><span>QUERO ASSISTIR</span></div><div class="stat"><b>${s.episodes_watched}</b><span>EPISÓDIOS VISTOS</span></div><div class="stat"><b>${s.completion}%</b><span>PROGRESSO MÉDIO</span></div><div class="stat"><b>${s.average_rating??'—'}</b><span>⭐ NOTA MÉDIA</span></div><div class="stat"><b>${s.favorites}</b><span>❤️ FAVORITOS</span></div>`;$('statsExtra').innerHTML=`📺 ${s.episodes_total} episódios cadastrados · ⭐ Nota média ${s.average_rating??'não informada'} · ❤️ ${s.favorites} favoritos`;}catch(e){$('stats').innerHTML='';}}
 function sortList(list){const s=$('sort').value;if(s==='recent')return list;const out=list.slice();if(s==='name')out.sort((a,b)=>String(a.name).localeCompare(String(b.name),'pt-BR'));else if(s==='progress')out.sort((a,b)=>{const pa=pct(a),pb=pct(b);return (pb??-1)-(pa??-1)});else if(s==='rating')out.sort((a,b)=>(b.rating||0)-(a.rating||0));else if(s==='episodes')out.sort((a,b)=>(b.episodes||0)-(a.episodes||0));return out;}
@@ -1530,33 +1578,38 @@ async function cimeBrowserOcrSearch(file,onProgress){
   }
   if(!queries.length)return {text,results:[],query:''};
   const collected=new Map();
-  let selectedQuery='';
-  for(let index=0;index<queries.length;index++){
-    const query=queries[index];
-    if(typeof onProgress==='function')onProgress('Comparando o texto da capa com o catálogo ('+(index+1)+'/'+queries.length+')…');
-    try{
-      const data=await api('/api/anime/search?q='+encodeURIComponent(query)+'&deep=0');
-      const list=Array.isArray(data.results)?data.results:[];
-      for(const item of list){
-        const key=String(item.id||item.title||'').toLowerCase();
-        if(!key)continue;
-        const old=collected.get(key);
-        const score=Number(item._match_score||data.diagnostics?.matched_score||0);
-        if(!old||score>old._match_score)collected.set(key,{...item,_match_score:score});
-      }
-      if(list.length&&!selectedQuery)selectedQuery=query;
-      if(collected.size>=8||([...collected.values()].some(item=>Number(item._match_score||0)>=98)))break;
-    }catch(_){}
-  }
+  let selectedQuery='',selectedIndex=Infinity,nextIndex=0;
+  const hasStrongMatch=()=>collected.size>=8||[...collected.values()].some(item=>Number(item._match_score||0)>=98);
+  const lookupWorker=async()=>{
+    while(true){
+      if(hasStrongMatch())return;
+      const index=nextIndex++;if(index>=queries.length)return;
+      const query=queries[index];
+      if(typeof onProgress==='function')onProgress('Comparando o texto da capa com o catálogo ('+(index+1)+'/'+queries.length+')…');
+      try{
+        const data=await api('/api/anime/search?q='+encodeURIComponent(query)+'&deep=0');
+        const list=Array.isArray(data.results)?data.results:[];
+        for(const item of list){
+          const key=String(item.id||item.title||'').toLowerCase();if(!key)continue;
+          const old=collected.get(key);
+          const score=Number(item._match_score||data.diagnostics?.matched_score||0);
+          if(!old||score>old._match_score)collected.set(key,{...item,_match_score:score});
+        }
+        if(list.length&&index<selectedIndex){selectedQuery=query;selectedIndex=index;}
+      }catch(_){}
+    }
+  };
+  await Promise.all(Array.from({length:Math.min(2,queries.length)},()=>lookupWorker()));
   const results=[...collected.values()].sort((a,b)=>Number(b._match_score||0)-Number(a._match_score||0)).slice(0,10);
   return {text,results,query:selectedQuery||queries[0]||''};
 }
-$("imageInput").onchange=async()=>{const f=$("imageInput").files[0];if(!f)return;$("preview").src=URL.createObjectURL(f);$("preview").style.display='block';$("results").innerHTML='';$("animeDetails").innerHTML='';$("ocrStatus").innerHTML='<div class="loading">⚡ Foto carregada. Identificação iniciada...<br><span class="muted" id="visionTimer">⏱️ 0s · primeiro o caminho turbo; aprofundamento só se houver dúvida</span></div>';const _t0=performance.now();const _timer=setInterval(()=>{const s=Math.floor((performance.now()-_t0)/1000);const el=$("visionTimer");if(el)el.textContent=`⏱️ ${s}s · ⚡ turbo primeiro; aprofundamento só se necessário`},250);try{let localOcrRunning=true;const localOcrPromise=cimeBrowserOcrSearch(f,message=>{if(localOcrRunning)$('ocrStatus').innerHTML='<div class="loading">🔎 '+esc(message)+'</div>';}).then(result=>({ok:true,result}),error=>({ok:false,error}));const recognitionBlob=await compressRecognitionImage(f);let up;try{up=await api('/api/upload',{method:'POST',headers:{'X-Filename':f.name,'X-Recognition-Original-Name':f.name},body:recognitionBlob});}catch(error){up={success:false,upload_error:String(error?.message||error),results:[],canonical_title:'',identity_confidence:0,identity_verified:false,vision:{configured:false,recognized:false,provider:'OCR do aparelho'}};}clearInterval(_timer);const v=up.vision||{};let title=(v.recognized&&v.title)||up.canonical_title||'';let conf=up.identity_confidence!=null?Math.round(up.identity_confidence*100):(v.confidence?Math.round(v.confidence*100):0);let verified=up.identity_verified===true;let season=up.season??v.season??null;let seasonTitle=up.season_title||v.season_title||'';let arc=up.arc||v.arc||'';const capturedAt=up.captured_at||'';lastUploadAsset={path:null,season:season,captured_at:capturedAt};
-if(title)localOcrRunning=false;
+$("imageInput").onchange=async()=>{const f=$("imageInput").files[0];if(!f)return;$("preview").src=URL.createObjectURL(f);$("preview").style.display='block';$("results").innerHTML='';$("animeDetails").innerHTML='';$("ocrStatus").innerHTML='<div class="loading">⚡ Foto carregada. Identificação iniciada...<br><span class="muted" id="visionTimer">⏱️ 0s · primeiro o caminho turbo; aprofundamento só se houver dúvida</span></div>';const _t0=performance.now();const _timer=setInterval(()=>{const s=Math.floor((performance.now()-_t0)/1000);const el=$("visionTimer");if(el)el.textContent=`⏱️ ${s}s · ⚡ turbo primeiro; aprofundamento só se necessário`},250);try{const recognitionBlob=await compressRecognitionImage(f);let up;try{up=await api('/api/upload',{method:'POST',headers:{'X-Filename':f.name,'X-Recognition-Original-Name':f.name},body:recognitionBlob});}catch(error){up={success:false,upload_error:String(error?.message||error),results:[],canonical_title:'',identity_confidence:0,identity_verified:false,vision:{configured:false,recognized:false,provider:'OCR do aparelho'}};}clearInterval(_timer);const v=up.vision||{};let title=(v.recognized&&v.title)||up.canonical_title||'';let conf=up.identity_confidence!=null?Math.round(up.identity_confidence*100):(v.confidence?Math.round(v.confidence*100):0);let verified=up.identity_verified===true;let season=up.season??v.season??null;let seasonTitle=up.season_title||v.season_title||'';let arc=up.arc||v.arc||'';const capturedAt=up.captured_at||'';lastUploadAsset={path:null,season:season,captured_at:capturedAt};
+
 if(!title){
   try{
-    $('ocrStatus').innerHTML='<div class="loading">🧠 A primeira leitura não encontrou um nome. Aproveitando a leitura local que já estava rodando…</div>';
-    const localResult=await localOcrPromise;localOcrRunning=false;if(!localResult.ok)throw localResult.error;const fallback=localResult.result;
+    $('ocrStatus').innerHTML='<div class="loading">🧠 O servidor não confirmou o título. Iniciando OCR local como segunda etapa…</div>';
+    if(!navigator.onLine){$('ocrStatus').innerHTML='<div class="note danger">⚠️ A identificação automática precisa de internet para consultar a IA e o catálogo. Sua biblioteca salva continua disponível offline.</div>';return;}
+     const fallback=await cimeBrowserOcrSearch(f,message=>{$('ocrStatus').innerHTML='<div class="loading">🔎 '+esc(message)+'</div>';});
     if(fallback.results.length){
       up.results=fallback.results;
       up.canonical_title=fallback.results[0].title||'';
@@ -1803,7 +1856,7 @@ document.addEventListener('click',function(e){const id=e.target.closest('[id]')?
 loadTheme();showView('library');
 window.addEventListener('error',e=>{console.error(e.error||e.message);showToast('O Cime encontrou um erro nesta tela, mas continua aberto.');});
 window.addEventListener('popstate',function(){cimeGoBack();});
-window.addEventListener('load',async()=>{loadTheme();setSelectionMode(false);restoreLibraryCache();await load();showView('library');});
+window.addEventListener('load',async()=>{loadTheme();setSelectionMode(false);restoreLibraryCache();if(!navigator.onLine&&window.__cimeOfflineCacheRestored)cimeShowOfflineBanner();await load();showView('library');});
 </script>
 <style>
 #c5go{touch-action:auto}
@@ -3910,4 +3963,4 @@ document.getElementById('manualCoverRemove')?.addEventListener('click',()=>{
 #detailsDlg .season-progress i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8b5cf6,#22d3ee)}
 #detailsDlg .season-item>button{flex:0 0 auto}
 @media(max-width:700px){#detailsDlg .season-item{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}#detailsDlg .season-item>button{width:100%;min-height:40px}#detailsDlg .season-status-select{width:100%;max-width:none}#detailsDlg .season-progress{max-width:none}}
-</style></body></html>
+</style><style id="cime-desktop-no-back-v1">@media(min-width:761px){header .nav #cimeBackButton{display:none!important}}</style></body></html>
