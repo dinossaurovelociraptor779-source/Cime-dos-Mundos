@@ -100,6 +100,14 @@ def public_app_base(handler):
         return 'https://'+hostname
     return public_lan_base()
 
+
+def google_js_origin():
+    """Return the exact origin that serves Google Identity Services in this deployment."""
+    if str(os.getenv('CIME_DEPLOYMENT','')).strip().lower() == 'vercel':
+        return str(os.getenv('CIME_PUBLIC_URL') or 'https://cime-dos-mundos.vercel.app').strip().rstrip('/')
+    return f'http://localhost:{PORT}'
+
+
 sys.path.insert(0,str(BASE))
 import server_legacy as legacy
 
@@ -714,7 +722,7 @@ class Gateway(BaseHTTPRequestHandler):
                 uid=u['id']; c.execute('UPDATE users SET provider="google",provider_subject=?,display_name=?,last_login_at=?,updated_at=? WHERE id=?',(sub,name,now,now,uid))
             c.commit(); c.close(); ensure_library(uid); tok=token_make(uid,self.headers.get('User-Agent','')); self.send_response(302); set_session_cookie(self,tok); self.send_header('Location','/app?token='+tok); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length','0'); self.end_headers(); return
         if path=='/api/auth/status':
-            u=get_user(self); return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':f'http://localhost:{PORT}','google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
+            u=get_user(self); return self.send_json({'authenticated':bool(u),'google_configured':google_ok(),'google_client_id':os.getenv('GOOGLE_CLIENT_ID',''),'google_js_origin':google_js_origin(),'google_redirect_uri':os.getenv('GOOGLE_REDIRECT_URI',''),'lan_enabled':BIND in ('0.0.0.0','::'),'user':({'id':u['id'],'email':u['email'],'display_name':u['display_name'],'role':u['role'],'provider':u['provider']} if u else None)})
         if path=='/api/bootstrap':
             u=require(self)
             if not u: return
