@@ -1,6 +1,9 @@
 from pathlib import Path
+import ast
 import json
+import os
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -107,9 +110,37 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertIn("with request_context(write=True) as store:", self.gateway)
 
     def test_backend_routing_module_parses(self):
-        import ast
         ast.parse(self.gateway)
 
+
+    def test_google_status_reports_the_real_deployment_origin(self):
+        tree = ast.parse(self.server)
+        function = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "google_js_origin"
+        )
+        isolated = ast.Module(body=[function], type_ignores=[])
+        namespace = {"os": os, "PORT": 8790}
+        exec(compile(isolated, "server_v5.py", "exec"), namespace)
+        origin = namespace["google_js_origin"]
+
+        with patch.dict(os.environ, {
+            "CIME_DEPLOYMENT": "vercel",
+            "CIME_PUBLIC_URL": "https://cime-dos-mundos.vercel.app/",
+        }, clear=False):
+            self.assertEqual(origin(), "https://cime-dos-mundos.vercel.app")
+
+        with patch.dict(os.environ, {
+            "CIME_DEPLOYMENT": "vercel",
+            "CIME_PUBLIC_URL": "",
+        }, clear=False):
+            self.assertEqual(origin(), "https://cime-dos-mundos.vercel.app")
+
+        with patch.dict(os.environ, {
+            "CIME_DEPLOYMENT": "local",
+            "CIME_PUBLIC_URL": "https://ignored-in-local.test",
+        }, clear=False):
+            self.assertEqual(origin(), "http://localhost:8790")
 
 if __name__ == "__main__":
     unittest.main()
