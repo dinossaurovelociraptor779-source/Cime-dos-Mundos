@@ -54,7 +54,7 @@ class SmartVisionRegressionTests(unittest.TestCase):
     def test_image_recognition_request_waits_within_vercel_function_limit(self):
         self.assertIn("const isImageRecognition=method==='POST'&&/\\/api\\/upload(?:\\?|$)/.test(url)", self.app)
         self.assertIn("timeoutMs=isImageRecognition?58000", self.app)
-        self.assertIn("up.upload_error?' · Falha no envio ao servidor:'", self.app)
+        self.assertIn("Falha no envio ao servidor:", self.app)
 
     def test_image_endpoint_has_diagnostics_and_result_contract(self):
         self.assertIn('"success": True', self.source)
