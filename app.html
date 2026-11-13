@@ -929,7 +929,7 @@ async function api(url,opt={}){
     if(cimeGetInflight.has(key)) return cimeGetInflight.get(key);
   }
   const controller=opt.signal?null:new AbortController();
-  const timeoutMs=(method==='POST'&&/\/api\/import\/history(?:\?|$)/.test(url))||(method==='GET'&&/\/api\/library\/covers(?:\?|$)/.test(url))?55000:20000;
+  const timeoutMs=(method==='POST'&&/\\/api\\/(?:upload|vision\\/analyze|import\\/history)(?:\\?|$)/.test(url))||(method==='GET'&&/\\/api\\/library\\/covers(?:\\?|$)/.test(url))?55000:20000;
   const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
   const request={...opt}; if(controller) request.signal=controller.signal;
   const p=fetch(cimeApiUrl(url),request).then(async r=>{
@@ -1677,7 +1677,7 @@ $("animeDetails").onclick=e=>{
  }catch(err){console.error(err);showToast('❌ Não foi possível abrir os dados encontrados. Tente identificar novamente.');}
 };
 
-async function loadVisionStatus(){try{const v=await api('/api/vision/status'),c=v.catalog||{};const base=v.configured?('🟢 '+(v.provider||'IA visual ativa')):'🟡 IA visual não configurada';const ocr=v.server_ocr_available?'OCR do servidor + navegador':'OCR Tesseract.js no navegador';if($('visionStatus'))$('visionStatus').textContent=base+' · '+ocr+' · Base: '+Number(c.netflix||0)+' Netflix / '+Number(c.tomato||0)+' Tomato / '+Number(c.library||0)+' título(s)';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR Tesseract.js no navegador + catálogo';}}
+async function loadVisionStatus(){try{const v=await api('/api/vision/status'),c=v.catalog||{};const base=v.configured?('🟢 '+(v.provider||'IA visual ativa')):'🟡 IA visual não configurada';const ocr=(v.server_ocr_available||v.ocr_backend_available)?'OCR do servidor + navegador':'OCR Tesseract.js no navegador';if($('visionStatus'))$('visionStatus').textContent=base+' · '+ocr+' · Base: '+Number(c.netflix||0)+' Netflix / '+Number(c.tomato||0)+' Tomato / '+Number(c.library||0)+' título(s)';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR Tesseract.js no navegador + catálogo';}}
 
 let cimeViewHistory=[];
 function showView(view,skipHistory=false){
