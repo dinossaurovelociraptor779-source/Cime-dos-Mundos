@@ -19,8 +19,9 @@ class SmartVisionRegressionTests(unittest.TestCase):
         self.assertLess(marker_pos, pipeline_pos)
 
     def test_local_ocr_supports_portuguese_and_more_catalog_candidates(self):
-        self.assertIn("language:'eng+por'", self.app)
-        self.assertIn("language:'eng'", self.app)
+        self.assertIn("languages:['por','eng']", self.app)
+        self.assertIn("languages:['eng']", self.app)
+        self.assertIn("T.createWorker(attempt.languages,1", self.app)
         self.assertIn("if(queries.length>=9)break;", self.app)
 
     def test_ocr_retries_multiple_cdns_and_language_fallbacks(self):
