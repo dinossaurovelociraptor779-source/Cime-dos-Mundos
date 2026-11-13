@@ -929,7 +929,7 @@ async function api(url,opt={}){
     if(cimeGetInflight.has(key)) return cimeGetInflight.get(key);
   }
   const controller=opt.signal?null:new AbortController();
-  const timeoutMs=(method==='POST'&&/\\/api\\/(?:upload|vision\\/analyze|import\\/history)(?:\\?|$)/.test(url))||(method==='GET'&&/\\/api\\/library\\/covers(?:\\?|$)/.test(url))?55000:20000;
+  const timeoutMs=(method==='POST'&&/\/api\/(?:upload|vision\/analyze|import\/history)(?:\?|$)/.test(url))||(method==='GET'&&/\/api\/library\/covers(?:\?|$)/.test(url))?55000:20000;
   const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
   const request={...opt}; if(controller) request.signal=controller.signal;
   const p=fetch(cimeApiUrl(url),request).then(async r=>{
