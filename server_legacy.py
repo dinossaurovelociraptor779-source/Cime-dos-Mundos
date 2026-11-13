@@ -2089,6 +2089,13 @@ PALAVRAS_IGNORADAS = {
     "estatisticas","biblioteca","coleção","colecao","suas","historico","histórico","próximo","proximo"
 }
 
+STREAMING_UI_TERMS = {
+    "crunchyroll", "novidade", "novidades", "populares", "transmissão simultânea",
+    "transmissao simultanea", "categorias", "jogos", "começar a assistir",
+    "comecar a assistir", "mais detalhes", "classificação média", "classificacao media",
+    "áudio", "audio", "legendas", "esc"
+}
+
 UI_PHRASES = {
     "curtir", "curtido", "favoritado", "comentarios", "comentarios 0", "adicionar", "biblioteca",
     "continuar", "continuar assistindo", "cavaleiros apareceu", "clique", "pesquisar", "configuracoes",
@@ -2115,14 +2122,25 @@ def normalizar_texto(texto):
 def parece_horario(texto):
     return bool(re.fullmatch(r"\d{1,2}[:.]\d{2}",str(texto).strip()))
 
+def _strip_streaming_ui_terms(texto):
+    """Remove apenas rótulos conhecidos da interface, preservando o texto do título."""
+    value=str(texto or "").lower()
+    value=re.sub(r"[\s_-]+"," ",value)
+    for term in sorted(STREAMING_UI_TERMS,key=len,reverse=True):
+        pattern=r"(?<!\w)"+re.escape(term.lower())+r"(?!\w)"
+        value=re.sub(pattern," ",value,flags=re.IGNORECASE)
+    return re.sub(r"\s+"," ",value).strip(" \t\r\n-|•·—–")
+
+
 def _is_ui_phrase(texto):
-    n=normalizar_texto(texto)
+    n=normalizar_texto(_strip_streaming_ui_terms(texto))
     if not n: return True
     if n in UI_PHRASES: return True
     words=n.split()
     if any(w in PALAVRAS_IGNORADAS for w in words) and len(words)<=3:
         return True
     return False
+
 
 APP_CONTEXT_TERMS = {
     "cime", "mundos", "biblioteca", "colecao", "coleção", "pesquisar", "descobrir",
@@ -2159,26 +2177,30 @@ def _looks_like_sentence(text):
     return False
 
 def _candidate_quality(text, conf=0, height=0, words=None, relative_top=0.5):
-    n=normalizar_texto(text)
+    cleaned=_strip_streaming_ui_terms(text)
+    n=normalizar_texto(cleaned)
     ws=n.split()
     if not ws: return -999
-    if parece_lixo(text): return -999
-    if _looks_like_sentence(text): return -999
+    if parece_lixo(cleaned): return -999
+    if _looks_like_sentence(cleaned): return -999
     if height < 15 and not any(w in TITLE_SIGNAL_WORDS for w in ws): return -999
     score=float(conf)*0.65
-    # Títulos geralmente formam 1-7 palavras e têm um bloco visual relativamente grande.
+    # Blocos altos recebem prioridade maior que menus, legendas e sinopses pequenas.
     if 2<=len(ws)<=6: score += 24
     elif len(ws)==1: score += 6
     if 7<=len(ws)<=8: score -= 12
-    if height>=38: score += 22
+    if height>=52: score += 28
+    elif height>=38: score += 22
     elif height>=28: score += 14
-    elif height>=20: score += 6
+    elif height>=20: score += 7
+    else: score -= 5
     score += max(0, 10-abs(relative_top-0.45)*15)
     score -= _context_penalty(ws)
     if any(w in TITLE_SIGNAL_WORDS for w in ws): score += 16
-    if re.search(r"\b(19|20)\d{2}\b", text): score -= 22
-    if sum(ch in text for ch in ".:;")>=2: score -= 10
+    if re.search(r"\b(19|20)\d{2}\b", cleaned): score -= 22
+    if sum(ch in cleaned for ch in ".:;")>=2: score -= 10
     return score
+
 
 def parece_lixo(texto):
     low=normalizar_texto(texto)
@@ -2233,17 +2255,95 @@ def _group_ocr_lines(words):
             lines.append((txt,sum(x["conf"] for x in g)/len(g),min(x["top"] for x in g),g))
     return lines
 
+def _otsu_threshold(gray):
+    """Calcula um limiar automático para separar texto e fundo sem OpenCV."""
+    histogram=gray.histogram()
+    total=sum(histogram)
+    if total<=0: return 150
+    total_moment=sum(level*count for level,count in enumerate(histogram))
+    background_weight=0
+    background_moment=0
+    best_variance=-1.0
+    threshold=150
+    for level,count in enumerate(histogram):
+        background_weight+=count
+        if background_weight<=0: continue
+        foreground_weight=total-background_weight
+        if foreground_weight<=0: break
+        background_moment+=level*count
+        mean_background=background_moment/background_weight
+        mean_foreground=(total_moment-background_moment)/foreground_weight
+        variance=background_weight*foreground_weight*((mean_background-mean_foreground)**2)
+        if variance>best_variance:
+            best_variance=variance
+            threshold=level
+    return max(70,min(220,int(threshold)))
+
+
+def preparar_imagem_para_ocr(imagem_pil):
+    """Gera uma vista binária auxiliar para OCR; não substitui a imagem RGB original."""
+    if not isinstance(imagem_pil,Image.Image):
+        raise TypeError("A preparação para OCR exige uma imagem Pillow.")
+    largura,altura=imagem_pil.size
+    if largura<1 or altura<1:
+        raise ValueError("A imagem não possui dimensões válidas.")
+
+    working=imagem_pil
+    resized=None
+    gray=None
+    contrast=None
+    sharpened=None
+    binary=None
+    try:
+        # Amplia capturas pequenas, mas limita a maior dimensão para controlar memória.
+        if largura<1280:
+            fator=min(1280.0/largura,3200.0/max(largura,altura))
+            if fator>1:
+                nova_largura=max(1,int(round(largura*fator)))
+                nova_altura=max(1,int(round(altura*fator)))
+                resized=imagem_pil.resize((nova_largura,nova_altura),Image.Resampling.LANCZOS)
+                working=resized
+
+        gray=ImageOps.grayscale(working)
+        auto=ImageOps.autocontrast(gray,cutoff=1)
+        contrast=ImageEnhance.Contrast(auto).enhance(1.8)
+        sharpened=contrast.filter(ImageFilter.SHARPEN)
+        threshold=_otsu_threshold(sharpened)
+        binary=sharpened.point(lambda pixel:255 if pixel>threshold else 0)
+
+        # Normaliza a polaridade para texto escuro em fundo claro. Esta é uma
+        # variante auxiliar: a imagem colorida original continua intacta.
+        histogram=binary.histogram()
+        if histogram[255] < (binary.width*binary.height)/2:
+            normalized=ImageOps.invert(binary)
+            binary.close()
+            binary=normalized
+        return binary
+    except Exception:
+        if binary is not None:
+            binary.close()
+        raise
+    finally:
+        for temporary in (resized,gray,contrast,sharpened):
+            if temporary is not None:
+                try: temporary.close()
+                except Exception: pass
+
+
 def _prepare_variants(image):
-    """Variantes baratas, mas complementares, para títulos com sombra, fundo colorido e compressão."""
+    """Variantes complementares; preserva a imagem original e acrescenta OCR binário adaptativo."""
     gray=ImageOps.grayscale(image)
     contrast=ImageEnhance.Contrast(gray).enhance(1.8)
     sharp=contrast.filter(ImageFilter.SHARPEN)
     auto=ImageOps.autocontrast(sharp)
     up=gray.resize((min(3200,max(1,gray.width*2)),min(3200,max(1,gray.height*2))),Image.Resampling.LANCZOS)
     up=ImageOps.autocontrast(ImageEnhance.Contrast(up).enhance(1.45))
-    # Binarização suave ajuda letras claras/escuras em screenshots sem aumentar demais o custo.
-    bw=auto.point(lambda p: 255 if p > 155 else 0)
-    return [image, auto, up, bw]
+    # Esta saída é usada só em um passe OCR seletivo; visão e demais passes
+    # continuam recebendo as cores e os detalhes originais.
+    binary=preparar_imagem_para_ocr(image)
+    return [image, auto, up, binary]
+
+
 
 def _smart_title_regions(image):
     """Cria regiões candidatas sem depender de OpenCV: topo, centro e faixa de maior contraste."""
@@ -2484,8 +2584,7 @@ def read_image_candidates(image_bytes):
         assembled_keys={normalizar_texto(x[0]) for x in assembled}
 
         # Não dependemos de uma única linha: cada linha/bloco passa pelo resolvedor
-        # de títulos conhecidos. Isso corrige casos em que o logo aparece no 9º/10º
-        # candidato do OCR e seria perdido pelo corte anterior.
+        # de títulos conhecidos. Blocos maiores e com melhor confiança entram primeiro.
         candidates=[]
         known_front=[]
         def add_candidate(txt):
@@ -2498,22 +2597,42 @@ def read_image_candidates(image_bytes):
                 except Exception:
                     pass
 
-        for txt in _extract_known_title(raw):
-            add_candidate(txt)
-        for txt,conf,height,top in assembled:
+        assembled_ranked=sorted(
+            assembled,
+            key=lambda item:(
+                _candidate_quality(item[0],item[1],item[2],None,item[3]/max(1,h)),
+                item[2],item[1]
+            ),
+            reverse=True
+        )
+        for txt,conf,height,top in assembled_ranked:
             if _candidate_quality(txt,conf,height,None,top/max(1,h)) > -999:
                 add_candidate(txt)
-        for txt,conf,top,line_words in _group_ocr_lines(dedup):
-            if conf>=70 and 1<=len(txt.split())<=9 and not _looks_like_sentence(txt):
-                add_candidate(txt)
+
         for score,txt,conf,height,top,line_words in ranked:
             add_candidate(txt)
-        # Títulos clássicos de 1 palavra não devem ser descartados.
-        for txt,conf,top,line_words in _group_ocr_lines(dedup):
-            n=normalizar_texto(txt)
-            if conf>=68 and len(n.split())==1 and len(n)>=4 and not _is_ui_phrase(n):
+
+        grouped_lines=_group_ocr_lines(dedup)
+        def _line_priority(item):
+            txt,conf,top,line_words=item
+            font_height=max((word.get("height",0) for word in line_words),default=0)
+            quality=_candidate_quality(txt,conf,font_height,line_words,top/max(1,h))
+            return (quality,font_height,conf)
+
+        for txt,conf,top,line_words in sorted(grouped_lines,key=_line_priority,reverse=True):
+            if conf>=70 and 1<=len(txt.split())<=9 and not _looks_like_sentence(_strip_streaming_ui_terms(txt)):
                 add_candidate(txt)
 
+        # Títulos clássicos de uma palavra continuam válidos, inclusive depois do filtro de UI.
+        for txt,conf,top,line_words in grouped_lines:
+            cleaned=_strip_streaming_ui_terms(txt)
+            n=normalizar_texto(cleaned)
+            if conf>=68 and len(n.split())==1 and len(n)>=4 and not _is_ui_phrase(cleaned):
+                add_candidate(cleaned)
+
+        # O texto integral é fallback: não deve ultrapassar evidências de caixas grandes.
+        for txt in _extract_known_title(raw):
+            add_candidate(txt)
         result=[];keys=set()
         # Primeiro vêm os títulos que foram reconhecidos por regra/alias/fuzzy.
         # Só depois entram linhas genéricas. Isto evita texto promocional engolir
@@ -2935,6 +3054,9 @@ def _fuzzy_alias_match(text):
     return best[2] if best else None
 
 def canonical_title_from_text(text):
+    # Remove ruído recorrente de streaming antes de comparar, sem descartar
+    # palavras do título que estejam na mesma linha da interface.
+    text=_strip_streaming_ui_terms(text)
     n=normalizar_texto(text); compact=_compact(n)
     if "cime dos mundos" in n:
         return None
