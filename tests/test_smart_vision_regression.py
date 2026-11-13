@@ -88,7 +88,7 @@ class SmartVisionRegressionTests(unittest.TestCase):
         self.assertEqual((rotated["width"], rotated["height"]), (40, 80))
         self.assertTrue(rotated["orientation_corrected"])
 
-        with self.assertRaisesRegex(ValueError, "imagem não é válida"):
+        with self.assertRaisesRegex(ValueError, "imagem válida"):
             inspect_image(b"not an image")
 
     def test_upload_response_exposes_pillow_image_diagnostics(self):
