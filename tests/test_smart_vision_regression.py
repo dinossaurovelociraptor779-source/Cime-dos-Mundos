@@ -52,6 +52,11 @@ class SmartVisionRegressionTests(unittest.TestCase):
         ast.parse((ROOT / "api" / "cime.py").read_text(encoding="utf-8"))
         ast.parse((ROOT / "api" / "index.py").read_text(encoding="utf-8"))
 
+    def test_browser_ocr_reports_languages_and_server_failure_details(self):
+        self.assertIn("Preparando o leitor '+attempt.languages.join('+')+'…", self.app)
+        self.assertIn("up.upload_error?' O envio ao servidor também falhou:", self.app)
+        self.assertIn("up.upload_error?' · Falha no envio ao servidor:", self.app)
+
     def test_image_endpoint_has_diagnostics_and_result_contract(self):
         self.assertIn('"success": True', self.source)
         self.assertIn('"timing":', self.source)
