@@ -2124,7 +2124,7 @@ def parece_horario(texto):
 
 def _strip_streaming_ui_terms(texto):
     """Remove apenas rótulos conhecidos da interface, preservando o texto do título."""
-    value=str(texto or "").lower()
+    value=str(texto or "")
     value=re.sub(r"[\s_-]+"," ",value)
     for term in sorted(STREAMING_UI_TERMS,key=len,reverse=True):
         pattern=r"(?<!\w)"+re.escape(term.lower())+r"(?!\w)"
@@ -2291,6 +2291,7 @@ def preparar_imagem_para_ocr(imagem_pil):
     working=imagem_pil
     resized=None
     gray=None
+    auto=None
     contrast=None
     sharpened=None
     binary=None
@@ -2324,7 +2325,7 @@ def preparar_imagem_para_ocr(imagem_pil):
             binary.close()
         raise
     finally:
-        for temporary in (resized,gray,contrast,sharpened):
+        for temporary in (resized,gray,auto,contrast,sharpened):
             if temporary is not None:
                 try: temporary.close()
                 except Exception: pass
