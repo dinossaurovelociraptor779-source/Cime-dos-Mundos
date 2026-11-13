@@ -222,6 +222,12 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertEqual(result["provider"], "OpenAI")
         self.assertFalse(result["fallback_used"])
 
+    def test_image_upload_api_timeout_matches_vercel_function_limit(self):
+        self.assertIn("/api\\\\/(?:upload|vision\\\\/analyze|import\\\\/history)", self.app)
+        vercel = (ROOT / "vercel.json").read_text(encoding="utf-8")
+        self.assertIn('"maxDuration": 60', vercel)
+        self.assertIn("'ocr_backend_available':bool", self.server)
+
     def test_browser_ocr_uses_supported_language_array_and_core_directory(self):
         self.assertIn("T.createWorker(attempt.languages,1", self.app)
         self.assertIn("languages:['por','eng']", self.app)
