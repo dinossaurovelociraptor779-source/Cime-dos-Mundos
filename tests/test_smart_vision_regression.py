@@ -51,6 +51,11 @@ class SmartVisionRegressionTests(unittest.TestCase):
         ast.parse((ROOT / "api" / "cime.py").read_text(encoding="utf-8"))
         ast.parse((ROOT / "api" / "index.py").read_text(encoding="utf-8"))
 
+    def test_image_recognition_request_waits_within_vercel_function_limit(self):
+        self.assertIn("const isImageRecognition=method==='POST'&&/\\/api\\/upload(?:\\?|$)/.test(url)", self.app)
+        self.assertIn("timeoutMs=isImageRecognition?58000", self.app)
+        self.assertIn("up.upload_error?' · Falha no envio ao servidor:'", self.app)
+
     def test_image_endpoint_has_diagnostics_and_result_contract(self):
         self.assertIn('"success": True', self.source)
         self.assertIn('"timing":', self.source)
