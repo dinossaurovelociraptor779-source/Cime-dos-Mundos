@@ -929,7 +929,7 @@ async function api(url,opt={}){
     if(cimeGetInflight.has(key)) return cimeGetInflight.get(key);
   }
   const controller=opt.signal?null:new AbortController();
-  const timeoutMs=(method==='POST'&&/\/api\/import\/history(?:\?|$)/.test(url))||(method==='GET'&&/\/api\/library\/covers(?:\?|$)/.test(url))?55000:20000;
+  const isImageRecognition=method==='POST'&&/\/api\/upload(?:\?|$)/.test(url);const timeoutMs=isImageRecognition?58000:((method==='POST'&&/\/api\/import\/history(?:\?|$)/.test(url))||(method==='GET'&&/\/api\/library\/covers(?:\?|$)/.test(url))?55000:20000);
   const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
   const request={...opt}; if(controller) request.signal=controller.signal;
   const p=fetch(cimeApiUrl(url),request).then(async r=>{
@@ -1623,7 +1623,7 @@ if(!title){
       const seasonMatch=fallback.text.match(/(?:season|temporada|s)\s*0*(\d{1,2})\b/i);
       if(seasonMatch&&!season){season=Number(seasonMatch[1]);seasonTitle='Temporada '+season;up.season=season;up.season_title=seasonTitle;}
     }else{
-      $('ocrStatus').innerHTML='<div class="note danger">⚠️ Não consegui confirmar o título pela imagem. Você pode digitar o nome abaixo para pesquisar no catálogo.</div>';
+      $('ocrStatus').innerHTML='<div class="note danger">⚠️ Não consegui confirmar o título pela imagem.'+(up.upload_error?' O envio ao servidor também falhou: '+esc(up.upload_error):'')+' Você pode digitar o nome abaixo para pesquisar no catálogo.</div>';
       $('results').innerHTML='<div class="anime-details"><label for="cimeManualImageTitle"><b>Nome do anime, série ou filme</b></label><input id="cimeManualImageTitle" class="search" placeholder="Ex.: Jujutsu Kaisen" autocomplete="off"><button id="cimeManualImageSearch" class="btn primary" type="button" style="margin-top:10px;width:100%">🔎 Pesquisar título</button><div id="cimeManualImageFeedback" class="muted" style="margin-top:9px"></div></div>';
       $('cimeManualImageSearch').onclick=async()=>{
         const query=$('cimeManualImageTitle').value.trim(),feedback=$('cimeManualImageFeedback');
@@ -1642,7 +1642,7 @@ if(!title){
       return;
     }
   }catch(error){
-    $('ocrStatus').innerHTML='<div class="note danger">⚠️ A leitura extra não ficou disponível: '+esc(error.message)+'. Você pode pesquisar pelo nome digitando abaixo.</div>';
+    $('ocrStatus').innerHTML='<div class="note danger">⚠️ A leitura extra não ficou disponível: '+esc(error.message)+(up.upload_error?' · Falha no envio ao servidor: '+esc(up.upload_error):'')+'. Você pode pesquisar pelo nome digitando abaixo.</div>';
     $('results').innerHTML='<div class="anime-details"><label for="cimeManualImageTitle"><b>Nome do anime, série ou filme</b></label><input id="cimeManualImageTitle" class="search" placeholder="Digite o nome para pesquisar" autocomplete="off"><button id="cimeManualImageSearch" class="btn primary" type="button" style="margin-top:10px;width:100%">🔎 Pesquisar título</button><div id="cimeManualImageFeedback" class="muted" style="margin-top:9px"></div></div>';
     $('cimeManualImageSearch').onclick=async()=>{const query=$('cimeManualImageTitle').value.trim(),feedback=$('cimeManualImageFeedback');if(query.length<2){feedback.textContent='Digite pelo menos duas letras.';return;}try{const found=await api('/api/anime/search?q='+encodeURIComponent(query)+'&deep=0'),rows=Array.isArray(found.results)?found.results:[];if(!rows.length){feedback.textContent='Nenhum resultado encontrado.';return;}$('results').innerHTML='<h3 class="section-title">🏆 Resultados encontrados</h3><div class="result-list">'+rows.slice(0,8).map((item,index)=>'<div class="result '+(index===0?'primary-result':'')+'" data-manual-image-result="'+index+'"><div class="result-title">'+esc(item.title||query)+'</div><div class="result-info">'+esc(typePT(item.type||item.category||'Anime'))+'</div></div>').join('')+'</div>';$('results').querySelectorAll('[data-manual-image-result]').forEach(el=>el.onclick=()=>openDetails(rows[Number(el.dataset.manualImageResult)]));}catch(err){feedback.textContent=err.message;}};return;
   }
