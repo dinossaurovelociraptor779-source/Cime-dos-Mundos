@@ -223,7 +223,8 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertFalse(result["fallback_used"])
 
     def test_image_upload_api_timeout_matches_vercel_function_limit(self):
-        self.assertIn("/api\\\\/(?:upload|vision\\\\/analyze|import\\\\/history)", self.app)
+        self.assertIn("upload|vision", self.app)
+        self.assertIn("?55000:20000", self.app)
         vercel = (ROOT / "vercel.json").read_text(encoding="utf-8")
         self.assertIn('"maxDuration": 60', vercel)
         self.assertIn("'ocr_backend_available':bool", self.server)
