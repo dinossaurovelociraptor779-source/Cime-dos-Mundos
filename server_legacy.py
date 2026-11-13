@@ -4324,29 +4324,26 @@ class Handler(
     # ========================================================
 
     def read_body(self):
+        # O Gateway 5.0 pode ler o corpo antes para identificar requisições
+        # especiais (como login Google). Reaproveite os bytes já lidos em vez
+        # de consumir o stream novamente — essencial para uploads binários.
+        cached = getattr(self, "_cime_body_cache", None)
+        if cached is not None:
+            if len(cached) > MAX_UPLOAD_SIZE:
+                raise ValueError("Arquivo muito grande.")
+            return cached
 
         try:
-
-            length = int(
-                self.headers.get(
-                    "Content-Length",
-                    "0"
-                )
-            )
-
+            length = int(self.headers.get("Content-Length", "0") or 0)
         except Exception:
-
             length = 0
 
         if length > MAX_UPLOAD_SIZE:
+            raise ValueError("Arquivo muito grande.")
 
-            raise ValueError(
-                "Arquivo muito grande."
-            )
-
-        return self.rfile.read(
-            length
-        )
+        raw = self.rfile.read(length)
+        self._cime_body_cache = raw
+        return raw
 
 
     # ========================================================
