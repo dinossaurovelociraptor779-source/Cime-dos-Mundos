@@ -1,8 +1,11 @@
 import ast
 import unittest
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter, ImageDraw
 from pathlib import Path
+import re
+import unicodedata
+from difflib import SequenceMatcher
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -58,6 +61,80 @@ class SmartVisionRegressionTests(unittest.TestCase):
         self.assertIn("Preparando o leitor '+attempt.languages.join('+')+'…", self.app)
         self.assertIn("up.upload_error?' O envio ao servidor também falhou:", self.app)
         self.assertIn("up.upload_error?' · Falha no envio ao servidor:", self.app)
+
+    def test_ocr_preprocessing_scales_and_returns_binary_grayscale(self):
+        names = {"_otsu_threshold", "preparar_imagem_para_ocr"}
+        nodes = [node for node in self.tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
+        namespace = {
+            "Image": Image, "ImageOps": ImageOps, "ImageEnhance": ImageEnhance,
+            "ImageFilter": ImageFilter, "TypeError": TypeError, "ValueError": ValueError
+        }
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), "server_legacy.py", "exec"), namespace)
+        source = Image.new("RGB", (320, 180), (18, 18, 18))
+        ImageDraw.Draw(source).text((20, 60), "FORCA DE FOGO", fill=(255, 255, 255))
+        prepared = namespace["preparar_imagem_para_ocr"](source)
+        self.assertEqual(prepared.mode, "L")
+        self.assertEqual(prepared.size, (1280, 720))
+        self.assertLessEqual(len(set(prepared.getdata())), 2)
+        self.assertEqual(source.size, (320, 180))
+        prepared.close()
+        source.close()
+
+    def test_streaming_ui_terms_are_removed_before_fuzzy_title_matching(self):
+        wanted = {
+            "_strip_streaming_ui_terms", "normalizar_texto", "_compact",
+            "_edit_distance", "_fuzzy_alias_match", "canonical_title_from_text"
+        }
+        nodes = []
+        for node in self.tree.body:
+            if isinstance(node, ast.FunctionDef) and node.name in wanted:
+                nodes.append(node)
+            elif isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id == "TITLE_ALIASES"
+                for target in node.targets
+            ):
+                nodes.append(node)
+        namespace = {
+            "re": re, "unicodedata": unicodedata,
+            "_fuzz_ratio": lambda a, b: SequenceMatcher(None, a, b).ratio() * 100
+        }
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), "server_legacy.py", "exec"), namespace)
+        identify = namespace["canonical_title_from_text"]
+        samples = [
+            "Força de Fogo",
+            "Forca de Fogo",
+            "Forca de Fog0",
+            "Crunchyroll | Novidades | Força de Fogo | Transmissão simultânea | Mais detalhes | Áudio | Legendas | ESC"
+        ]
+        for sample in samples:
+            with self.subTest(sample=sample):
+                self.assertEqual(identify(sample), "Fire Force")
+
+    def test_ocr_candidate_quality_prioritizes_larger_title_boxes(self):
+        node = next(
+            item for item in self.tree.body
+            if isinstance(item, ast.FunctionDef) and item.name == "_candidate_quality"
+        )
+        namespace = {
+            "re": re,
+            "_strip_streaming_ui_terms": lambda value: value,
+            "normalizar_texto": lambda value: re.sub(r"[^a-z0-9 ]+", " ", str(value).lower()).strip(),
+            "parece_lixo": lambda value: False,
+            "_looks_like_sentence": lambda value: False,
+            "TITLE_SIGNAL_WORDS": set(),
+            "_context_penalty": lambda words: 0
+        }
+        exec(compile(ast.Module(body=[node], type_ignores=[]), "server_legacy.py", "exec"), namespace)
+        quality = namespace["_candidate_quality"]
+        large = quality("fire force", 80, 56, None, 0.45)
+        small = quality("fire force", 80, 18, None, 0.45)
+        self.assertGreater(large, small)
+
+    def test_ocr_pipeline_uses_adaptive_preprocessing_and_large_box_ranking(self):
+        self.assertIn("preparar_imagem_para_ocr(image)", self.source)
+        self.assertIn("assembled_ranked=sorted(", self.source)
+        self.assertIn("grouped_lines,key=_line_priority", self.source)
+        self.assertIn("STREAMING_UI_TERMS", self.source)
 
     def test_uploaded_image_inspection_reads_dimensions_channels_and_exif(self):
         function = next(
