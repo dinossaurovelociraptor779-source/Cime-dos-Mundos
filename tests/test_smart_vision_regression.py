@@ -1,5 +1,7 @@
 import ast
 import unittest
+from io import BytesIO
+from PIL import Image
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,6 +58,43 @@ class SmartVisionRegressionTests(unittest.TestCase):
         self.assertIn("Preparando o leitor '+attempt.languages.join('+')+'…", self.app)
         self.assertIn("up.upload_error?' O envio ao servidor também falhou:", self.app)
         self.assertIn("up.upload_error?' · Falha no envio ao servidor:", self.app)
+
+    def test_uploaded_image_inspection_reads_dimensions_channels_and_exif(self):
+        function = next(
+            node for node in self.tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "inspect_uploaded_image"
+        )
+        namespace = {"Image": Image, "ImageOps": __import__("PIL.ImageOps", fromlist=["ImageOps"]), "BytesIO": BytesIO, "ValueError": ValueError}
+        isolated = ast.Module(body=[function], type_ignores=[])
+        exec(compile(isolated, "server_legacy.py", "exec"), namespace)
+        inspect_image = namespace["inspect_uploaded_image"]
+
+        png = BytesIO()
+        Image.new("RGB", (320, 180), "white").save(png, format="PNG")
+        info = inspect_image(png.getvalue())
+        self.assertEqual(info["format"], "PNG")
+        self.assertEqual(info["mode"], "RGB")
+        self.assertEqual(info["width"], 320)
+        self.assertEqual(info["height"], 180)
+        self.assertEqual(info["channels"], 3)
+        self.assertEqual(info["shape_hwc"], [180, 320, 3])
+        self.assertGreater(info["bytes"], 0)
+
+        jpeg = BytesIO()
+        exif = Image.Exif()
+        exif[274] = 6
+        Image.new("RGB", (80, 40), "white").save(jpeg, format="JPEG", exif=exif)
+        rotated = inspect_image(jpeg.getvalue())
+        self.assertEqual((rotated["width"], rotated["height"]), (40, 80))
+        self.assertTrue(rotated["orientation_corrected"])
+
+        with self.assertRaisesRegex(ValueError, "imagem válida"):
+            inspect_image(b"not an image")
+
+    def test_upload_response_exposes_pillow_image_diagnostics(self):
+        self.assertIn("image_info = inspect_uploaded_image(body)", self.source)
+        self.assertIn('"image_info":image_info', self.source)
+        self.assertIn('"diagnostics":{"image":image_info,', self.source)
 
     def test_image_endpoint_has_diagnostics_and_result_contract(self):
         self.assertIn('"success": True', self.source)

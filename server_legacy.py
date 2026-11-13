@@ -286,6 +286,62 @@ def _prepare_vision_views(image_bytes, deep=False):
         views.append((name,out.getvalue()))
     return views
 
+def inspect_uploaded_image(image_bytes):
+    """Lê a imagem inteira e devolve metadados seguros para diagnóstico do upload."""
+    if not isinstance(image_bytes, (bytes, bytearray)) or not image_bytes:
+        raise ValueError("Imagem vazia ou arquivo não recebido.")
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as source:
+            image_format = str(source.format or "UNKNOWN").upper()
+            original_mode = str(source.mode or "UNKNOWN")
+            original_width, original_height = source.size
+            if original_width < 1 or original_height < 1:
+                raise ValueError("A imagem não possui dimensões válidas.")
+
+            # load() força a decodificação dos pixels: verify() sozinho não garante
+            # que todo o conteúdo possa ser efetivamente lido.
+            source.load()
+            try:
+                orientation = int(source.getexif().get(274, 1) or 1)
+            except Exception:
+                orientation = 1
+
+            oriented = ImageOps.exif_transpose(source)
+            try:
+                width, height = oriented.size
+                if width < 1 or height < 1:
+                    raise ValueError("A imagem não possui dimensões válidas.")
+                # O pipeline visual trabalha em RGB. A forma H x W x 3 é
+                # equivalente às dimensões de uma matriz de imagem com 3 canais.
+                normalized = oriented.convert("RGB")
+                try:
+                    channels = len(normalized.getbands())
+                    return {
+                        "format": image_format,
+                        "source_mode": original_mode,
+                        "mode": normalized.mode,
+                        "width": int(width),
+                        "height": int(height),
+                        "channels": int(channels),
+                        "shape_hwc": [int(height), int(width), int(channels)],
+                        "bytes": int(len(image_bytes)),
+                        "megapixels": round((width * height) / 1000000, 2),
+                        "exif_orientation": orientation,
+                        "orientation_corrected": orientation not in (0, 1),
+                        "decoder": "Pillow"
+                    }
+                finally:
+                    normalized.close()
+            finally:
+                if oriented is not source:
+                    oriented.close()
+    except ValueError:
+        raise
+    except Exception as error:
+        raise ValueError("O arquivo enviado não é uma imagem válida ou está danificado.") from error
+
+
 def openai_vision_analyze(image_bytes, ocr_hint="", deep=False):
     mode="deep" if deep else "fast"
     cached=_vision_cache_get(image_bytes, mode) if vision_configured() else None
@@ -4534,27 +4590,8 @@ class Handler(
 
                     ext = ".jpg"
 
-                # ------------------------------------------------
-                # Verificar se realmente é imagem
-                # ------------------------------------------------
-
-                try:
-
-                    teste = Image.open(
-                        BytesIO(body)
-                    )
-
-                    teste.verify()
-
-                except Exception:
-
-                    return self.send_json(
-                        {
-                            "error":
-                                "O arquivo enviado não é uma imagem válida."
-                        },
-                        400
-                    )
+                # Pillow valida os pixels, mede a imagem e corrige a orientação EXIF.
+                image_info = inspect_uploaded_image(body)
 
                 # ------------------------------------------------
                 # Nome aleatório
@@ -4923,8 +4960,8 @@ class Handler(
                 elapsed_ms=int((time.perf_counter()-t_pipeline)*1000)
                 captured_at = image_capture_datetime(body)
                 return self.send_json({
-                    "success": True,"path":"/media/"+nome,"captured_at":captured_at,"text":texto,"candidates":candidatos[:10],"canonical_title":canonical,"title":canonical,"recognized":bool(canonical),"identity_confidence":round(identity_confidence,3),"identity_verified":identity_verified,"season":season_number,"season_number":season_number,"season_title":season_title,"arc":arc_title,"cover":str((best or {}).get("cover") or vision.get("official_cover") or (research or {}).get("cover_url") or ""),"vision":vision,"research":research,
-                    "results":results[:10],"timing":{"elapsed_ms":elapsed_ms,"seconds":round(elapsed_ms/1000,2),"fast_visual_path":fast_visual,"deep_visual_path":deep_visual,"target":"rápido primeiro; profundo só quando necessário"},"diagnostics":{"steps":vision_steps,"outcome":"found" if results else ("recognized" if canonical else "not_found"),"mode":"fast_parallel_vision_then_multisource" if vision_configured() else "ocr_then_multisource","sources_tried":sorted(set(x.get("source") for x in vision_steps if x.get("source")))}
+                    "success": True,"path":"/media/"+nome,"captured_at":captured_at,"image_info":image_info,"text":texto,"candidates":candidatos[:10],"canonical_title":canonical,"title":canonical,"recognized":bool(canonical),"identity_confidence":round(identity_confidence,3),"identity_verified":identity_verified,"season":season_number,"season_number":season_number,"season_title":season_title,"arc":arc_title,"cover":str((best or {}).get("cover") or vision.get("official_cover") or (research or {}).get("cover_url") or ""),"vision":vision,"research":research,
+                    "results":results[:10],"timing":{"elapsed_ms":elapsed_ms,"seconds":round(elapsed_ms/1000,2),"fast_visual_path":fast_visual,"deep_visual_path":deep_visual,"target":"rápido primeiro; profundo só quando necessário"},"diagnostics":{"image":image_info,"steps":vision_steps,"outcome":"found" if results else ("recognized" if canonical else "not_found"),"mode":"fast_parallel_vision_then_multisource" if vision_configured() else "ocr_then_multisource","sources_tried":sorted(set(x.get("source") for x in vision_steps if x.get("source")))}
                 })
 
             except ValueError as e:
