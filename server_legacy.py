@@ -270,7 +270,8 @@ def _vision_cache_put(image_bytes,data, mode="fast"):
 
 def _prepare_vision_views(image_bytes, deep=False):
     """Fast = uma única vista inteira. Deep = inteira + regiões de título/arco."""
-    image=Image.open(BytesIO(image_bytes)).convert("RGB")
+    # Corrige a orientação EXIF antes de recortar ou enviar a imagem para a IA.
+    image=ImageOps.exif_transpose(Image.open(BytesIO(image_bytes))).convert("RGB")
     image.thumbnail((1280,1280) if not deep else (1600,1600), Image.Resampling.LANCZOS)
     w,h=image.size
     if not deep:
@@ -438,6 +439,79 @@ def gemini_vision_analyze(image_bytes, ocr_hint="", deep=False):
         return result
     except Exception as error:
         return {"configured":True,"recognized":False,"error":str(error)[:320],"model":GEMINI_VISION_MODEL,"vision_mode":mode,"provider":"Gemini"}
+
+
+def image_vision_configured():
+    """True quando pelo menos um provedor de visão está disponível."""
+    return bool(vision_configured() or gemini_vision_configured())
+
+
+def image_vision_analyze(image_bytes, ocr_hint="", deep=False):
+    """Executa visão com fallback entre provedores e conserva o melhor resultado."""
+    attempts=[]
+    errors=[]
+
+    if vision_configured():
+        try:
+            result=openai_vision_analyze(image_bytes,ocr_hint,deep)
+            if isinstance(result,dict):
+                result=dict(result)
+                result.setdefault("provider","OpenAI")
+                attempts.append(("OpenAI",result))
+                try: confidence=float(result.get("confidence") or 0)
+                except Exception: confidence=0.0
+                # Uma identificação muito forte não precisa pagar uma segunda chamada.
+                if result.get("recognized") and confidence>=0.90:
+                    result["providers_tried"]=["OpenAI"]
+                    result["fallback_used"]=False
+                    return result
+                if result.get("error"):
+                    errors.append("OpenAI: "+str(result["error"])[:240])
+            else:
+                errors.append("OpenAI: resposta inválida.")
+        except Exception as error:
+            errors.append("OpenAI: "+str(error)[:240])
+
+    if gemini_vision_configured():
+        try:
+            result=gemini_vision_analyze(image_bytes,ocr_hint,deep)
+            if isinstance(result,dict):
+                result=dict(result)
+                result.setdefault("provider","Gemini")
+                attempts.append(("Gemini",result))
+                if result.get("error"):
+                    errors.append("Gemini: "+str(result["error"])[:240])
+            else:
+                errors.append("Gemini: resposta inválida.")
+        except Exception as error:
+            errors.append("Gemini: "+str(error)[:240])
+
+    if not attempts:
+        message="Nenhum provedor de IA visual está configurado nesta implantação."
+        if errors:
+            message+=" "+ " | ".join(errors[:2])
+        return {
+            "configured":image_vision_configured(),
+            "recognized":False,
+            "error":message,
+            "providers_tried":[],
+            "vision_mode":"deep" if deep else "fast"
+        }
+
+    def rank(entry):
+        result=entry[1]
+        try: confidence=max(0.0,min(1.0,float(result.get("confidence") or 0)))
+        except Exception: confidence=0.0
+        return (1 if result.get("recognized") else 0,confidence)
+
+    provider,best=max(attempts,key=rank)
+    best=dict(best)
+    best.setdefault("provider",provider)
+    best["providers_tried"]=[name for name,_ in attempts]
+    best["fallback_used"]=len(attempts)>1 or (provider=="Gemini" and bool(errors))
+    if errors:
+        best["fallback_errors"]=errors[:3]
+    return best
 
 
 def is_trace_moe_screenshot_candidate(image_bytes):
@@ -3819,7 +3893,22 @@ class Handler(
         # ----------------------------------------------------
 
         if path == "/api/vision/status":
-            return self.send_json({"configured":vision_configured(),"vision_model":OPENAI_VISION_MODEL if vision_configured() else "","research_model":OPENAI_RESEARCH_MODEL if vision_configured() else "","provider":"OpenAI Vision + Web Search" if vision_configured() else "OCR local","cache":True})
+            openai_ready=vision_configured()
+            gemini_ready=gemini_vision_configured()
+            providers=[]
+            if openai_ready: providers.append("OpenAI Vision")
+            if gemini_ready: providers.append("Gemini Vision")
+            return self.send_json({
+                "configured":bool(providers),
+                "openai_configured":openai_ready,
+                "gemini_configured":gemini_ready,
+                "vision_model":OPENAI_VISION_MODEL if openai_ready else (GEMINI_VISION_MODEL if gemini_ready else ""),
+                "research_model":OPENAI_RESEARCH_MODEL if openai_ready else "",
+                "provider":" + ".join(providers) if providers else "OCR Tesseract.js no navegador",
+                "server_ocr_available":bool(TESSERACT_AVAILABLE),
+                "browser_ocr_fallback":True,
+                "cache":True
+            })
 
         if path == "/api/status":
 
@@ -4372,12 +4461,10 @@ class Handler(
             try:
                 body=self.read_body()
                 if not body: return self.send_json({"error":"Imagem vazia."},400)
-                if vision_configured():
-                    result=openai_vision_analyze(body,self.headers.get("X-OCR-Hint",""))
-                elif gemini_vision_configured():
-                    result=gemini_vision_analyze(body,self.headers.get("X-OCR-Hint",""))
+                if image_vision_configured():
+                    result=image_vision_analyze(body,self.headers.get("X-OCR-Hint",""))
                 else:
-                    result={"configured":False,"recognized":False,"error":"Configure OPENAI_API_KEY ou GEMINI_API_KEY."}
+                    result={"configured":False,"recognized":False,"error":"IA visual não configurada; será usado o OCR de reserva no navegador."}
                 return self.send_json(result,200 if result.get("configured") else 503)
             except Exception as e:
                 return self.send_json({"configured":vision_configured(),"recognized":False,"error":str(e)},500)
@@ -4501,12 +4588,10 @@ class Handler(
                 t_pipeline=time.perf_counter()
                 deep_visual=False
                 anchor_text=""
-                if vision_configured():
-                    vision=openai_vision_analyze(body,"",False)
-                elif gemini_vision_configured():
-                    vision=gemini_vision_analyze(body,"",False)
+                if image_vision_configured():
+                    vision=image_vision_analyze(body,"",False)
                 else:
-                    vision={"configured":False,"recognized":False,"title_raw":"","aliases":[],"category":"","season":None,"season_title":"","arc":"","confidence":0}
+                    vision={"configured":False,"recognized":False,"title_raw":"","aliases":[],"category":"","season":None,"season_title":"","arc":"","confidence":0,"reason":"Nenhum provedor de IA visual configurado; será usado OCR + catálogo."}
 
                 # Sem chave de IA, ou quando a visão não reconhece, procura a cena
                 # no catálogo visual antes de executar OCR pesado no celular.
@@ -4521,20 +4606,14 @@ class Handler(
                 if not vision.get("recognized"):
                     anchor_text=read_image_anchor_text(body)
 
-                # Visão profunda só entra depois da busca de cena e do OCR auxiliar.
-                if gemini_vision_configured() and not vision.get("recognized"):
-                    deep_vision=gemini_vision_analyze(body,anchor_text,True)
-                    if deep_vision.get("recognized") or float(deep_vision.get("confidence",0) or 0)>float(vision.get("confidence",0) or 0):
-                        vision=deep_vision
-                        deep_visual=True
-
+                # A etapa profunda usa o mesmo fallback multi-provedor do caminho rápido.
                 vconf=float(vision.get("confidence",0) or 0) if isinstance(vision,dict) else 0.0
                 fast_visual=bool(vision.get("recognized")) and vconf>=0.86
                 # Só pagamos o custo da análise profunda quando o caminho rápido não é confiável.
-                need_deep = vision_configured() and (not fast_visual or not str(vision.get("title_raw") or vision.get("title") or "").strip())
+                need_deep = image_vision_configured() and (not fast_visual or not str(vision.get("title_raw") or vision.get("title") or "").strip())
                 if need_deep:
                     deep_hint=" ".join(str(x) for x in [vision.get("title_raw") or "", *(vision.get("aliases") or []), anchor_text] if str(x).strip())
-                    deep_vision=openai_vision_analyze(body, deep_hint[:1800], True)
+                    deep_vision=image_vision_analyze(body, deep_hint[:1800], True)
                     if deep_vision.get("recognized") or float(deep_vision.get("confidence",0) or 0)>vconf:
                         vision=deep_vision
                         deep_visual=True

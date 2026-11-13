@@ -929,7 +929,7 @@ async function api(url,opt={}){
     if(cimeGetInflight.has(key)) return cimeGetInflight.get(key);
   }
   const controller=opt.signal?null:new AbortController();
-  const timeoutMs=(method==='POST'&&/\/api\/import\/history(?:\?|$)/.test(url))||(method==='GET'&&/\/api\/library\/covers(?:\?|$)/.test(url))?55000:20000;
+  const timeoutMs=(method==='POST'&&/\/api\/(?:upload|vision\/analyze|import\/history)(?:\?|$)/.test(url))||(method==='GET'&&/\/api\/library\/covers(?:\?|$)/.test(url))?55000:20000;
   const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
   const request={...opt}; if(controller) request.signal=controller.signal;
   const p=fetch(cimeApiUrl(url),request).then(async r=>{
@@ -1372,7 +1372,7 @@ $("grid").onclick=handleCardInteraction;$("continueGrid").onclick=handleCardInte
 $("grid").addEventListener('touchend',e=>{e.preventDefault();handleCardInteraction(e)},{passive:false});$("continueGrid").addEventListener('touchend',e=>{e.preventDefault();handleCardInteraction(e)},{passive:false});
 $("continueGrid").onclick=$("grid").onclick;
 $("addImage").onclick=()=>openDialog("imageDlg");$("closeImage").onclick=()=>closeDialog("imageDlg");$("uploadArea").onclick=()=>$("imageInput").click();
-async function compressRecognitionImage(file){try{const bmp=await createImageBitmap(file);const max=1280;const scale=Math.min(1,max/Math.max(bmp.width,bmp.height));const w=Math.max(1,Math.round(bmp.width*scale)),h=Math.max(1,Math.round(bmp.height*scale));const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d',{alpha:false});ctx.drawImage(bmp,0,0,w,h);return await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));}catch(_){return file}}
+async function compressRecognitionImage(file){try{const bmp=await createImageBitmap(file);try{const max=1800;const scale=Math.min(1,max/Math.max(bmp.width,bmp.height));const w=Math.max(1,Math.round(bmp.width*scale)),h=Math.max(1,Math.round(bmp.height*scale));const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d',{alpha:false});if(!ctx)throw new Error('O navegador não conseguiu preparar a imagem.');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(bmp,0,0,w,h);const blob=await new Promise((resolve,reject)=>c.toBlob(value=>value&&value.size?resolve(value):reject(new Error('Não foi possível compactar a imagem.')),'image/jpeg',0.88));return blob;}finally{bmp.close?.();}}catch(_){return file}}
 async function cimeLoadTesseractBrowser(){
   if(window.Tesseract)return window.Tesseract;
   if(window.__cimeTesseractLoad)return window.__cimeTesseractLoad;
@@ -1403,19 +1403,21 @@ async function cimeLoadTesseractBrowser(){
 async function cimeCreateBrowserOcrWorker(T){
   const primary=window.__cimeTesseractCdn||'https://cdn.jsdelivr.net/npm';
   const secondary=primary.includes('unpkg.com')?'https://cdn.jsdelivr.net/npm':'https://unpkg.com';
+  // Tesseract.js recebe vários idiomas como array, não como a string "eng+por".
   const attempts=[
-    {cdn:primary,language:'eng+por',timeout:45000},
-    {cdn:primary,language:'eng',timeout:28000},
-    {cdn:secondary,language:'eng+por',timeout:45000},
-    {cdn:secondary,language:'eng',timeout:28000}
+    {cdn:primary,languages:['por','eng'],timeout:45000},
+    {cdn:primary,languages:['eng'],timeout:28000},
+    {cdn:secondary,languages:['por','eng'],timeout:45000},
+    {cdn:secondary,languages:['eng'],timeout:28000}
   ];
   let lastError=null;
   for(const attempt of attempts){
     let pending=null,timer=null;
     try{
-      pending=T.createWorker(attempt.language,1,{
+      pending=T.createWorker(attempt.languages,1,{
         workerPath:attempt.cdn+'/tesseract.js@5/dist/worker.min.js',
-        corePath:attempt.cdn+'/tesseract.js-core@5/tesseract-core.wasm.js',
+        // A pasta contém as quatro variantes WASM; Tesseract escolhe a compatível com o aparelho.
+        corePath:attempt.cdn+'/tesseract.js-core@5',
         langPath:'https://tessdata.projectnaptha.com/4.0.0',
         gzip:true,
         logger:message=>{
@@ -1424,14 +1426,14 @@ async function cimeCreateBrowserOcrWorker(T){
           if(message.status==='recognizing text')
             report('Lendo '+(window.__cimeOcrStage||'a imagem')+': '+Math.round((message.progress||0)*100)+'%');
           else if(/loading language|initializing api|loading tesseract core/i.test(String(message.status||'')))
-            report('Preparando o leitor '+attempt.language+'…');
+            report('Preparando o leitor '+attempt.languages.join('+')+'…');
         }
       });
       const worker=await Promise.race([
         pending,
-        new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('O motor '+attempt.language+' não iniciou a tempo.')),attempt.timeout);})
+        new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('O motor '+attempt.languages.join('+')+' não iniciou a tempo.')),attempt.timeout);})
       ]);
-      window.__cimeOcrLanguage=attempt.language;
+      window.__cimeOcrLanguage=attempt.languages.join('+');
       window.__cimeTesseractActiveCdn=attempt.cdn;
       return worker;
     }catch(error){
@@ -1623,7 +1625,7 @@ if(!title){
       const seasonMatch=fallback.text.match(/(?:season|temporada|s)\s*0*(\d{1,2})\b/i);
       if(seasonMatch&&!season){season=Number(seasonMatch[1]);seasonTitle='Temporada '+season;up.season=season;up.season_title=seasonTitle;}
     }else{
-      $('ocrStatus').innerHTML='<div class="note danger">⚠️ Não consegui confirmar o título pela imagem. Você pode digitar o nome abaixo para pesquisar no catálogo.</div>';
+      $('ocrStatus').innerHTML='<div class="note danger">⚠️ Não consegui confirmar o título pela imagem.'+(up.upload_error?' O envio ao servidor também falhou: '+esc(up.upload_error):'')+' Você pode digitar o nome abaixo para pesquisar no catálogo.</div>';
       $('results').innerHTML='<div class="anime-details"><label for="cimeManualImageTitle"><b>Nome do anime, série ou filme</b></label><input id="cimeManualImageTitle" class="search" placeholder="Ex.: Jujutsu Kaisen" autocomplete="off"><button id="cimeManualImageSearch" class="btn primary" type="button" style="margin-top:10px;width:100%">🔎 Pesquisar título</button><div id="cimeManualImageFeedback" class="muted" style="margin-top:9px"></div></div>';
       $('cimeManualImageSearch').onclick=async()=>{
         const query=$('cimeManualImageTitle').value.trim(),feedback=$('cimeManualImageFeedback');
@@ -1642,7 +1644,7 @@ if(!title){
       return;
     }
   }catch(error){
-    $('ocrStatus').innerHTML='<div class="note danger">⚠️ A leitura extra não ficou disponível: '+esc(error.message)+'. Você pode pesquisar pelo nome digitando abaixo.</div>';
+    $('ocrStatus').innerHTML='<div class="note danger">⚠️ A leitura extra não ficou disponível: '+esc(error.message)+(up.upload_error?' · Falha no envio ao servidor: '+esc(up.upload_error):'')+'. Você pode pesquisar pelo nome digitando abaixo.</div>';
     $('results').innerHTML='<div class="anime-details"><label for="cimeManualImageTitle"><b>Nome do anime, série ou filme</b></label><input id="cimeManualImageTitle" class="search" placeholder="Digite o nome para pesquisar" autocomplete="off"><button id="cimeManualImageSearch" class="btn primary" type="button" style="margin-top:10px;width:100%">🔎 Pesquisar título</button><div id="cimeManualImageFeedback" class="muted" style="margin-top:9px"></div></div>';
     $('cimeManualImageSearch').onclick=async()=>{const query=$('cimeManualImageTitle').value.trim(),feedback=$('cimeManualImageFeedback');if(query.length<2){feedback.textContent='Digite pelo menos duas letras.';return;}try{const found=await api('/api/anime/search?q='+encodeURIComponent(query)+'&deep=0'),rows=Array.isArray(found.results)?found.results:[];if(!rows.length){feedback.textContent='Nenhum resultado encontrado.';return;}$('results').innerHTML='<h3 class="section-title">🏆 Resultados encontrados</h3><div class="result-list">'+rows.slice(0,8).map((item,index)=>'<div class="result '+(index===0?'primary-result':'')+'" data-manual-image-result="'+index+'"><div class="result-title">'+esc(item.title||query)+'</div><div class="result-info">'+esc(typePT(item.type||item.category||'Anime'))+'</div></div>').join('')+'</div>';$('results').querySelectorAll('[data-manual-image-result]').forEach(el=>el.onclick=()=>openDetails(rows[Number(el.dataset.manualImageResult)]));}catch(err){feedback.textContent=err.message;}};return;
   }
@@ -1675,7 +1677,7 @@ $("animeDetails").onclick=e=>{
  }catch(err){console.error(err);showToast('❌ Não foi possível abrir os dados encontrados. Tente identificar novamente.');}
 };
 
-async function loadVisionStatus(){try{const v=await api('/api/vision/status'),c=v.catalog||{},base=v.configured?('🟢 '+(v.provider||v.model||'IA visual ativa')):'🟡 OCR + catálogo pessoal · IA visual não configurada';const limits=v.configured?'':' · capas por texto/catálogo; cenas por busca visual';if($('visionStatus'))$('visionStatus').textContent=base+limits+' · Base: '+Number(c.netflix||0)+' Netflix / '+Number(c.tomato||0)+' Tomato / '+Number(c.library||0)+' título(s)';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR do aparelho + catálogo pessoal';}}
+async function loadVisionStatus(){try{const v=await api('/api/vision/status'),c=v.catalog||{};const base=v.configured?('🟢 '+(v.provider||'IA visual ativa')):'🟡 IA visual não configurada';const ocr=(v.server_ocr_available||v.ocr_backend_available)?'OCR do servidor + navegador':'OCR Tesseract.js no navegador';if($('visionStatus'))$('visionStatus').textContent=base+' · '+ocr+' · Base: '+Number(c.netflix||0)+' Netflix / '+Number(c.tomato||0)+' Tomato / '+Number(c.library||0)+' título(s)';}catch(e){if($('visionStatus'))$('visionStatus').textContent='🔎 OCR Tesseract.js no navegador + catálogo';}}
 
 let cimeViewHistory=[];
 function showView(view,skipHistory=false){

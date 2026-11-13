@@ -17,6 +17,7 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         cls.gateway = (ROOT / "api" / "cime.py").read_text(encoding="utf-8")
         cls.worker = (ROOT / "service-worker.js").read_text(encoding="utf-8")
         cls.server = (ROOT / "server_v5.py").read_text(encoding="utf-8")
+        cls.legacy = (ROOT / "server_legacy.py").read_text(encoding="utf-8")
 
     def test_frontend_uses_canonical_api_paths(self):
         start = self.index.index("function cimeBackendPath(path){")
@@ -141,6 +142,112 @@ class VercelRoutingRegressionTests(unittest.TestCase):
             "CIME_PUBLIC_URL": "https://ignored-in-local.test",
         }, clear=False):
             self.assertEqual(origin(), "http://localhost:8790")
+
+    def test_legacy_vision_module_parses(self):
+        ast.parse(self.legacy)
+
+    def test_image_vision_falls_back_to_gemini_when_openai_fails(self):
+        tree = ast.parse(self.legacy)
+        function = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "image_vision_analyze"
+        )
+        calls = []
+
+        def openai_result(*args):
+            calls.append("OpenAI")
+            return {
+                "configured": True,
+                "recognized": False,
+                "confidence": 0.0,
+                "error": "OpenAI Vision HTTP 503",
+                "provider": "OpenAI",
+            }
+
+        def gemini_result(*args):
+            calls.append("Gemini")
+            return {
+                "configured": True,
+                "recognized": True,
+                "title": "Your Name.",
+                "confidence": 0.94,
+                "provider": "Gemini",
+            }
+
+        namespace = {
+            "vision_configured": lambda: True,
+            "gemini_vision_configured": lambda: True,
+            "openai_vision_analyze": openai_result,
+            "gemini_vision_analyze": gemini_result,
+        }
+        isolated = ast.Module(body=[function], type_ignores=[])
+        exec(compile(isolated, "server_legacy.py", "exec"), namespace)
+        result = namespace["image_vision_analyze"](b"image-bytes", "Your Name", False)
+
+        self.assertEqual(calls, ["OpenAI", "Gemini"])
+        self.assertTrue(result["recognized"])
+        self.assertEqual(result["title"], "Your Name.")
+        self.assertEqual(result["provider"], "Gemini")
+        self.assertTrue(result["fallback_used"])
+        self.assertIn("OpenAI Vision HTTP 503", result["fallback_errors"][0])
+
+    def test_image_vision_skips_second_provider_for_a_strong_match(self):
+        tree = ast.parse(self.legacy)
+        function = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "image_vision_analyze"
+        )
+        calls = []
+
+        def openai_result(*args):
+            calls.append("OpenAI")
+            return {
+                "configured": True,
+                "recognized": True,
+                "title": "Cowboy Bebop",
+                "confidence": 0.96,
+            }
+
+        namespace = {
+            "vision_configured": lambda: True,
+            "gemini_vision_configured": lambda: True,
+            "openai_vision_analyze": openai_result,
+            "gemini_vision_analyze": lambda *args: self.fail("Gemini não deve ser chamado"),
+        }
+        isolated = ast.Module(body=[function], type_ignores=[])
+        exec(compile(isolated, "server_legacy.py", "exec"), namespace)
+        result = namespace["image_vision_analyze"](b"image-bytes")
+
+        self.assertEqual(calls, ["OpenAI"])
+        self.assertEqual(result["provider"], "OpenAI")
+        self.assertFalse(result["fallback_used"])
+
+    def test_service_worker_invalidates_old_shell_after_image_reader_update(self):
+        self.assertIn("cime5-shell-v66-image-ocr", self.worker)
+        self.assertNotIn("cime5-shell-v65-offline-library", self.worker)
+        self.assertIn("'/app.html'", self.worker)
+
+    def test_image_upload_api_timeout_matches_vercel_function_limit(self):
+        self.assertIn("upload|vision", self.app)
+        self.assertIn("?55000:20000", self.app)
+        vercel = (ROOT / "vercel.json").read_text(encoding="utf-8")
+        self.assertIn('"maxDuration": 60', vercel)
+        self.assertIn("'ocr_backend_available':bool", self.server)
+
+    def test_browser_ocr_uses_supported_language_array_and_core_directory(self):
+        self.assertIn("T.createWorker(attempt.languages,1", self.app)
+        self.assertIn("languages:['por','eng']", self.app)
+        self.assertIn("corePath:attempt.cdn+'/tesseract.js-core@5'", self.app)
+        self.assertNotIn("language:'eng+por'", self.app)
+
+    def test_visual_pipeline_normalizes_exif_and_reports_both_providers(self):
+        self.assertIn(
+            "ImageOps.exif_transpose(Image.open(BytesIO(image_bytes))).convert(\"RGB\")",
+            self.legacy,
+        )
+        self.assertIn('"openai_configured":openai_ready', self.legacy)
+        self.assertIn('"gemini_configured":gemini_ready', self.legacy)
+        self.assertIn("image_vision_analyze(body,self.headers.get(\"X-OCR-Hint\",\"\"))", self.legacy)
 
 if __name__ == "__main__":
     unittest.main()

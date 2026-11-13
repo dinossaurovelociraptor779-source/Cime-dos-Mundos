@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cime5-shell-v65-offline-library';
+const CACHE_NAME = 'cime5-shell-v66-image-ocr';
 const IMAGE_CACHE = 'cime5-images-v1';
 const REQUIRED_SHELL = ['/', '/index.html', '/app.html', '/manifest.json'];
 const OPTIONAL_SHELL = ['/cime-logo.svg'];
