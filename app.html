@@ -1431,7 +1431,7 @@ async function cimeCreateBrowserOcrWorker(T){
       });
       const worker=await Promise.race([
         pending,
-        new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('O motor '+attempt.language+' não iniciou a tempo.')),attempt.timeout);})
+        new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('O motor '+attempt.languages.join('+')+' não iniciou a tempo.')),attempt.timeout);})
       ]);
       window.__cimeOcrLanguage=attempt.languages.join('+');
       window.__cimeTesseractActiveCdn=attempt.cdn;
