@@ -222,6 +222,11 @@ class VercelRoutingRegressionTests(unittest.TestCase):
         self.assertEqual(result["provider"], "OpenAI")
         self.assertFalse(result["fallback_used"])
 
+    def test_service_worker_invalidates_old_shell_after_image_reader_update(self):
+        self.assertIn("cime5-shell-v66-image-ocr", self.worker)
+        self.assertNotIn("cime5-shell-v65-offline-library", self.worker)
+        self.assertIn("'/app.html'", self.worker)
+
     def test_image_upload_api_timeout_matches_vercel_function_limit(self):
         self.assertIn("upload|vision", self.app)
         self.assertIn("?55000:20000", self.app)
