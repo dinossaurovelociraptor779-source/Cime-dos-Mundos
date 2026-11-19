@@ -438,7 +438,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
     <button class="btn" id="discoverTab">🔎 Pesquisar / Descobrir</button>
     <button class="btn" id="add">＋ Adicionar</button>
     <button class="btn" id="addImage">📷 Identificar por imagem</button>
-    <button class="btn" id="refreshCovers" title="Atualizar capas de filmes, séries, animes e temporadas">🖼️ Atualizar capas</button><button class="btn" id="enrichLibrary" title="Pesquisar nomes confirmados e adicionar sinopses curtas sem alterar avaliações">🔎 Pesquisar nomes e sinopses</button>
+    <button class="btn" id="refreshCovers" title="Atualizar capas de filmes, séries, animes e temporadas">🖼️ Atualizar capas</button><button class="btn" id="enrichLibrary" title="Completar gêneros, sinopses e outros dados sem alterar avaliações">🔎 Completar informações</button>
     <button class="btn" id="openHistoryImport" title="Importar histórico da Netflix ou Tomato">📥 Histórico Netflix / Tomato</button>
     <button class="btn" id="statsTab">📊 Estatísticas</button><button class="btn" id="settingsBtn">⚙️ Configurações</button>
   </div>
@@ -465,7 +465,7 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   <div class="library-heading"><div><div class="tiny">SUA COLEÇÃO</div><h2 style="margin:2px 0">📚 Minha biblioteca</h2></div><div class="library-heading-note">Tudo o que você acompanha, em um só lugar.</div></div>
   <div class="info-actions" aria-label="Explicação das ações da biblioteca">
     <div class="action-help"><b><span class="help-icon">🖼️</span>Atualizar capas</b>Procura capas melhores para os títulos e também para as temporadas. Não deve substituir uma capa manual correta por uma busca pior.</div>
-    <div class="action-help"><b><span class="help-icon">🔎</span>Pesquisar nomes e sinopses</b>Confere os títulos com fontes públicas e acrescenta uma sinopse curta quando estiver vazia. Suas notas e avaliações são preservadas.</div>
+    <div class="action-help"><b><span class="help-icon">🔎</span>Completar informações</b>Pesquisa em fontes públicas os gêneros, sinopses, nomes e outros dados que estiverem faltando. Suas notas e avaliações pessoais são preservadas.</div>
   </div>
   <div class="toolbar compact-toolbar">
     <input class="search library-search" id="librarySearch" placeholder="🔎 Buscar na sua biblioteca..." autocomplete="off">
@@ -566,8 +566,8 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
   <div id="netflixPreview" class="file-preview"></div></section>
   <section class="import-card tomato-card"><div class="import-card-top"><div class="source-icon tomato">🍅</div><div><div class="source-title">Tomato</div><div class="source-sub">Histórico exportado do Tomato</div></div><span class="source-badge neutral">FLEXÍVEL</span></div>
   <div class="import-steps"><span>1</span> Exporte o histórico no Tomato e escolha o arquivo salvo.</div>
-  <div class="import-help">Aceita CSV, JSON, TXT e HTML do Tomato. Também aceita o <b>JSON de avaliações do GPT</b> com notas, temporadas e opiniões completas.</div>
-  <label class="file-drop" for="tomatoHistoryFile"><span>🍅</span><b>Selecionar arquivo do Tomato ou avaliações GPT</b><small>CSV · JSON · TXT · HTML · até 50 MB</small><em id="tomatoFileName">Nenhum arquivo selecionado</em></label><input id="tomatoHistoryFile" type="file" accept=".csv,.json,.txt,.html,.htm" hidden>
+  <div class="import-help">Aceita CSV, JSON, TXT e HTML do Tomato. Também aceita arquivos JSON de avaliações com notas, temporadas e opiniões.</div>
+  <label class="file-drop" for="tomatoHistoryFile"><span>🍅</span><b>Selecionar arquivo do Tomato ou avaliações</b><small>CSV · JSON · TXT · HTML · até 50 MB</small><em id="tomatoFileName">Nenhum arquivo selecionado</em></label><input id="tomatoHistoryFile" type="file" accept=".csv,.json,.txt,.html,.htm" hidden>
   <div id="tomatoPreview" class="file-preview"></div></section>
 </div>
 <div class="import-safety"><span>🛡️</span><div><b>Importação segura</b><div>O Cime não apaga sua biblioteca. Repetidos são ignorados e as temporadas são organizadas automaticamente.</div></div></div>
@@ -622,6 +622,13 @@ async function c5me(){try{const d=window.cimeSessionUser;if(d){document.getEleme
 })();</script><script>
 let titles=[]; let selectedCover=""; let selectedMeta={}; const $=id=>document.getElementById(id);
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+function cleanReviewNotes(value){
+  return String(value||'')
+    .replace(/\[HISTÓRICO GPT\s*-\s*CIME 5\.0\]/gi,'')
+    .replace(/^\s*Opinião completa:\s*/gim,'')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
+}
 function datePT(v){const s=String(v||'').trim();if(!s)return '';if(/^\d{8}$/.test(s))return s.slice(0,2)+'/'+s.slice(2,4)+'/'+s.slice(4);if(/^\d{2}\d{2}\d{4}$/.test(s))return s.slice(0,2)+'/'+s.slice(2,4)+'/'+s.slice(4);return s;}
 function statusPT(s){return ({FINISHED:"Concluído",RELEASING:"Em lançamento",NOT_YET_RELEASED:"Ainda não lançado",CANCELLED:"Cancelado",HIATUS:"Em pausa",AGUARDANDO:"Aguardando próxima temporada",Aguardando:"Aguardando próxima temporada"}[String(s||"").toUpperCase()]||s||"");}
 function seasonPT(s){return ({WINTER:"Inverno",SPRING:"Primavera",SUMMER:"Verão",FALL:"Outono"}[String(s||"").toUpperCase()]||s||"");}
@@ -837,7 +844,7 @@ async function importHistoryFiles(){
     const errors=results.reduce((a,r)=>a+Number(r.errors||0),0);
     let gptSummary='';
     if(gptReviewRaw){
-      setHistoryImportProgress('Importando notas, temporadas e opiniões do GPT…',76);
+      setHistoryImportProgress('Importando notas, temporadas e avaliações…',76);
       const reviewResult=await importReviewRecords({size:new Blob([gptReviewRaw]).size,text:async()=>gptReviewRaw});
       gptSummary=' '+reviewResult.created+' avaliação(ões) adicionada(s), '+reviewResult.updated+' atualizada(s) e '+reviewResult.failed+' com erro.';
     }
@@ -1058,7 +1065,7 @@ async function patch(id,data,options={}){await api('/api/titles/'+id,{method:'PU
 function franchiseCover(x){const covers=seasonCovers(x);const fallback=x.cover||"";const all=Array.from(new Set([...(covers||[]),...(fallback?[fallback]:[])].filter(Boolean))).slice(0,3);const fav=`<button class="fav ${x.favorite?'active':''}" data-fav="${x.id}" title="Favoritar">${x.favorite?'❤️':'🤍'}</button>`;if(!all.length)return `<div class="cover placeholder">🎬${fav}</div>`;if(all.length===1)return `<div class="cover"><img loading="lazy" decoding="async" src="${esc(all[0])}" onerror="this.parentElement.classList.add('placeholder');this.remove()" alt="Capa de ${esc(x.name)}">${fav}</div>`;return `<div class="cover collage c${all.length}">${all.map(u=>`<img loading="lazy" decoding="async" src="${esc(u)}" onerror="this.remove()" alt="Capa de ${esc(x.name)}">`).join('')}${fav}</div>`}
 function renderSeasonEditor(x){const ss=seasonEntries(x);if(!$('seasonEditor'))return;const photos=Array.isArray(x.local_cover_photos)?x.local_cover_photos:[];const list=ss.length?ss:[{season:x.current_season||1,episodes:x.episodes||0,score:x.rating||'',status:x.status||'Quero assistir'}];$('seasonEditor').innerHTML=list.map(e=>{const n=Number(e.season||1);const cover=e.cover||photos.find(p=>Number(p.season||0)===n)?.path||'';return `<div class="season-edit-row" data-season="${n}" data-current-episode="${Number(e.current_episode||0)}"><div style="display:flex;align-items:center;gap:8px;min-width:74px"><b>T${n}</b>${cover?`<img src="${esc(cover)}" style="width:34px;height:48px;object-fit:cover;border-radius:6px" loading="lazy" decoding="async" onerror="this.style.display='none'">`:''}</div><input data-season-episodes type="number" min="0" value="${e.episodes??''}" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" value="${e.score??''}" placeholder="Sua nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option ${String(e.status||'Quero assistir')===v?'selected':''}>${v}</option>`).join('')}</select><span class="muted" style="font-size:11px">${cover?'📸 capa OK':'📸 sem capa'}</span><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button></div>`}).join('')+`<div class="note" style="margin-top:8px">⭐ Cada temporada tem sua própria nota/status. 📸 Capas enviadas pela identificação podem ficar associadas à temporada.</div><button type="button" class="btn" id="addSeasonRow">＋ Adicionar temporada</button>`;$('seasonEditor').querySelector('#addSeasonRow').onclick=()=>{const nums=Array.from($('seasonEditor').querySelectorAll('.season-edit-row')).map(r=>Number(r.dataset.season||0));const n=(Math.max(0,...nums)+1)||1;const row=document.createElement('div');row.className='season-edit-row';row.dataset.season=n;row.dataset.currentEpisode='0';row.innerHTML=`<div style="min-width:74px"><b>T${n}</b></div><input data-season-episodes type="number" min="0" placeholder="Episódios"><input data-season-score type="number" min="0" max="10" step="0.1" placeholder="Sua nota"><select data-season-status>${['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'].map(v=>`<option>${v}</option>`).join('')}</select><span class="muted" style="font-size:11px">📸 sem capa</span><button type="button" class="btn mini" data-remove-season title="Remover temporada">🗑️</button>`;$('seasonEditor').insertBefore(row,$('addSeasonRow'));};$('seasonEditor').onclick=e=>{const b=e.target.closest('[data-remove-season]');if(b){const rows=$('seasonEditor').querySelectorAll('.season-edit-row');if(rows.length>1)b.closest('.season-edit-row')?.remove();else showToast('A série precisa ter pelo menos uma temporada.');}};}
 function readSeasonEditor(){return Array.from(document.querySelectorAll('.season-edit-row')).map(r=>({season:Number(r.dataset.season||1),episodes:r.querySelector('[data-season-episodes]')?.value||'',score:r.querySelector('[data-season-score]')?.value||'',status:r.querySelector('[data-season-status]')?.value||'Quero assistir',current_episode:Number(r.dataset.currentEpisode||0)}))}
-function openEdit(x){selectedCover=x.cover||'';manualCoverFile=null;if($('manualCoverInput'))$('manualCoverInput').value='';updateManualCoverPreview(selectedCover);selectedMeta={...x};$('save').dataset.id=x.id||"";$('name').value=x.name||"";$('category').value=x.category||"Anime";$('status').value=x.status||"Quero assistir";$('rating').value=x.rating??"";$('reviewNotes').value=x.notes||"";$('episodes').value=x.episodes??x.total_episodes??"";$('currentEpisode').value=x.current_episode??0;$('currentSeason').value=x.current_season??1;$('totalSeasons').value=x.total_seasons??"";$('start').value=x.start_date||"";$('end').value=x.end_date||"";$('favorite').value=x.favorite?"1":"0";$('genresInput').value=genresArr(x).map(g=>genrePT(g)).join(', ');renderSeasonEditor(x);openDialog('dlg')}
+function openEdit(x){selectedCover=x.cover||'';manualCoverFile=null;if($('manualCoverInput'))$('manualCoverInput').value='';updateManualCoverPreview(selectedCover);selectedMeta={...x};$('save').dataset.id=x.id||"";$('name').value=x.name||"";$('category').value=x.category||"Anime";$('status').value=x.status||"Quero assistir";$('rating').value=x.rating??"";$('reviewNotes').value=cleanReviewNotes(x.notes||"");$('episodes').value=x.episodes??x.total_episodes??"";$('currentEpisode').value=x.current_episode??0;$('currentSeason').value=x.current_season??1;$('totalSeasons').value=x.total_seasons??"";$('start').value=x.start_date||"";$('end').value=x.end_date||"";$('favorite').value=x.favorite?"1":"0";$('genresInput').value=genresArr(x).map(g=>genrePT(g)).join(', ');renderSeasonEditor(x);openDialog('dlg')}
 const cimeUseStore=new Map();
 let cimeUseSeq=0;
 function openDetails(a){
@@ -1113,7 +1120,7 @@ function renderAnimePanel(x, selectedSeason, historyRows, historyError=""){
       <div class="panel-box ${completed?"is-completed":""}"><div class="progress-row"><b>▶️ Progresso geral</b><b>${completed?'Concluído':sp.percent!=null?sp.percent+"%":"Não informado"}</b></div><div class="progress"><i style="width:${completed?100:(sp.percent??0)}%"></i></div><div class="next-row"><span>${completed?'Todas as temporadas marcadas como concluídas':`Temporada ${currentSeason} · Episódio ${currentEp}/${currentTotal||"?"}`}</span>${!completed&&next?`<button class="btn primary" data-panel-next="${esc(x.id)}" data-season="${Number(next.season||currentSeason)}" data-next-episode="${Number(next.episode||0)}">▶️ ${esc(next.label||"Próximo episódio")}</button>`:""}</div>${currentTotal?`<div class="episode-track"><div class="episode-track-title"><b>📺 Episódios da temporada selecionada</b><span class="muted">${currentEp}/${currentTotal}</span></div><div class="episode-list">${episodeButtons}</div>${currentTotal>120?`<div class="muted">Mostrando os primeiros 120 episódios; total cadastrado: ${currentTotal}.</div>`:""}</div>`:`<div class="note">O total de episódios desta temporada ainda não foi informado.</div>`}${!completed?`<div class="panel-episode-editor"><label for="panelEpisodeNumber">Registrar episódio assistido · Temporada ${currentSeason}</label><div class="panel-episode-entry"><input id="panelEpisodeNumber" type="number" min="0" max="${currentTotal||10000}" step="1" value="${currentEp}" inputmode="numeric" aria-label="Número do último episódio assistido"><button class="btn primary" type="button" data-panel-set-episode="${esc(x.id)}" data-season="${currentSeason}">Salvar episódio</button></div><small>Opcional: atualize somente quando quiser registrar até qual episódio assistiu.</small></div>`:`<div class="note">Todas as temporadas estão marcadas como concluídas. O registro manual fica disponível enquanto você estiver assistindo.</div>`}</div>
       <h3 class="section-title">📚 Temporadas</h3>${seasonsMarkup}
       <h3 class="section-title">📋 Informações do cadastro</h3><div class="panel-grid">${field("Data de início",x.start_date,datePT(x.start_date))}${field("Data de término",x.end_date,datePT(x.end_date))}${field("Nota pessoal",x.rating,x.rating==null?null:"⭐ "+x.rating)}${field("Favorito",true,favorite?"Sim":"Não")}${field("Gêneros",genresArr(x))}</div>
-      ${(()=>{const notes=String(x.notes||"").trim().replace(/^.*Cálculo da nota:.*$/gim,"").trim();return `<div class="panel-box"><h3 style="margin:0 0 10px">📝 Minha avaliação</h3><div style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;color:#d4dbea">${notes?esc(notes):"Nenhuma observação adicionada."}</div></div>`;})()}${historyMarkup}
+      ${(()=>{const notes=cleanReviewNotes(x.notes).replace(/^.*Cálculo da nota:.*$/gim,"").trim();return `<div class="panel-box"><h3 style="margin:0 0 10px">📝 Minha avaliação</h3><div style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;color:#d4dbea">${notes?esc(notes):"Nenhuma observação adicionada."}</div></div>`;})()}${historyMarkup}
       <div class="actions"><button class="btn" data-panel-fav="${esc(x.id)}">${favorite?"❤️ Remover favorito":"🤍 Favoritar"}</button><button class="btn" data-panel-edit="${esc(x.id)}">✏️ Editar</button></div>`;
   }catch(error){
     console.error("[Cime] Falha ao montar painel do anime:",error);
@@ -1237,16 +1244,14 @@ async function importReviewRecords(file){
   const normalizeTitle=value=>String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   const categories=['Anime','Série','Filme','Desenho','Animação / Série','Filme de animação'];
   const statuses=['Quero assistir','Assistindo','Concluído','Pausado','Abandonado','Aguardando','Não informado'];
-  const marker='[HISTÓRICO GPT - CIME 5.0]';
   const makeNotes=(oldNotes,item)=>{
-    const old=String(oldNotes||'');
-    const base=(old.includes(marker)?old.slice(0,old.indexOf(marker)):old).trim();
+    const base=cleanReviewNotes(oldNotes);
+    const review=cleanReviewNotes(item.notes);
     const blocks=[
-      marker,
-      'Opinião completa:\n'+String(item.notes||'').trim(),
-      item.summary?'Resumo:\n'+String(item.summary).trim():'',
-      'Recomendação: '+String(item.recommendation||'Não informado'),
-            'Favorito: '+(item.favorite===null||item.favorite===undefined?'Não informado na avaliação':(item.favorite?'Sim':'Não'))
+      review,
+      item.summary?'Resumo: '+String(item.summary).trim():'',
+      item.recommendation?'Recomendação: '+String(item.recommendation).trim():'',
+      item.favorite===null||item.favorite===undefined?'':'Favorito: '+(item.favorite?'Sim':'Não')
     ].filter(Boolean);
     return [base,blocks.join('\n\n')].filter(Boolean).join('\n\n').slice(0,12000);
   };
@@ -1347,8 +1352,8 @@ async function importReviewRecords(file){
     }catch(error){failed++;failures.push(name+': '+(error?.message||'erro ao salvar'));console.error('Falha ao importar '+name,error);}
   }
   await load();
-  showToast('✅ Histórico GPT: '+created+' criada(s), '+updated+' atualizada(s), '+failed+' com erro.'+(failures.length?' Confira o resultado da importação.':''));
-  if(failures.length)console.warn('Falhas na importação do Histórico GPT:',failures);
+  showToast('✅ Avaliações importadas: '+created+' criada(s), '+updated+' atualizada(s), '+failed+' com erro.'+(failures.length?' Confira o resultado da importação.':''));
+  if(failures.length)console.warn('Falhas na importação das avaliações:',failures);
   return {created,updated,failed};
 }
 
@@ -1665,11 +1670,13 @@ $("animeDetails").onclick=e=>{
    const season=Number(x.season_number||lastUploadAsset?.season||1)||1;
    const captured=lastUploadAsset?.captured_at||'';
    const safeCover=x.cover||x.cover_url||'';
+   const detectedGenres=genresArr({genres:x.genres});
+   const mergedGenres=[...new Map([...genresArr(existing),...detectedGenres].map(g=>[String(g).trim().toLocaleLowerCase('pt-BR'),String(g).trim()])).values()];
    if(existing){
      const ss=seasonEntries(existing), by={};
      ss.forEach(e=>by[Number(e.season||1)]=e);
      by[season]={...(by[season]||{season}),season,episodes:x.episodes??by[season]?.episodes??'',score:by[season]?.score??x.score??'',status:by[season]?.status||'Quero assistir',cover:safeCover||by[season]?.cover||coverOf(existing),season_name:x.season||by[season]?.season_name||''};
-     openEdit({...existing,current_season:season,total_seasons:Math.max(Number(existing.total_seasons||1),season),captured_at:captured,start_date:existing.start_date||captured,end_date:existing.end_date||'',seasons_json:JSON.stringify(Object.values(by)),local_cover_photos:Array.isArray(existing.local_cover_photos)?existing.local_cover_photos:[]});
+     openEdit({...existing,genres:mergedGenres,current_season:season,total_seasons:Math.max(Number(existing.total_seasons||1),season),captured_at:captured,start_date:existing.start_date||captured,end_date:existing.end_date||'',seasons_json:JSON.stringify(Object.values(by)),local_cover_photos:Array.isArray(existing.local_cover_photos)?existing.local_cover_photos:[]});
    }else{
      openEdit({name:x.title||'',category:typePT(x.type||x.category)||'Anime',status:'Quero assistir',rating:x.score??'',episodes:x.episodes??'',current_episode:0,current_season:season,total_seasons:season,start_date:captured||'',end_date:'',favorite:0,cover:safeCover,local_cover_photos:[],title_english:x.title_english||'',title_japanese:x.title_japanese||'',synopsis:x.synopsis||x.synopsis_pt||'',synopsis_pt:x.synopsis_pt||x.synopsis||'',year:x.year||'',season:x.season||'',duration:x.duration||'',genres:x.genres||[],captured_at:captured,seasons_json:JSON.stringify([{season,episodes:x.episodes??'',score:x.score??'',status:'Quero assistir',cover:safeCover,season_name:x.season||''}]),id:''});
    }
@@ -1800,30 +1807,30 @@ async function enrichSavedTitle(id){
 
 async function enrichLibrary(){
   const btn=$('enrichLibrary'), banner=$('enrichBanner'), text=$('enrichText'), bar=$('enrichBar');
-  if(btn){btn.disabled=true;btn.textContent='🔎 Pesquisando...';} if(banner) banner.style.display='flex';
+  if(btn){btn.disabled=true;btn.textContent='🔎 Completando...';} if(banner) banner.style.display='flex';
   let scanned=0, changed=0, cursor=0, guard=0;
   try{
     // Varre a biblioteca inteira por ID, sem repetir os mesmos títulos quando uma fonte não encontra correspondência.
     while(guard++<200){
-      const r=await api('/api/library/enrich?mode=names_synopses&limit=6&after_id='+cursor);
+      const r=await api('/api/library/enrich?mode=full&limit=6&after_id='+cursor);
       const batch=r.results||[];
       scanned+=Number(r.processed||0);
       changed+=batch.filter(x=>x.changed).length;
       const nextCursor=Number(r.next_after_id||0);
-      if(text) text.textContent=`🔎 Pesquisa de títulos: ${scanned} verificado(s) · ${changed} correção(ões) ou sinopse(s) adicionada(s). Avaliações preservadas.`;
+      if(text) text.textContent=`🔎 Informações: ${scanned} título(s) verificado(s) · ${changed} com dados completados, incluindo gêneros quando disponíveis. Avaliações preservadas.`;
       if(bar) bar.style.width=Math.min(98,Math.max(4,scanned%100))+'%';
       if(!batch.length || r.finished || nextCursor<=cursor) break;
       cursor=nextCursor;
       await load();
     }
     if(bar) bar.style.width='100%';
-    if(text) text.textContent=`✅ Pesquisa concluída: ${scanned} título(s) conferidos e ${changed} com nome ou sinopse atualizados. Suas avaliações foram preservadas.`;
-    showToast(`✅ ${changed} título(s) corrigidos. Avaliações preservadas.`);
+    if(text) text.textContent=`✅ Concluído: ${scanned} título(s) conferidos e ${changed} com informações completadas. Gêneros foram preenchidos quando as fontes encontraram correspondência confiável. Suas avaliações foram preservadas.`;
+    showToast(`✅ ${changed} título(s) tiveram informações completadas. Avaliações preservadas.`);
     await load();
   }catch(e){
     if(text) text.textContent='⚠️ A análise foi interrompida, mas o que já foi salvo continua guardado.';
     showToast('⚠️ '+e.message);
-  }finally{if(btn){btn.disabled=false;btn.textContent='🔎 Pesquisar nomes e sinopses';}}
+  }finally{if(btn){btn.disabled=false;btn.textContent='🔎 Completar informações';}}
 }
 if($('enrichLibrary')) $('enrichLibrary').onclick=enrichLibrary;
 
@@ -2625,6 +2632,38 @@ img{max-width:100%}
   home.id='c5MobileHomeView';
   home.setAttribute('aria-label','Início do Cime dos Mundos');
   home.innerHTML='<div class="c5-mobile-home-top"><div><div class="c5-mobile-home-eyebrow">CIME DOS MUNDOS 5.0</div><h2>Seu próximo universo começa aqui.</h2><p>Continue sua jornada, descubra histórias e organize tudo em um só lugar.</p></div></div><div id="c5MobileHero" class="c5-mobile-hero"></div><div class="c5-mobile-home-actions"><button type="button" id="c5HomeAdd">＋ Adicionar título</button><button type="button" id="c5HomeImage">📷 Identificar por imagem</button><button type="button" id="c5HomeLibrary">▦ Ver minha biblioteca</button><button type="button" id="c5HomeHistory">📥 Importar histórico</button></div><div class="c5-mobile-home-categories" role="group" aria-label="Filtrar sua coleção"><button type="button" class="is-active" data-c5-home-category="all" aria-pressed="true">✦ Seu universo</button><button type="button" data-c5-home-category="Anime" aria-pressed="false">🎌 Animes</button><button type="button" data-c5-home-category="Série" aria-pressed="false">📺 Séries</button><button type="button" data-c5-home-category="Filme" aria-pressed="false">🎬 Filmes</button></div><section id="c5PublicRecommendations" class="c5-public-recommendations" aria-label="Publicações e recomendações da comunidade"><div class="c5-public-rec-head"><div><b>🌐 Recomendações da comunidade</b><small>Descubra o que outras pessoas estão assistindo.</small></div><span>EM BREVE</span></div><div class="c5-public-rec-empty">Em breve, este espaço vai mostrar recomendações públicas em cartões compactos com capa, nota e uma frase. Seus grupos continuam privados.</div></section><div id="c5MobileShelves"></div><div id="c5MobileHomeEmpty" class="c5-mobile-home-empty" hidden><h3>Sua coleção começa aqui</h3><p>Adicione seus primeiros títulos ou importe seu histórico para organizar o que você já acompanha.</p><button type="button" id="c5HomeEmptyAdd">＋ Adicionar primeiro título</button></div>';
+  const heroPicker=document.createElement('dialog');
+  heroPicker.id='c5HeroPickerDlg';
+  heroPicker.innerHTML='<div class="c5-hero-picker-head"><div><b>Escolher destaque</b><small>Selecione um título da sua biblioteca para usar a capa no início.</small></div><button type="button" data-c5-picker-close aria-label="Fechar">✕</button></div><input id="c5HeroPickerSearch" type="search" placeholder="Pesquisar título..." autocomplete="off"><div id="c5HeroPickerGrid" class="c5-hero-picker-grid"></div><div class="c5-hero-picker-foot"><button type="button" data-c5-hero-auto>Usar destaque automático</button></div>';
+  home.appendChild(heroPicker);
+  const heroPickerStyle=document.createElement('style');
+  heroPickerStyle.id='c5-home-feature-picker-styles';
+  heroPickerStyle.textContent=`
+    .c5-mobile-hero-controls{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;pointer-events:auto}
+    .c5-mobile-hero-controls button{pointer-events:auto!important;margin:0!important;min-height:34px!important;padding:7px 11px!important;border-radius:10px!important;background:linear-gradient(135deg,#8b72ff,#5c4bd8)!important;color:#fff!important;font-size:10px!important;font-weight:900!important}
+    .c5-mobile-hero-controls button[data-c5-hero-choose]{background:rgba(13,19,32,.84)!important;border:1px solid rgba(196,181,253,.5)!important}
+    .c5-mobile-hero-genres{display:block!important;max-width:100%;margin-top:5px!important;color:#d7d3f7!important;font-size:9px!important;line-height:1.35!important}
+    #c5HeroPickerDlg{width:min(94vw,620px);max-width:620px;max-height:84dvh;margin:auto;padding:16px;border:1px solid #394364;border-radius:19px;background:#0c1220;color:#f5f7fb;box-shadow:0 25px 90px #000c;overflow:auto}
+    #c5HeroPickerDlg::backdrop{background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}
+    .c5-hero-picker-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+    .c5-hero-picker-head b{display:block;font-size:17px}
+    .c5-hero-picker-head small{display:block;margin-top:4px;color:#9eabc2;font-size:11px;line-height:1.4}
+    .c5-hero-picker-head button{width:34px;height:34px;flex:0 0 34px;border:1px solid #33405b;border-radius:10px;background:#151e30;color:#fff}
+    #c5HeroPickerSearch{width:100%;margin-bottom:13px;padding:11px 12px;border:1px solid #303c57;border-radius:11px;background:#101827;color:#fff;font:inherit}
+    .c5-hero-picker-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .c5-hero-picker-item{display:flex;min-width:0;flex-direction:column;gap:6px;padding:7px;text-align:left;border:1px solid #293650;border-radius:12px;background:#111a2a;color:#f5f7fb}
+    .c5-hero-picker-item.is-selected{border-color:#9b83ff;box-shadow:0 0 0 1px #9b83ff inset}
+    .c5-hero-picker-poster{display:grid;place-items:center;width:100%;aspect-ratio:2/3;overflow:hidden;border-radius:8px;background:#202a3d;color:#c4b5fd;font-size:28px}
+    .c5-hero-picker-poster img{display:block;width:100%;height:100%;object-fit:cover}
+    .c5-hero-picker-name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:11px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+    .c5-hero-picker-category{color:#9eabc2;font-size:9px}
+    .c5-hero-picker-empty{grid-column:1/-1;padding:20px;text-align:center;color:#9eabc2;font-size:12px}
+    .c5-hero-picker-foot{display:flex;justify-content:flex-end;margin-top:13px;padding-top:12px;border-top:1px solid #26324a}
+    .c5-hero-picker-foot button{padding:9px 12px;border:1px solid #5b4d91;border-radius:10px;background:#211b3b;color:#e4dcff;font-size:11px;font-weight:800}
+    @media(max-width:430px){.c5-hero-picker-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  `;
+  document.head.appendChild(heroPickerStyle);
+
   const main=q('main');
   if(main)main.insertBefore(home,main.firstChild);
   const header=q('header');
@@ -2644,6 +2683,34 @@ img{max-width:100%}
   const getTitles=()=>typeof titles!=='undefined'&&Array.isArray(titles)?titles:[];
   const e=v=>typeof esc==='function'?esc(String(v==null?'':v)):String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const iconFor=x=>String(x&&x.category||'').toLowerCase().includes('anime')?'🎌':String(x&&x.category||'').toLowerCase().includes('filme')?'🎬':'📺';
+  function featuredHeroStorageKey(){
+    let uid=window.cimeSessionUser?.id;
+    try{if(uid==null)uid=localStorage.getItem('cime5LastUserId');}catch(_){}
+    return 'cime5:home-featured:'+String(uid||'local');
+  }
+  function getFeaturedHeroId(){try{return localStorage.getItem(featuredHeroStorageKey())||'';}catch(_){return '';}}
+  function setFeaturedHeroId(id){try{if(id)localStorage.setItem(featuredHeroStorageKey(),String(id));else localStorage.removeItem(featuredHeroStorageKey());}catch(_){}}
+  function featuredCover(item){try{return typeof coverOf==='function'?(coverOf(item)||''):'';}catch(_){return '';}}
+  function renderHeroPicker(query=''){
+    const grid=q('#c5HeroPickerGrid');if(!grid)return;
+    const needle=String(query||'').trim().toLocaleLowerCase('pt-BR');
+    const selected=getFeaturedHeroId();
+    const items=getTitles().filter(item=>!needle||[item.name,item.title,item.title_english,item.category].filter(Boolean).join(' ').toLocaleLowerCase('pt-BR').includes(needle));
+    if(!items.length){grid.innerHTML='<div class="c5-hero-picker-empty">Nenhum título encontrado na biblioteca.</div>';return;}
+    grid.innerHTML=items.map(item=>{
+      const id=e(item.id),name=item.name||item.title||'Título sem nome',cover=featuredCover(item);
+      const poster=cover?'<img src="'+e(cover)+'" alt="" loading="lazy">':'<span>'+iconFor(item)+'</span>';
+      const active=String(item.id)===String(selected);
+      return '<button type="button" class="c5-hero-picker-item'+(active?' is-selected':'')+'" data-c5-pick-hero-id="'+id+'"><span class="c5-hero-picker-poster">'+poster+'</span><span class="c5-hero-picker-name">'+e(name)+'</span><span class="c5-hero-picker-category">'+e(item.category||'Obra')+'</span></button>';
+    }).join('');
+  }
+  function openHeroPicker(){
+    const dlg=q('#c5HeroPickerDlg');if(!dlg)return;
+    const search=q('#c5HeroPickerSearch');if(search)search.value='';
+    renderHeroPicker('');
+    if(typeof dlg.showModal==='function'){if(!dlg.open)dlg.showModal();}else dlg.setAttribute('open','');
+  }
+  heroPicker.addEventListener('input',ev=>{if(ev.target&&ev.target.id==='c5HeroPickerSearch')renderHeroPicker(ev.target.value);});
   function shelfCard(x){
     const id=e(x.id);
     const name=x.name||x.title||'Título sem nome';
@@ -2675,14 +2742,19 @@ img{max-width:100%}
   }
   function renderHero(items){
     const root=q('#c5MobileHero');if(!root)return;
-    const all=Array.isArray(items)?items:getTitles();
-    const item=all.find(x=>x.status==='Assistindo')||all.find(x=>x.favorite)||all[0];
+    const visible=Array.isArray(items)?items:getTitles();
+    const all=getTitles();
+    const selectedId=getFeaturedHeroId();
+    const selected=selectedId?all.find(x=>String(x.id)===String(selectedId)):null;
+    const item=selected||visible.find(x=>x.status==='Assistindo')||visible.find(x=>x.favorite)||visible[0];
     if(!item){root.innerHTML='<div class="c5-mobile-hero-empty"><span class="c5-mobile-hero-mark">C</span><div><b>Seu universo começa aqui</b><small>Adicione um título para montar sua coleção.</small></div></div>';return;}
     const name=item.name||item.title||'Sua próxima história';
-    let cover='';try{if(typeof coverOf==='function')cover=coverOf(item)||'';}catch(_){}
-    const image=cover?'<img class="c5-mobile-hero-image" src="'+e(cover)+'" alt="" loading="lazy">':'';
-    const state=item.status==='Assistindo'?'CONTINUE DE ONDE PAROU':item.favorite?'DA SUA LISTA DE FAVORITOS':'EM SUA COLEÇÃO';
-    root.innerHTML='<div class="c5-mobile-hero-art">'+image+'<div class="c5-mobile-hero-shade"></div></div><div class="c5-mobile-hero-content"><span class="c5-mobile-hero-kicker">✦ '+e(state)+'</span><b>'+e(name)+'</b><small>'+(item.status==='Assistindo'?'Sua jornada continua.':'Uma história da sua coleção.')+'</small><button type="button" data-c5-hero-id="'+e(item.id)+'">Ver detalhes <span>↗</span></button></div>';
+    const cover=featuredCover(item);
+    const image=cover?'<img class="c5-mobile-hero-image" src="'+e(cover)+'" alt="Capa de '+e(name)+'" loading="lazy">':'';
+    const state=selected?'SEU DESTAQUE':item.status==='Assistindo'?'CONTINUE DE ONDE PAROU':item.favorite?'DA SUA LISTA DE FAVORITOS':'EM SUA COLEÇÃO';
+    let genres=[];try{genres=Array.isArray(item.genres)?item.genres.filter(Boolean).map(String):String(item.genres||'').split(',').map(x=>x.trim()).filter(Boolean);}catch(_){}
+    const genreLine=genres.length?'<small class="c5-mobile-hero-genres">'+e(genres.slice(0,4).map(g=>typeof genrePT==='function'?genrePT(g):g).join(' · '))+'</small>':'';
+    root.innerHTML='<div class="c5-mobile-hero-art">'+image+'<div class="c5-mobile-hero-shade"></div></div><div class="c5-mobile-hero-content"><span class="c5-mobile-hero-kicker">✦ '+e(state)+'</span><b>'+e(name)+'</b><small>'+(item.status==='Assistindo'?'Sua jornada continua.':'Uma história da sua coleção.')+'</small>'+genreLine+'<div class="c5-mobile-hero-controls"><button type="button" data-c5-hero-id="'+e(item.id)+'">Ver detalhes ↗</button><button type="button" data-c5-hero-choose>Escolher capa</button></div></div>';
   }
   function renderShelves(){
     const root=q('#c5MobileShelves');if(!root)return;
@@ -2751,6 +2823,11 @@ img{max-width:100%}
   q('#c5MobileGroups')&&q('#c5MobileGroups').addEventListener('click',function(){const sheet=q('#c5MobileMoreSheet');if(sheet)sheet.hidden=true;const more=q('#c5MobileMore');if(more)more.classList.remove('active');});
   ['#c5MobileStats','#c5MobileSettings','#c5MobileHistory','#c5MobileCovers'].forEach(function(sel){const btn=q(sel);if(btn)btn.addEventListener('click',function(){const more=q('#c5MobileMore');if(more)more.classList.remove('active');});});
   home.addEventListener('click',function(ev){
+    if(ev.target.closest('[data-c5-hero-choose]')){openHeroPicker();return;}
+    const chosen=ev.target.closest('[data-c5-pick-hero-id]');
+    if(chosen){setFeaturedHeroId(chosen.dataset.c5PickHeroId);if(heroPicker.open&&typeof heroPicker.close==='function')heroPicker.close();else heroPicker.removeAttribute('open');renderShelves();return;}
+    if(ev.target.closest('[data-c5-hero-auto]')){setFeaturedHeroId('');if(heroPicker.open&&typeof heroPicker.close==='function')heroPicker.close();else heroPicker.removeAttribute('open');renderShelves();return;}
+    if(ev.target.closest('[data-c5-picker-close]')){if(heroPicker.open&&typeof heroPicker.close==='function')heroPicker.close();else heroPicker.removeAttribute('open');return;}
     const categoryButton=ev.target.closest('[data-c5-home-category]');
     if(categoryButton){selectedHomeCategory=categoryButton.dataset.c5HomeCategory||'all';renderShelves();return;}
     if(ev.target.closest('#c5HomeAdd')){const addButton=q('#add');if(addButton)addButton.click();return;}
