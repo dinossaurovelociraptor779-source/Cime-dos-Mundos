@@ -2431,7 +2431,7 @@ async function c5photoAdd(){
   q('#c5MobileStats')?.addEventListener('click',()=>{closeMore();view('stats')});
   q('#c5MobileSettings')?.addEventListener('click',()=>{closeMore();q('#settingsBtn')?.click()});
   q('#c5MobileHistory')?.addEventListener('click',()=>{closeMore();q('#openHistoryImport')?.click()});
-  q('#c5MobileCovers')?.addEventListener('click',()=>{closeMore();q('#refreshCovers')?.click()});
+  q('#c5MobileCovers')?.addEventListener('click',()=>{closeMore();q('#findLibraryErrors')?.click()});
   q('#c5InstallApp')?.addEventListener('click',async()=>{
     if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;return;}
     alert('No Android/Chrome: use o menu do navegador e escolha “Adicionar à tela inicial”.');
