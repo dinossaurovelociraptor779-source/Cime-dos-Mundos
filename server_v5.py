@@ -168,6 +168,8 @@ def init_auth():
     CREATE TABLE IF NOT EXISTS group_members(group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,role TEXT NOT NULL DEFAULT 'member',status TEXT NOT NULL DEFAULT 'active',joined_at TEXT NOT NULL,PRIMARY KEY(group_id,user_id));
     CREATE TABLE IF NOT EXISTS group_invites(id INTEGER PRIMARY KEY AUTOINCREMENT,group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,inviter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,email TEXT NOT NULL,token_hash TEXT UNIQUE NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at TEXT NOT NULL,expires_at TEXT NOT NULL,accepted_by INTEGER REFERENCES users(id));
     CREATE TABLE IF NOT EXISTS group_recommendations(id INTEGER PRIMARY KEY AUTOINCREMENT,group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,title_name TEXT NOT NULL,recommendation TEXT NOT NULL,created_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS community_recommendations(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,title_id INTEGER NOT NULL,title_name TEXT NOT NULL,category TEXT NOT NULL DEFAULT '',cover_url TEXT NOT NULL DEFAULT '',rating REAL NOT NULL,note TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS idx_community_recommendations_created ON community_recommendations(created_at DESC);
     CREATE TABLE IF NOT EXISTS group_photos(id INTEGER PRIMARY KEY AUTOINCREMENT,group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,filename TEXT NOT NULL,mime TEXT NOT NULL,path TEXT NOT NULL,caption TEXT DEFAULT '',taken_at TEXT DEFAULT '',location TEXT DEFAULT '',created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS group_messages(id INTEGER PRIMARY KEY AUTOINCREMENT,group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,kind TEXT NOT NULL DEFAULT 'text',body TEXT DEFAULT '',photo_id INTEGER REFERENCES group_photos(id) ON DELETE SET NULL,created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS group_share_links(id INTEGER PRIMARY KEY AUTOINCREMENT,group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,inviter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,token_hash TEXT UNIQUE NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'active');
@@ -747,6 +749,13 @@ class Gateway(BaseHTTPRequestHandler):
                     oldest=min(_BOOTSTRAP_CACHE.items(), key=lambda kv:kv[1][0])[0]
                     _BOOTSTRAP_CACHE.pop(oldest,None)
             return self.send_json(payload)
+        if path=='/api/community/recommendations':
+            u=require(self)
+            if not u:return
+            c=auth_db()
+            rows=c.execute('SELECT r.id,r.title_name,r.category,r.cover_url,r.rating,r.note,r.created_at,u.display_name FROM community_recommendations r JOIN users u ON u.id=r.user_id ORDER BY r.created_at DESC LIMIT 60').fetchall()
+            c.close()
+            return self.send_json([dict(r) for r in rows])
         if path=='/api/creator/feedback':
             u=require(self)
             if not u: return
@@ -991,6 +1000,53 @@ class Gateway(BaseHTTPRequestHandler):
                     self.send_response(200); self.send_header('Content-Type','image/png'); self.send_header('Cache-Control','no-store'); self.send_header('Connection','keep-alive'); self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data); return
                 except Exception as e:
                     return self.send_json({'error':f'Não foi possível gerar o QR Code: {e}'},500)
+            if path=='/api/community/recommendations':
+                u=require(self)
+                if not u:return
+                d=json.loads(self.body().decode('utf-8') or '{}')
+                try:title_id=int(d.get('title_id') or 0)
+                except Exception:title_id=0
+                try:rating=float(d.get('rating'))
+                except Exception:rating=0
+                note=str(d.get('note') or '').strip()
+                if not title_id:return self.send_json({'error':'Escolha um título da sua biblioteca.'},400)
+                if not 1<=rating<=10:return self.send_json({'error':'A nota precisa ficar entre 1 e 10.'},400)
+                if len(note)>500:return self.send_json({'error':'A opinião pode ter até 500 caracteres.'},400)
+                # Confere se o título realmente pertence à biblioteca da conta autenticada.
+                _tls.user_id=u['id']
+                try:
+                    owned=next((x for x in legacy.all_titles() if int(x.get('id') or 0)==title_id),None)
+                finally:
+                    _tls.__dict__.pop('user_id',None)
+                if not owned:return self.send_json({'error':'Esse título não pertence à sua biblioteca.'},403)
+                # Moderation: reject contact details, repeated spam and abusive language.
+                import unicodedata
+                normalized=unicodedata.normalize('NFKD',note.casefold())
+                normalized=''.join(ch for ch in normalized if not unicodedata.combining(ch))
+                compact=re.sub(r'[^a-z0-9]+',' ',normalized).strip()
+                if re.search(r'(?i)(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\s().-]*){9,})',note):
+                    return self.send_json({'error':'Por segurança, não publique e-mail, telefone ou dados de contato.'},400)
+                blocked_terms=('porra','caralho','merda','puta','puto','viado','foda-se','fodase','buceta','piranha','retardado','macaco','nazista')
+                words=set(compact.split())
+                if any(term in words for term in blocked_terms):
+                    return self.send_json({'error':'Sua publicação contém linguagem que não é permitida. Reescreva de forma respeitosa.'},400)
+                if re.search(r'(.)\1{7,}',note) or len(re.findall(r'https?://|www\.',note,re.I))>0:
+                    return self.send_json({'error':'A publicação parece conter spam ou links. Remova esses trechos e tente novamente.'},400)
+                now=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
+                c=auth_db()
+                recent=c.execute('SELECT created_at FROM community_recommendations WHERE user_id=? ORDER BY id DESC LIMIT 1',(u['id'],)).fetchone()
+                if recent:
+                    try:
+                        last=datetime.fromisoformat(recent['created_at'])
+                        if (datetime.now(timezone.utc).replace(tzinfo=None)-last).total_seconds()<30:
+                            c.close();return self.send_json({'error':'Aguarde alguns segundos antes de publicar outra recomendação.'},429)
+                    except Exception:pass
+                cover=str(owned.get('cover') or '')
+                if not (cover.startswith('https://') or cover.startswith('/media/')):cover=''
+                category=str(owned.get('category') or 'Não informado')[:60]
+                cur=c.execute('INSERT INTO community_recommendations(user_id,title_id,title_name,category,cover_url,rating,note,created_at) VALUES(?,?,?,?,?,?,?,?)',(u['id'],title_id,str(owned.get('name') or '')[:180],category,cover,rating,note,now))
+                c.commit();post_id=cur.lastrowid;c.close()
+                return self.send_json({'success':True,'id':post_id},201)
             if path=='/api/groups':
                 u=require(self)
                 if not u:return
