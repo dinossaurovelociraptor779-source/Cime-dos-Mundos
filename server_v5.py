@@ -573,6 +573,7 @@ class Gateway(BaseHTTPRequestHandler):
                     not x.get('year'),
                     not x.get('duration'),
                     not x.get('genres'),
+                    not x.get('category'),
                     not x.get('season'),
                     not x.get('episodes') and not x.get('total_episodes'),
                     not x.get('source_id'),
@@ -1026,7 +1027,7 @@ class Gateway(BaseHTTPRequestHandler):
                 compact=re.sub(r'[^a-z0-9]+',' ',normalized).strip()
                 if re.search(r'(?i)(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\s().-]*){9,})',note):
                     return self.send_json({'error':'Por segurança, não publique e-mail, telefone ou dados de contato.'},400)
-                blocked_terms=('porra','caralho','merda','puta','puto','viado','foda-se','fodase','buceta','piranha','retardado','macaco','nazista')
+                blocked_terms=('porra','caralho','merda','puta','puto','viado','fodase','buceta','piranha','retardado','macaco','nazista')
                 words=set(compact.split())
                 if any(term in words for term in blocked_terms):
                     return self.send_json({'error':'Sua publicação contém linguagem que não é permitida. Reescreva de forma respeitosa.'},400)
@@ -1579,7 +1580,14 @@ def _safe_enrich_title(row, mode='full', force_cover=False):
     # Capas: além da capa principal, tenta preencher cada temporada individualmente.
     season_updates, season_changed = _refresh_season_covers(row, cover_source, diagnostics) if mode!='names_synopses' else ([],False)
     conn=legacy.db(); updates={}
-    category=cat or best.get('category') or 'Anime'
+    category=cat or best.get('category') or ''
+    if mode!='names_synopses' and not cat:
+        found_category=_clean_text(best.get('category'))
+        source_name=str(best.get('source') or '').strip().lower()
+        if found_category in ('Anime','Série','Filme','Desenho','Animação / Série','Filme de animação'):
+            updates['category']=found_category
+        elif source_name in ('jikan','anilist','kitsu'):
+            updates['category']='Anime'
     if mode=='names_synopses':
         matched_title=_clean_text(best.get('title') or best.get('name'))
         try: match_score=float(best.get('_match_score') or 0)
