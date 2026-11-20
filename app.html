@@ -1563,7 +1563,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
     .replace(/\b(watch now|assistir agora|play now|continue watching)\b/gi,' ')
     .replace(/\s+/g,' ').trim())
     .filter(line=>line.length>=3&&line.length<=96&&line.split(/\s+/).length<=10&&/[a-záàâãéêíóôõúç]/i.test(line));
-  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo|popular|most popular|trending|top picks|recommended|simulcast|all anime|anime|recently added|watchlist)(?:\s+\d+)?$/i;
+  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo|popular|most popular|trending|top picks|recommended|simulcast|all anime|anime|recently added|watchlist|originals|popular now|trending now|new and popular|latest simulcasts|recently updated|watch later|categories|genres|sort by|filters|see all|view all|free to watch)(?:\s+\d+)?$/i;
   const scoreLine=value=>{
     const words=value.split(/\s+/),letters=(value.match(/[a-záàâãéêíóôõúç]/gi)||[]).length;
     let score=0;
@@ -1608,7 +1608,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
     seen.add(key);queries.push(candidate);
     if(queries.length>=maxQueries)break;
   }
-  if(text.length>=5&&queries.length<Math.min(6,maxQueries)){
+  if(!isCrunchyroll&&text.length>=5&&queries.length<Math.min(6,maxQueries)){
     const compact=text.replace(/\s+/g,' ').trim().slice(0,180);
     const key=compact.toLocaleLowerCase();
     if(compact&&!seen.has(key))queries.push(compact);
@@ -1677,7 +1677,7 @@ try{
   if(brandProbe.isCrunchyroll){
     crunchyrollScan=await cimeBrowserOcrSearch(f,message=>{
       $('ocrStatus').innerHTML='<div class="loading">🎌 '+esc(message)+'</div>';
-    },{text:brandProbe.text});
+    });
     if((crunchyrollScan.detectedTitles||[]).length>=2){
       renderCrunchyrollScan(crunchyrollScan);
       return;
