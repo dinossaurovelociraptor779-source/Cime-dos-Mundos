@@ -1594,6 +1594,39 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
   };
   const candidates=[];
   if(isCatalog){
+    // Ajuda a separar dois nomes que o OCR às vezes junta na mesma linha de cards.
+    // A lista apenas cria consultas quando o nome aparece no texto realmente lido.
+    const knownAnimeSeeds=[
+      ['Demon Slayer',/\b(?:demon\s+slayer|kimetsu\s+no\s+yaiba)\b/i],
+      ['One Piece',/\bone\s+piece\b/i],
+      ['Naruto Shippuden',/\bnaruto\s+shippuden\b/i],
+      ['Naruto',/\bnaruto\b/i],
+      ['Jujutsu Kaisen',/\bjujutsu\s+kaisen\b/i],
+      ['Death Note',/\bdeath\s+note\b/i],
+      ['Hunter x Hunter',/\bhunter\s*[x×]\s*hunter\b/i],
+      ['Attack on Titan',/\b(?:attack\s+on\s+titan|shingeki\s+no\s+kyojin)\b/i],
+      ['My Hero Academia',/\b(?:my\s+hero\s+academia|boku\s+no\s+hero\s+academia)\b/i],
+      ['Spy x Family',/\bspy\s*[x×]\s*family\b/i],
+      ['Chainsaw Man',/\bchainsaw\s+man\b/i],
+      ['Tokyo Revengers',/\btokyo\s+revengers\b/i],
+      ['Fullmetal Alchemist',/\bfullmetal\s+alchemist\b/i],
+      ['Bleach',/\bbleach\b/i],
+      ['Dragon Ball',/\bdragon\s+ball(?:\s+(?:z|super))?\b/i],
+      ['Black Clover',/\bblack\s+clover\b/i],
+      ['Haikyu!!',/\bhaikyuu?u?!?\b/i],
+      ['Sword Art Online',/\bsword\s+art\s+online\b/i],
+      ['Dr. Stone',/\bdr\.?\s*stone\b/i],
+      ['Frieren: Beyond Journey’s End',/\b(?:frieren|sousou\s+no\s+frieren)\b/i],
+      ['Solo Leveling',/\bsolo\s+leveling\b/i],
+      ['Blue Lock',/\bblue\s+lock\b/i],
+      ['Vinland Saga',/\bvinland\s+saga\b/i],
+      ['Mob Psycho 100',/\bmob\s+psycho\s+100\b/i],
+      ['The Promised Neverland',/\bthe\s+promised\s+neverland\b/i],
+      ['Your Lie in April',/\b(?:your\s+lie\s+in\s+april|shigatsu\s+wa\s+kimi\s+no\s+uso)\b/i]
+    ];
+    for(const [seed,pattern] of knownAnimeSeeds)if(pattern.test(text))candidates.push(seed);
+  }
+  if(isCatalog){
     for(const line of rawLines){
       const parts=line.split(/\s*[•·|]\s*/).map(part=>part.trim()).filter(Boolean);
       candidates.push(...(parts.length?parts:[line]));
