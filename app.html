@@ -1577,7 +1577,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
     .replace(/\b(watch now|assistir agora|play now|continue watching)\b/gi,' ')
     .replace(/\s+/g,' ').trim())
     .filter(line=>line.length>=3&&line.length<=96&&line.split(/\s+/).length<=10&&/[a-záàâãéêíóôõúç]/i.test(line));
-  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo|popular|most popular|trending|top picks|recommended|simulcast|all anime|anime|recently added|watchlist|originals|popular now|trending now|new and popular|latest simulcasts|recently updated|watch later|categories|genres|sort by|filters|see all|view all|free to watch|because you watched|more like this|maturity rating|top 10 in brazil|new releases|netflix originals|trailers? and more|coming soon|remind me|my netflix|continue watching|recently watched|watch again|browse by languages|browse by genre|animes populares|animes em alta|séries populares|series populares|continuar assistindo|mais populares|em alta|recomendados)(?:\\s+\\d+)?$/i;
+  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo|popular|most popular|trending|top picks|recommended|simulcast|all anime|anime|recently added|watchlist|originals|popular now|trending now|new and popular|latest simulcasts|recently updated|watch later|categories|genres|sort by|filters|see all|view all|free to watch|because you watched|more like this|maturity rating|top 10 in brazil|new releases|netflix originals|trailers? and more|coming soon|remind me|my netflix|continue watching|recently watched|watch again|browse by languages|browse by genre|animes populares|animes em alta|séries populares|series populares|continuar assistindo|mais populares|em alta|recomendados)(?:\s+\d+)?$/i;
   const scoreLine=value=>{
     const words=value.split(/\s+/),letters=(value.match(/[a-záàâãéêíóôõúç]/gi)||[]).length;
     let score=0;
@@ -1624,7 +1624,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
       ['The Promised Neverland',/\bthe\s+promised\s+neverland\b/i],
       ['Your Lie in April',/\b(?:your\s+lie\s+in\s+april|shigatsu\s+wa\s+kimi\s+no\s+uso)\b/i]
     ];
-    for(const [seed,pattern] of knownAnimeSeeds){if(seed==='Naruto'&&/\\bnaruto\\s+shippuden\\b/i.test(text))continue;if(pattern.test(text))candidates.push(seed);}
+    for(const [seed,pattern] of knownAnimeSeeds){if(seed==='Naruto'&&/\bnaruto\s+shippuden\b/i.test(text))continue;if(pattern.test(text))candidates.push(seed);}
   }
   if(isCatalog){
     for(const line of rawLines){
