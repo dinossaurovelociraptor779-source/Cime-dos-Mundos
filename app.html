@@ -1976,7 +1976,7 @@ async function findLibraryErrors(){
 }
 if($('findLibraryErrors'))$('findLibraryErrors').onclick=findLibraryErrors;
 
-if($('enrichNow')) $('enrichNow').onclick=enrichLibrary;
+
 
 $('cimeBackButton').onclick=cimeGoBack;$('libraryTab').onclick=()=>showView('library');$('discoverTab').onclick=()=>showView('discover');$('statsTab').onclick=()=>showView('stats');$('discoverSearch').onclick=runDiscover;$('discoverInput').onkeydown=e=>{if(e.key==='Enter'){clearTimeout(discoverSearchTimer);runDiscover()}};$('settingsBtn').onclick=()=>openDialog('settingsDlg');$('cancelSettings').onclick=()=>closeDialog('settingsDlg');$('openHistoryImport').onclick=async()=>{openDialog('historyImportDlg');await loadImportedHistory();};$('openHistoryImportSettings').onclick=async()=>{openDialog('historyImportDlg');await loadImportedHistory();};$('closeHistoryImport').onclick=()=>closeDialog('historyImportDlg');$('doHistoryImport').onclick=importHistoryFiles;$('backupSettings').onclick=async()=>{try{const r=await fetch('/api/backup');if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Erro no backup')}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='CimeDosMundos_Backup_5.0_com_capas.zip';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('✅ Backup da biblioteca e das capas criado com sucesso.')}catch(e){showToast('❌ Não foi possível fazer o backup: '+e.message)}};
 
