@@ -1487,7 +1487,7 @@ async function cimeBrowserImageOcr(file,onProgress,options={}){
     throw error;
   }finally{clearTimeout(workerTimer);}
   let views=[];
-  try{views=await cimePrepareOcrViews(file);if(Number.isInteger(options.maxViews)&&options.maxViews>0)views=views.slice(0,options.maxViews);}catch(_){views=[{name:'imagem inteira',canvas:file,psm:'11'}];}
+  try{views=await cimePrepareOcrViews(file);if(Number.isInteger(options.maxViews)&&options.maxViews>0&&views.length>options.maxViews){const unused=views.splice(options.maxViews);unused.forEach(view=>{if(view.canvas){view.canvas.width=1;view.canvas.height=1;}});}}catch(_){views=[{name:'imagem inteira',canvas:file,psm:'11'}];}
   const collected=[],recognitionErrors=[];
   try{
     for(let i=0;i<views.length;i++){
@@ -1563,7 +1563,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
     .replace(/\b(watch now|assistir agora|play now|continue watching)\b/gi,' ')
     .replace(/\s+/g,' ').trim())
     .filter(line=>line.length>=3&&line.length<=96&&line.split(/\s+/).length<=10&&/[a-záàâãéêíóôõúç]/i.test(line));
-  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo)(?:\s+\d+)?$/i;
+  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo|popular|most popular|trending|top picks|recommended|simulcast|all anime|anime|recently added|watchlist)(?:\s+\d+)?$/i;
   const scoreLine=value=>{
     const words=value.split(/\s+/),letters=(value.match(/[a-záàâãéêíóôõúç]/gi)||[]).length;
     let score=0;
@@ -1603,7 +1603,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
   candidates.sort((a,b)=>scoreLine(b)-scoreLine(a));
   const maxQueries=isCrunchyroll?18:9;
   for(const candidate of candidates){
-    const key=candidate.toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+    const key=candidate.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
     if(!key||seen.has(key)||ignored.test(candidate)||scoreLine(candidate)<8)continue;
     seen.add(key);queries.push(candidate);
     if(queries.length>=maxQueries)break;
@@ -1634,7 +1634,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
           const best=ranked[0];
           if(best&&best.score>=66){
             const title=String(best.item.title||best.item.title_english||query).trim();
-            const key=title.toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+            const key=title.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
             const old=collected.get(key);
             if(!old||best.score>Number(old._match_score||0))
               collected.set(key,{...best.item,_match_score:best.score,_ocr_query:query});
