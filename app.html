@@ -1522,11 +1522,12 @@ async function cimeBrowserImageOcr(file,onProgress,options={}){
 
 
 
-function renderCrunchyrollScan(scan){
+function renderCatalogScan(scan){
+  const platform=scan?.isNetflix?'Netflix':'Crunchyroll';
   const items=Array.isArray(scan?.multiResults)?scan.multiResults:[];
   const unmatched=Array.isArray(scan?.unmatchedTitles)?scan.unmatchedTitles:[];
   window.__cimeCrunchyrollResults=items;
-  $('ocrStatus').innerHTML='<div class="note ok">🎌 Captura da Crunchyroll lida. O Cime encontrou <b>'+items.length+' anime(s)</b> no catálogo.</div><div class="note">Foram pesquisados os nomes legíveis na imagem. A leitura pode variar conforme a nitidez e o tamanho dos títulos.</div>';
+  $('ocrStatus').innerHTML='<div class="note ok">🎌 Captura da '+platform+' lida. O Cime encontrou <b>'+items.length+' anime(s)</b> no catálogo.</div><div class="note">Foram pesquisados individualmente os nomes legíveis na imagem. A leitura pode variar conforme a nitidez e o tamanho dos títulos.</div>';
   const cards=items.map((item,index)=>
     '<div class="result '+(index===0?'primary-result':'')+'" data-cr-item="'+index+'">'+
       '<div class="result-title">'+(index===0?'🎯 ':'🎌 ')+esc(item.title||'Anime')+'</div>'+
@@ -1551,16 +1552,18 @@ function renderCrunchyrollScan(scan){
 
 async function cimeBrowserOcrSearch(file,onProgress,options={}){
   const text=typeof options.text==='string'?options.text:await cimeBrowserImageOcr(file,onProgress,options.quickOnly?{maxViews:1}:{});
-  if(!text)return {text:'',results:[],multiResults:[],detectedTitles:[],unmatchedTitles:[],query:'',isCrunchyroll:false};
+  if(!text)return {text:'',results:[],multiResults:[],detectedTitles:[],unmatchedTitles:[],query:'',isCrunchyroll:false,isNetflix:false,isCatalog:false};
   const isCrunchyroll=/crunchyroll/i.test(text);
-  if(options.detectOnly)return {text,isCrunchyroll,results:[],multiResults:[],detectedTitles:[],unmatchedTitles:[],query:''};
+  const isNetflix=/netflix/i.test(text);
+  const isCatalog=isCrunchyroll||isNetflix;
+  if(options.detectOnly)return {text,isCrunchyroll,isNetflix,isCatalog,results:[],multiResults:[],detectedTitles:[],unmatchedTitles:[],query:''};
   const rawLines=text.split(/\r?\n/).map(line=>line
     .replace(/[|_]+/g,' ')
     .replace(/\b(netflix|crunchyroll)\b/gi,' ')
     .replace(/\b(watch now|assistir agora|play now|continue watching)\b/gi,' ')
     .replace(/\s+/g,' ').trim())
     .filter(line=>line.length>=3&&line.length<=96&&line.split(/\s+/).length<=10&&/[a-záàâãéêíóôõúç]/i.test(line));
-  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo|popular|most popular|trending|top picks|recommended|simulcast|all anime|anime|recently added|watchlist|originals|popular now|trending now|new and popular|latest simulcasts|recently updated|watch later|categories|genres|sort by|filters|see all|view all|free to watch)(?:\s+\d+)?$/i;
+  const ignored=/^(?:episode|epis[oó]dio|temporada|season|sign in|log in|coment[aá]rios|curtir|biblioteca|subscribe|copyright|all rights reserved|official trailer|trailer oficial|production|estudio|studio|home|browse|premium|new episodes|my list|search|perfil|in[ií]cio|continuar assistindo|popular|most popular|trending|top picks|recommended|simulcast|all anime|anime|recently added|watchlist|originals|popular now|trending now|new and popular|latest simulcasts|recently updated|watch later|categories|genres|sort by|filters|see all|view all|free to watch|because you watched|more like this|maturity rating|top 10 in brazil|new releases|netflix originals|trailers? and more|coming soon|remind me|my netflix|continue watching|recently watched|watch again|browse by languages|browse by genre)(?:\s+\d+)?$/i;
   const scoreLine=value=>{
     const words=value.split(/\s+/),letters=(value.match(/[a-záàâãéêíóôõúç]/gi)||[]).length;
     let score=0;
@@ -1576,7 +1579,7 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
     return score;
   };
   const candidates=[];
-  if(isCrunchyroll){
+  if(isCatalog){
     for(const line of rawLines){
       const parts=line.split(/\s*[•·|]\s*/).map(part=>part.trim()).filter(Boolean);
       candidates.push(...(parts.length?parts:[line]));
@@ -1598,32 +1601,32 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
   }
   const seen=new Set(),queries=[];
   candidates.sort((a,b)=>scoreLine(b)-scoreLine(a));
-  const maxQueries=isCrunchyroll?18:9;
+  const maxQueries=isCatalog?18:9;
   for(const candidate of candidates){
     const key=candidate.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
     if(!key||seen.has(key)||ignored.test(candidate)||scoreLine(candidate)<8)continue;
     seen.add(key);queries.push(candidate);
     if(queries.length>=maxQueries)break;
   }
-  if(!isCrunchyroll&&text.length>=5&&queries.length<Math.min(6,maxQueries)){
+  if(!isCatalog&&text.length>=5&&queries.length<Math.min(6,maxQueries)){
     const compact=text.replace(/\s+/g,' ').trim().slice(0,180);
     const key=compact.toLocaleLowerCase();
     if(compact&&!seen.has(key))queries.push(compact);
   }
-  if(!queries.length)return {text,results:[],multiResults:[],detectedTitles:[],unmatchedTitles:[],query:'',isCrunchyroll};
+  if(!queries.length)return {text,results:[],multiResults:[],detectedTitles:[],unmatchedTitles:[],query:'',isCrunchyroll,isNetflix,isCatalog};
   const collected=new Map(),lookupErrors=[],matchedQueries=new Set();
   let selectedQuery='',selectedIndex=Infinity,nextIndex=0;
-  const hasStrongMatch=()=>!isCrunchyroll&&(collected.size>=8||[...collected.values()].some(item=>Number(item._match_score||0)>=98));
+  const hasStrongMatch=()=>!isCatalog&&(collected.size>=8||[...collected.values()].some(item=>Number(item._match_score||0)>=98));
   const lookupWorker=async()=>{
     while(true){
       if(hasStrongMatch())return;
       const index=nextIndex++;if(index>=queries.length)return;
       const query=queries[index];
-      if(typeof onProgress==='function')onProgress((isCrunchyroll?'Lendo os animes visíveis da Crunchyroll':'Comparando o texto com o catálogo')+' ('+(index+1)+'/'+queries.length+')…');
+      if(typeof onProgress==='function')onProgress((isNetflix?'Lendo os animes visíveis da Netflix':isCrunchyroll?'Lendo os animes visíveis da Crunchyroll':'Comparando o texto com o catálogo')+' ('+(index+1)+'/'+queries.length+')…');
       try{
         const data=await api('/api/anime/search?q='+encodeURIComponent(query)+'&deep=0');
         const list=Array.isArray(data.results)?data.results:[];
-        if(isCrunchyroll){
+        if(isCatalog){
           const ranked=list.map(item=>({
             item,
             score:Math.max(Number(item._match_score||0),Number(data.diagnostics?.matched_score||0))
@@ -1650,33 +1653,35 @@ async function cimeBrowserOcrSearch(file,onProgress,options={}){
     }
   };
   await Promise.all(Array.from({length:Math.min(isCrunchyroll?2:2,queries.length)},()=>lookupWorker()));
-  const results=[...collected.values()].sort((a,b)=>Number(b._match_score||0)-Number(a._match_score||0)).slice(0,isCrunchyroll?18:10);
-  const unmatchedTitles=isCrunchyroll?queries.filter(query=>!matchedQueries.has(query)).slice(0,10):[];
+  const results=[...collected.values()].sort((a,b)=>Number(b._match_score||0)-Number(a._match_score||0)).slice(0,isCatalog?18:10);
+  const unmatchedTitles=isCatalog?queries.filter(query=>!matchedQueries.has(query)).slice(0,10):[];
   return {
     text,
     results,
-    multiResults:isCrunchyroll?results:[],
-    detectedTitles:isCrunchyroll?queries:[],
+    multiResults:isCatalog?results:[],
+    detectedTitles:isCatalog?queries:[],
     unmatchedTitles,
     query:selectedQuery||queries[0]||'',
     isCrunchyroll,
+    isNetflix,
+    isCatalog,
     lookupErrors:[...new Set(lookupErrors)].slice(0,4)
   };
 }
 
 $("imageInput").onchange=async()=>{const f=$("imageInput").files[0];if(!f)return;$("preview").src=URL.createObjectURL(f);$("preview").style.display='block';$("results").innerHTML='';$("animeDetails").innerHTML='';$("ocrStatus").innerHTML='<div class="loading">⚡ Foto carregada. Identificação iniciada...<br><span class="muted" id="visionTimer">⏱️ 0s · primeiro o caminho turbo; aprofundamento só se houver dúvida</span></div>';const _t0=performance.now();const _timer=setInterval(()=>{const s=Math.floor((performance.now()-_t0)/1000);const el=$("visionTimer");if(el)el.textContent=`⏱️ ${s}s · ⚡ turbo primeiro; aprofundamento só se necessário`},250);try{const recognitionBlob=await compressRecognitionImage(f);let up;try{up=await api('/api/upload',{method:'POST',headers:{'X-Filename':f.name,'X-Recognition-Original-Name':f.name},body:recognitionBlob});}catch(error){up={success:false,upload_error:String(error?.message||error),results:[],canonical_title:'',identity_confidence:0,identity_verified:false,vision:{configured:false,recognized:false,provider:'OCR do aparelho'}};}clearInterval(_timer);const v=up.vision||{};let title=(v.recognized&&v.title)||up.canonical_title||'';let conf=up.identity_confidence!=null?Math.round(up.identity_confidence*100):(v.confidence?Math.round(v.confidence*100):0);let verified=up.identity_verified===true;let season=up.season??v.season??null;let seasonTitle=up.season_title||v.season_title||'';let arc=up.arc||v.arc||'';const capturedAt=up.captured_at||'';lastUploadAsset={path:null,season:season,captured_at:capturedAt};
 
-let crunchyrollScan=null;
+let catalogScan=null;
 try{
   const brandProbe=await cimeBrowserOcrSearch(f,message=>{
     $('ocrStatus').innerHTML='<div class="loading">🔎 '+esc(message)+'</div>';
   },{quickOnly:true,detectOnly:true});
-  if(brandProbe.isCrunchyroll){
-    crunchyrollScan=await cimeBrowserOcrSearch(f,message=>{
+  if(brandProbe.isCatalog){
+    catalogScan=await cimeBrowserOcrSearch(f,message=>{
       $('ocrStatus').innerHTML='<div class="loading">🎌 '+esc(message)+'</div>';
     });
-    if((crunchyrollScan.detectedTitles||[]).length>=2){
-      renderCrunchyrollScan(crunchyrollScan);
+    if((catalogScan.detectedTitles||[]).length>=2){
+      renderCatalogScan(catalogScan);
       return;
     }
   }
@@ -1688,7 +1693,7 @@ if(!title){
   try{
     $('ocrStatus').innerHTML='<div class="loading">🧠 O servidor não confirmou o título. Iniciando OCR local como segunda etapa…</div>';
     if(!navigator.onLine){$('ocrStatus').innerHTML='<div class="note danger">⚠️ A identificação automática precisa de internet para consultar a IA e o catálogo. Sua biblioteca salva continua disponível offline.</div>';return;}
-     const fallback=crunchyrollScan||await cimeBrowserOcrSearch(f,message=>{$('ocrStatus').innerHTML='<div class="loading">🔎 '+esc(message)+'</div>';});
+     const fallback=catalogScan||await cimeBrowserOcrSearch(f,message=>{$('ocrStatus').innerHTML='<div class="loading">🔎 '+esc(message)+'</div>';});
     if(fallback.results.length){
       up.results=fallback.results;
       up.canonical_title=fallback.results[0].title||'';
