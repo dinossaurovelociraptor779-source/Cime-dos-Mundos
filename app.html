@@ -2441,7 +2441,7 @@ async function c5photoAdd(){
   document.addEventListener('click',e=>{
     const b=e.target.closest('#c5GroupTabs button'); if(!b)return;
     const section=b.dataset.gsection; document.querySelectorAll('#c5GroupTabs button').forEach(x=>x.classList.toggle('active',x===b));
-    const map={chat:'#c5chatSection',members:'#c5gmembers',rec:'#c5recSection',mem:'#c5memSection',share:'#c5shareSection'};
+    const map={chat:'#c5chatSection',members:'#c5gmembers',rec:'#c5recSection',mem:'#c5memSection',community:'#c5communitySection',share:'#c5shareSection'};
     Object.values(map).forEach(sel=>{const el=q(sel);if(el)el.style.display='none'});
     const main=q(map[section]); if(main)main.style.display='block';
     if(section==='rec')c5loadHistoryRecommendationOptions();
