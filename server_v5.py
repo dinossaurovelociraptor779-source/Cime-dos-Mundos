@@ -1043,7 +1043,7 @@ class Gateway(BaseHTTPRequestHandler):
                             c.close();return self.send_json({'error':'Aguarde alguns segundos antes de publicar outra recomendação.'},429)
                     except Exception:pass
                 cover=str(owned.get('cover') or '')
-                if not (cover.startswith('https://') or cover.startswith('/media/')):cover=''
+                if not cover.startswith('https://'):cover=''
                 category=str(owned.get('category') or 'Não informado')[:60]
                 cur=c.execute('INSERT INTO community_recommendations(user_id,title_id,title_name,category,cover_url,rating,note,created_at) VALUES(?,?,?,?,?,?,?,?)',(u['id'],title_id,str(owned.get('name') or '')[:180],category,cover,rating,note,now))
                 c.commit();post_id=cur.lastrowid;c.close()
